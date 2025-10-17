@@ -8,7 +8,11 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app      
+      - node_modules_cache:/app/node_modules    
+    command: npm run dev
     depends_on:
       - backend
 
@@ -40,3 +44,4 @@ services:
 
 volumes:
   db_data:
+  node_modules_cache:
