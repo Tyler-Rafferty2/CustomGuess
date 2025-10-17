@@ -1,0 +1,27 @@
+# Ignore Go build output
+bin/
+backend
+
+# Dependency directories
+vendor/
+*.modcache
+
+# OS / IDE files
+.DS_Store
+*.swp
+*.swo
+*.vscode/
+.idea/
+
+# Git files
+.git
+.gitignore
+
+# Logs and temp files
+*.log
+tmp/
+*.tmp
+
+# Docker files (optional if you don’t want nested builds)
+Dockerfile
+.dockerignore
