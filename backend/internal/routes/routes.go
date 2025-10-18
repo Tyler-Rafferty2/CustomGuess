@@ -11,9 +11,6 @@ import (
 )
 
 func MountRoutes(r chi.Router) {
-    r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-        w.Write([]byte("Hello from API"))
-    })
 
 	// Create services
     userService := services.NewUserService(config.DB)
@@ -23,10 +20,16 @@ func MountRoutes(r chi.Router) {
     userHandler := &handlers.UserHandler{Service: userService}
     lobbyHandler := &handlers.LobbyHandler{Service: lobbyService}
 
+    r.Use(middleware.CORSMiddleware)
+
+    r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+        w.Write([]byte("Hello from API"))
+    })
 
     r.Route("/users", func(r chi.Router) {
-    r.Post("/", userHandler.SignUpHandler)
-    r.Get("/{id}", userHandler.GetUserHandler)
+        r.Post("/signup", userHandler.SignUpHandler)
+        r.Post("/signin", userHandler.SignInHandler)
+        r.Get("/{id}", userHandler.GetUserHandler)
 	})
 
 

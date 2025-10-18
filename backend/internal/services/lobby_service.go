@@ -45,7 +45,6 @@ func (s *LobbyService) CreateLobby(user *models.User) (*models.Lobby, error) {
     player := &models.Player{
         LobbyID: lobby.ID,
         UserID:  user.ID,
-        Name:    user.Name,
         GameState: models.GameState{
             SecretCharacter: s.chooseRandomCharacter(),
         },
@@ -76,7 +75,6 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
     player := &models.Player{
         LobbyID: lobby.ID,
         UserID:  user.ID,
-        Name:    user.Name,
         GameState: models.GameState{
             SecretCharacter: s.chooseRandomCharacter(),
         },

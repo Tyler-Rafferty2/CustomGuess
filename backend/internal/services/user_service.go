@@ -18,7 +18,7 @@ func NewUserService(db *gorm.DB) *UserService {
 }
 
 // SignUp creates a new user
-func (s *UserService) SignUp(email, name, password string) (*models.User, error) {
+func (s *UserService) SignUp(email, password string) (*models.User, error) {
     // Check if user exists
     var existing models.User
     if err := s.DB.First(&existing, "email = ?", email).Error; err == nil {
@@ -29,7 +29,6 @@ func (s *UserService) SignUp(email, name, password string) (*models.User, error)
 
     user := &models.User{
         Email:        email,
-        Name:         name,
         PasswordHash: string(hashedPassword),
     }
 

@@ -1,6 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Navbar from "../components/navbar";
+import { useContext } from "react";
+import { UserContext } from "@/context/UserContext";
 
 export function GoToPageButton({ page, text }) {
   const router = useRouter();
@@ -16,11 +19,13 @@ export function GoToPageButton({ page, text }) {
 }
 
 export default function Home() {
+  const { user, logout } = useContext(UserContext);
   return (
     <div>
-      Hello World
+      <Navbar />
       <GoToPageButton page="/signup" text="Signup" />
       <GoToPageButton page="/signin" text="Signin" />
+      <GoToPageButton page="/lobby" text="Create a Lobby" />
     </div>
   );
 }

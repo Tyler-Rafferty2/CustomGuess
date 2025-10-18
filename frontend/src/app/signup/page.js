@@ -13,7 +13,7 @@ export default function Signup() {
         e.preventDefault();
 
         try {
-            const res = await fetch("http://localhost:8080/signup", {
+            const res = await fetch("http://localhost:8080/users/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),

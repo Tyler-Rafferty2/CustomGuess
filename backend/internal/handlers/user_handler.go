@@ -16,12 +16,11 @@ type UserHandler struct {
 func (h *UserHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
     var req struct {
         Email    string `json:"email"`
-        Name     string `json:"name"`
         Password string `json:"password"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
-    user, err := h.Service.SignUp(req.Email, req.Name, req.Password)
+    user, err := h.Service.SignUp(req.Email, req.Password)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
@@ -31,7 +30,7 @@ func (h *UserHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /login
-func (h *UserHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
+func (h *UserHandler) SignInHandler(w http.ResponseWriter, r *http.Request) {
     var req struct {
         Email    string `json:"email"`
         Password string `json:"password"`
@@ -40,7 +39,9 @@ func (h *UserHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 
     user, err := h.Service.Login(req.Email, req.Password)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusUnauthorized)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusUnauthorized)
+        json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
         return
     }
 
