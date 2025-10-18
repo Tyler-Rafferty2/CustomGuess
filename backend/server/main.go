@@ -8,9 +8,13 @@ import (
     "github.com/go-chi/chi/v5/middleware"
 
     "github.com/tyler-rafferty2/GuessWho/internal/routes"
+    "github.com/tyler-rafferty2/GuessWho/internal/config"
 )
 
 func main() {
+
+    config.ConnectDB()
+
     r := chi.NewRouter()
 
     // Middleware

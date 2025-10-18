@@ -1,19 +1,24 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useContext } from "react";
+import { UserContext } from "@/context/UserContext";
+
 
 export default function Signin() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState(null);
+
+    const { login } = useContext(UserContext);
 
     const handleSignin = async (e) => {
         e.preventDefault();
         setError(null);
 
         try {
-            const res = await fetch("http://localhost:8080/signin", {
+            const res = await fetch("http://localhost:8080/users/signin", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
@@ -26,7 +31,7 @@ export default function Signin() {
                 return;
             }
 
-            alert("Signin successful!");
+            login(data);
             router.push("/");
         } catch (err) {
             console.error(err);
@@ -37,6 +42,11 @@ export default function Signin() {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4">
             <h1 className="text-2xl font-bold">Signin</h1>
+
+            {error && (
+                <div className="text-red-600 font-medium">{error}</div>
+            )}
+
             <form onSubmit={handleSignin} className="flex flex-col gap-2 w-64">
                 <input
                     type="email"
