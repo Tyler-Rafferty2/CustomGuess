@@ -15,10 +15,12 @@ func MountRoutes(r chi.Router) {
 	// Create services
     userService := services.NewUserService(config.DB)
     lobbyService := services.NewLobbyService(config.DB)
+    playerService := services.NewPlayerService(config.DB)
 
     // Create handler structs
     userHandler := &handlers.UserHandler{Service: userService}
     lobbyHandler := &handlers.LobbyHandler{Service: lobbyService}
+    playerHandler := &handlers.PlayerHandler{Service: playerService}
 
     r.Use(middleware.CORSMiddleware)
 
@@ -39,6 +41,12 @@ func MountRoutes(r chi.Router) {
         r.Post("/create", lobbyHandler.CreateLobbyHandler)
         r.Post("/join", lobbyHandler.JoinLobbyHandler)
         r.Post("/move", lobbyHandler.MakeMoveHandler)
+    })
+
+    r.Route("/player", func(r chi.Router) {
+        r.Use(middleware.UserMiddleware)
+
+        r.Get("/", playerHandler.GetPlayersHandler)
     })
 
 }
