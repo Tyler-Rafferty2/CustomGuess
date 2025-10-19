@@ -5,12 +5,14 @@ import { UserContext } from "@/context/UserContext";
 import LobbyForm from "./LobbyForm";
 import LobbyStatus from "./LobbyStatus";
 import Players from "./Players";
+import OpenGames from "./OpenGames";
 
 export default function LobbyPage() {
     const { user } = useContext(UserContext);
     const [error, setError] = useState(null);
     const [lobby, setLobby] = useState(null);
     const [players, setPlayers] = useState(null);
+    const [lobbies, setLobbies] = useState(null);
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4">
@@ -27,7 +29,13 @@ export default function LobbyPage() {
                 user={user}
                 setError={setError}
                 players={players}
-                setPlayer={setPlayers}
+                setPlayers={setPlayers}
+            />
+            <OpenGames
+                user={user}
+                setError={setError}
+                lobbies={lobbies}
+                setLobbies={setLobbies}
             />
         </div>
     );

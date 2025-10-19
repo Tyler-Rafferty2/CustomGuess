@@ -5,10 +5,13 @@ import (
     "net/http"
 
     "github.com/google/uuid"
-    "github.com/tyler-rafferty2/GuessWho/internal/models"
+    "github.com/go-chi/chi/v5"
     "github.com/tyler-rafferty2/GuessWho/internal/services"
 	"github.com/tyler-rafferty2/GuessWho/internal/middleware"
+    "github.com/tyler-rafferty2/GuessWho/internal/models"
 )
+
+
 
 type LobbyHandler struct {
     Service *services.LobbyService
@@ -26,9 +29,21 @@ func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request
     json.NewEncoder(w).Encode(lobby)
 }
 
+// POST /find
+func (h *LobbyHandler) FindLobbyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    lobby, err := h.Service.FindLobby(user)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(lobby)
+}
+
 // POST /lobby/join
 func (h *LobbyHandler) JoinLobbyHandler(w http.ResponseWriter, r *http.Request) {
-    user := r.Context().Value("user").(*models.User)
+    user := middleware.GetUserFromContext(r)
 
     var req struct {
         Code string `json:"code"`
@@ -58,4 +73,45 @@ func (h *LobbyHandler) MakeMoveHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     w.WriteHeader(http.StatusOK)
+}
+
+// Get /{lobbyID}
+func (h *LobbyHandler) GetLobbyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    if user == nil {
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    lobbyIDStr := chi.URLParam(r, "lobbyID")
+    if lobbyIDStr == "" {
+        http.Error(w, "missing lobbyID", http.StatusBadRequest)
+        return
+    }
+
+    // Parse string to uuid.UUID
+    lobbyID, err := uuid.Parse(lobbyIDStr)
+    if err != nil {
+        http.Error(w, "invalid lobbyID", http.StatusBadRequest)
+        return
+    }
+
+    // Call service with lobbyID and userID
+    lobby, secretChar, err := h.Service.GetLobbyForPlayer(lobbyID, user.ID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    // Build response including secret character only for this user
+    response := struct {
+        Lobby       *models.Lobby      `json:"lobby"`
+        SecretCharacter *models.Character `json:"secretCharacter,omitempty"`
+    }{
+        Lobby: lobby,
+        SecretCharacter: secretChar,
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
 }

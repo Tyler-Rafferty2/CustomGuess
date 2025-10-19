@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Players({ user, setError, players, setPlayer }) {
+export default function Players({ user, setError, players, setPlayers }) {
 
     const router = useRouter();
 
@@ -26,7 +26,7 @@ export default function Players({ user, setError, players, setPlayer }) {
                 return;
             }
             console.log("Fetched players:", data);
-            setPlayer(data);
+            setPlayers(data);
         } catch (err) {
             console.error(err);
             setError("Network error");
