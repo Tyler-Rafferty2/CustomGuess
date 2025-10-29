@@ -21,6 +21,11 @@ func NewLobbyService(db *gorm.DB) *LobbyService {
     return &LobbyService{DB: db}
 }
 
+
+type LobbyGetter interface {
+    GetLobbyByID(lobbyID string) (*models.Lobby, error)
+}
+
 // generate a simple 4-letter lobby code
 func generateLobbyCode() string {
     letters := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -170,4 +175,3 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
 
     return &lobby, &gs.SecretCharacter, nil
 }
-

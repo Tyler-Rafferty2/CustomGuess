@@ -1,11 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 export default function Players({ user, setError, lobby, setLobby }) {
     const params = useParams();
     const lobbyID = params.lobbyId;
+    const [selectedCharacters, setSelectedCharacters] = useState(new Set());
+
+    const toggleCharacter = (charId) => {
+        setSelectedCharacters(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(charId)) {
+                newSet.delete(charId);
+            } else {
+                newSet.add(charId);
+            }
+            return newSet;
+        });
+    };
 
     const getGameState = async () => {
         setError(null);
@@ -72,9 +85,22 @@ export default function Players({ user, setError, lobby, setLobby }) {
             <h2 className="text-gray-700 mt-4 mb-2">Characters:</h2>
             <div className="grid grid-cols-4 gap-4">
                 {lobby.lobby.characterSet.characters.map((char) => (
-                    <div key={char.id} className="flex flex-col items-center">
-                        <img src={char.image} alt={char.name} className="w-16 h-16 object-cover rounded" />
-                        <span>{char.name}</span>
+                    <div
+                        key={char.id}
+                        className="flex flex-col items-center cursor-pointer"
+                        onClick={() => toggleCharacter(char.id)}
+                    >
+                        <div className="relative w-16 h-16">
+                            <img
+                                src={char.image}
+                                alt={char.name}
+                                className="w-full h-full object-cover rounded"
+                            />
+                            {selectedCharacters.has(char.id) && (
+                                <div className="absolute inset-0 bg-gray-800 bg-opacity-70 rounded" />
+                            )}
+                        </div>
+                        <span className="text-sm mt-1">{char.name}</span>
                     </div>
                 ))}
             </div>

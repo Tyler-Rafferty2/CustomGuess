@@ -3,8 +3,10 @@ package services
 import (
 	"log"
 	"github.com/tyler-rafferty2/GuessWho/internal/models"
+	"github.com/tyler-rafferty2/GuessWho/internal/config"
 
 	"github.com/gorilla/websocket"
+	"github.com/google/uuid"
 )
 
 type WebSocketService struct {
@@ -35,20 +37,78 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 			break
 		}
 		
+		
 		// Build message with client metadata
 		message := models.Message{
 			Type:     getStringValue(msg, "type"),
 			Content:  getStringValue(msg, "content"),
 			Time:     getStringValue(msg, "time"),
+			Channel: getStringValue(msg, "channel"),
 			Username: client.Username,
-			LobbyID:  client.LobbyID, // Always use client's LobbyID
+			LobbyID:  client.LobbyID,
+			LobbyTurn: "",
 		}
-		
+
 		log.Printf("ReadPump received message: Type=%s, Content=%s, LobbyID=%s, Username=%s", 
 			message.Type, message.Content, message.LobbyID, message.Username)
 		
+		lobby, err := getLobbyFromDB(client.LobbyID)
+		log.Printf("Current turn in lobby %s: %v", lobby.ID, lobby.TurnID)
+		log.Printf("You are %s", client.ID)
+		log.Printf("You are really %s", client.PlayerId)
+		if client.PlayerId != lobby.TurnID.String() && message.Channel == "game" || client.PlayerId == lobby.TurnID.String() && message.Channel == "response"{
+			// Not this player's turn
+			client.Send <- models.Message{
+				Type:    "error",
+				Content: "It's not your turn!",
+			}
+			continue
+		}else if message.Channel == "response" && getStringValue(msg, "swap") == "yes" {
+			err = lobbySwapTurn(lobby)
+			if err != nil {
+				log.Printf("Error swapping turn: %v", err)
+			}
+		} 
+
+		message.LobbyTurn = (*lobby.TurnID).String()
+
+		// Broadcast valid move
 		ws.hub.BroadcastMessage(message)
+
+		// Update turn in DB to next player
+		//lobby.TurnID = getNextPlayerID(lobby)
+		//saveLobbyToDB(lobby)
 	}
+}
+
+func getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
+	var lobby models.Lobby
+	lobbyUUID, err := uuid.Parse(lobbyID)
+	if err != nil {
+		// handle invalid UUID
+	}
+	if err := config.DB.Preload("Players").
+		Preload("CharacterSet.Characters").
+		First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+		return nil, err
+	}
+	return &lobby, nil
+}
+
+func lobbySwapTurn(lobby *models.Lobby) error {
+
+	log.Printf("Swapping turn for lobby %s", lobby.ID)
+	if *lobby.TurnID == lobby.Players[0].ID {
+		lobby.TurnID = &lobby.Players[1].ID
+	} else {
+		lobby.TurnID = &lobby.Players[0].ID
+	}
+	
+	if err := config.DB.Save(lobby).Error; err != nil {
+		return err
+	}
+	
+	return nil
 }
 
 func (ws *WebSocketService) WritePump(client *models.Client) {

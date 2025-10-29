@@ -33,11 +33,11 @@ func (h *Hub) Run() {
 				log.Printf("Created new lobby: %s", client.LobbyID)
 			}
 			
-			// Check if user is already connected (by UserID)
-			if client.UserID != "" {
+			// Check if user is already connected (by PlayerId)
+			if client.PlayerId != "" {
 				for existingClientID, existingClient := range h.lobbies[client.LobbyID] {
-					if existingClient.UserID == client.UserID && existingClientID != client.ID {
-						log.Printf("User %s already connected in lobby %s, removing old connection", client.UserID, client.LobbyID)
+					if existingClient.PlayerId == client.PlayerId && existingClientID != client.ID {
+						log.Printf("User %s already connected in lobby %s, removing old connection", client.PlayerId, client.LobbyID)
 						close(existingClient.Send)
 						delete(h.lobbies[client.LobbyID], existingClientID)
 					}

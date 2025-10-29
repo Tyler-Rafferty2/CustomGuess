@@ -1,15 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, X, MessageCircle } from 'lucide-react';
 
-export default function ChatApp({ lobbyId, username, userId }) {
-    const [isConnected, setIsConnected] = useState(false);
-    const [isMinimized, setIsMinimized] = useState(false);
-    const [messages, setMessages] = useState([]);
+export default function ChatApp({ lobbyId, username, wsRef, setIsConnected, messages, setMessages, isMinimizedRef, isMinimized, setIsMinimized }) {
     const [inputMessage, setInputMessage] = useState('');
     const [unreadCount, setUnreadCount] = useState(0);
     const messagesEndRef = useRef(null);
-    const wsRef = useRef(null);
-    const isMinimizedRef = useRef(isMinimized);
 
     useEffect(() => {
         isMinimizedRef.current = isMinimized;
@@ -18,68 +13,6 @@ export default function ChatApp({ lobbyId, username, userId }) {
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
-
-    useEffect(() => {
-        if (!lobbyId || !username) return;
-
-        // Prevent duplicate connections
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            console.log('WebSocket already connected');
-            return;
-        }
-
-        console.log('Creating new WebSocket connection', { username, lobbyId, userId });
-        const websocket = new WebSocket(
-            `ws://localhost:8080/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyId)}&userId=${encodeURIComponent(userId || '')}`
-        );
-
-        websocket.onopen = () => {
-            setIsConnected(true);
-            console.log('Connected to chat server');
-        };
-
-        websocket.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            setMessages(prev => {
-                // Prevent duplicate messages by checking if message already exists
-                const isDuplicate = prev.some(m =>
-                    m.content === message.content &&
-                    m.username === message.username &&
-                    m.time === message.time
-                );
-
-                if (isDuplicate) {
-                    console.log('Duplicate message detected, skipping');
-                    return prev;
-                }
-
-                return [...prev, {
-                    ...message,
-                    time: message.time || new Date().toLocaleTimeString(),
-                    read: !isMinimizedRef.current
-                }];
-            });
-        };
-
-        websocket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        websocket.onclose = () => {
-            setIsConnected(false);
-            console.log('Disconnected from chat server');
-        };
-
-        wsRef.current = websocket;
-
-        return () => {
-            console.log('Cleaning up WebSocket');
-            if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) {
-                websocket.close();
-            }
-            wsRef.current = null;
-        };
-    }, [lobbyId, username, userId]);
 
     useEffect(() => {
         scrollToBottom();
@@ -114,7 +47,9 @@ export default function ChatApp({ lobbyId, username, userId }) {
             type: 'message',
             content: inputMessage,
             time: new Date().toLocaleTimeString(),
-            lobbyId: lobbyId
+            lobbyId: lobbyId,
+            channel: "normal",
+            swap: "no"
         };
 
         wsRef.current.send(JSON.stringify(message));

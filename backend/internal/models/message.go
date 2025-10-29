@@ -6,12 +6,14 @@ type Message struct {
 	Content  string `json:"content"`
 	Time     string `json:"time"`
 	LobbyID  string `json:"lobbyId"`
+	Channel  string `json:"channel"`
+	LobbyTurn string `json:"lobbyTurn"`
 }
 
 type Client struct {
 	ID       string
 	Username string
 	LobbyID  string
-	UserID   string
+	PlayerId   string
 	Send     chan Message
 }

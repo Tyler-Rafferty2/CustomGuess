@@ -31,10 +31,10 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	query := r.URL.Query()
 	username := query.Get("username")
 	lobbyID := query.Get("lobbyId")
-	userID := query.Get("userId")
+	playerId := query.Get("playerId")
 
 	log.Printf("Raw query string: %s", r.URL.RawQuery)
-	log.Printf("Parsed params: username=%s, lobbyId=%s, userId=%s", username, lobbyID, userID)
+	log.Printf("Parsed params: username=%s, lobbyId=%s, playerId=%s", username, lobbyID, playerId)
 
 	if username == "" {
 		username = "Anonymous"
@@ -58,12 +58,12 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 		ID:       uuid.New().String(),
 		Username: username,
 		LobbyID:  lobbyID,
-		UserID:   userID,
+		PlayerId:   playerId,
 		Send:     make(chan models.Message, 256),
 	}
 
-	log.Printf("Created client: ID=%s, Username=%s, LobbyID='%s', UserID=%s", 
-		client.ID, client.Username, client.LobbyID, client.UserID)
+	log.Printf("Created client: ID=%s, Username=%s, LobbyID='%s', playerId=%s", 
+		client.ID, client.Username, client.LobbyID, client.PlayerId)
 
 	// Register client with hub
 	h.Hub.RegisterClient(client)
