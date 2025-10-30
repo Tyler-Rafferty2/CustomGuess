@@ -7,6 +7,10 @@ import GameState from "./GameState";
 import ChatApp from '@/components/chatapp';
 import GameSend from '@/components/gameSend';
 
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import { styled } from '@mui/material/styles';
+
 
 export default function LobbyPage() {
 
@@ -44,17 +48,6 @@ export default function LobbyPage() {
             setTurn(playerId === lobby.lobby.turn);
         }
     }, [lobby, playerId]);
-
-    if (lobby && lobby.lobby.players.length < 2) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
-            </div>
-        );
-    }
-
-
-
 
     useEffect(() => {
         if (!lobbyID || !username) return;
@@ -118,6 +111,12 @@ export default function LobbyPage() {
                 } else {
                     setTurn(false);
                 }
+            }
+            else if (message.channel === "lobby_update") {
+                console.log("pre", lobby)
+                console.log("Received lobby update:", message.lobby);
+                setLobby(message.lobby);
+                console.log("post", lobby)
             }
             else if (message.channel === "response") {
                 console.log("thi plac", message.username, username);
@@ -196,6 +195,28 @@ export default function LobbyPage() {
         };
     }, [lobbyID, username, playerId]);
 
+    useEffect(() => {
+        if (lobby && lobby.lobby.players) {
+            console.log(`Player count changed: ${lobby.lobby.players.length}`);
+        }
+    }, [lobby]);
+
+    if (lobby && lobby.lobby.players.length < 2) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
+            </div>
+        );
+    }
+
+    const Item = styled(Paper)(({ theme }) => ({
+        backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
+        ...theme.typography.body2,
+        padding: theme.spacing(1),
+        textAlign: 'center',
+        color: theme.palette.text.secondary,
+    }));
+
     return (
         <div className="flex min-h-screen">
             {/* Question Log Sidebar */}
@@ -217,7 +238,7 @@ export default function LobbyPage() {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col items-center justify-center gap-4">
+            <div className="flex-1 flex flex-col">
                 <h1 className="text-2xl font-bold">Game State</h1>
 
                 {turn ? (
@@ -229,21 +250,49 @@ export default function LobbyPage() {
                         Waiting for the other player...
                     </div>
                 )}
-                {user && user.email && lobbyID && (
-                    <GameSend
-                        lobbyId={lobbyID}
-                        username={user.email}
-                        wsRef={wsRef}
-                        setIsConnected={setIsConnected}
-                        messages={messagesGame}
-                        setMessages={setMessagesGame}
-                        turn={turn}
-                        setSentMessage={setSentMessage}
-                        receivedMessage={receivedMessage}
-                        waitingReponse={waitingReponse}
-                        setWaitingReponse={setWaitingReponse}
-                    />
-                )}
+
+                <div className="flex w-full mb-6">
+
+                    {/* 1. GameSend Component (9/12 width) */}
+                    <div className="w-9/12 pr-4">
+                        {user && user.email && lobbyID && (
+                            <GameSend
+                                lobbyId={lobbyID}
+                                username={user.email}
+                                wsRef={wsRef}
+                                setIsConnected={setIsConnected}
+                                messages={messagesGame}
+                                setMessages={setMessagesGame}
+                                turn={turn}
+                                setSentMessage={setSentMessage}
+                                receivedMessage={receivedMessage}
+                                waitingReponse={waitingReponse}
+                                setWaitingReponse={setWaitingReponse}
+                            />
+                        )}
+                    </div>
+
+                    {/* 2. Secret Character Info (3/12 width) */}
+                    <div className="w-3/12 pl-4 border-l border-gray-300">
+                        {lobby && lobby.secretCharacter && (
+                            <>
+                                <h2 className="text-gray-700 text-base font-semibold mb-2">
+                                    Your Secret Character:
+                                </h2>
+                                <div className="flex items-center justify-start">
+                                    <div className="flex flex-col items-center border-2 border-yellow-400 p-2 rounded w-full">
+                                        <img
+                                            src={lobby.secretCharacter.image}
+                                            alt={lobby.secretCharacter.name}
+                                            className="w-20 h-20 object-cover rounded"
+                                        />
+                                        <span className="font-bold text-sm mt-1">{lobby.secretCharacter.name}</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
 
                 <GameState
                     user={user}

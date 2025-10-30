@@ -21,11 +21,32 @@ func NewWebSocketService(hub *Hub, conn *websocket.Conn) *WebSocketService {
 	}
 }
 
+func (ws *WebSocketService) BroadcastLobbyUpdate(lobbyID string) {
+	lobby, err := getLobbyFromDB(lobbyID)
+	if err != nil {
+		log.Printf("Error fetching lobby for update: %v", err)
+		return
+	}
+
+	message := models.Message{
+		Type:    "lobby_update",
+		LobbyID: lobbyID,
+		Content: "Lobby updated",
+		Time:    "", 
+		Lobby:   lobby, 
+	}
+
+	log.Printf("Broadcasting lobby update for lobby %s with %d players", lobbyID, len(lobby.Players))
+	ws.hub.BroadcastMessage(message)
+}
+
 func (ws *WebSocketService) ReadPump(client *models.Client) {
 	defer func() {
 		ws.hub.UnregisterClient(client)
 		ws.conn.Close()
 	}()
+
+	ws.BroadcastLobbyUpdate(client.LobbyID)
 
 	for {
 		var msg map[string]interface{}

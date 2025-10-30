@@ -8,6 +8,7 @@ type Message struct {
 	LobbyID  string `json:"lobbyId"`
 	Channel  string `json:"channel"`
 	LobbyTurn string `json:"lobbyTurn"`
+	Lobby     *Lobby  `json:"lobby,omitempty"`
 }
 
 type Client struct {

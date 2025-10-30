@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Grid from '@mui/material/Grid';
+import Paper from '@mui/material/Paper';
+import { styled } from '@mui/material/styles';
+
+// Define a common image size for consistency (you can adjust this)
+const IMAGE_SIZE = '120px';
+
 
 export default function Players({ user, setError, lobby, setLobby }) {
     const params = useParams();
@@ -52,21 +59,40 @@ export default function Players({ user, setError, lobby, setLobby }) {
         }
     }, [user?.id]);
 
-    if (!lobby) {
-        return <div>No game found</div>;
+    if (!lobby || !lobby.lobby || !lobby.lobby.characterSet) {
+        return <div>Loading game data...</div>;
     }
+
+    const Item = styled(Paper)(({ theme, isSelected }) => ({
+        // Use a background color to indicate selection
+        backgroundColor: isSelected
+            ? theme.palette.mode === 'dark' ? '#004d40' : '#e0f2f1' // Teal/light green for selected
+            : theme.palette.mode === 'dark' ? '#1A2027' : '#fff', // Default color
+        ...theme.typography.body2,
+        padding: theme.spacing(1),
+        textAlign: 'center',
+        color: theme.palette.text.primary, // Changed text color for better visibility
+        cursor: 'pointer',
+        border: isSelected ? '2px solid #009688' : '1px solid #ccc', // Highlight border
+        transition: 'all 0.2s',
+        '& img': {
+            width: IMAGE_SIZE,
+            height: IMAGE_SIZE,
+            objectFit: 'cover',
+            borderRadius: '4px',
+            border: isSelected ? '3px solid #009688' : 'none', // Inner border for image
+        }
+    }));
+
+    // This is the real data source you were using for characters
+    const characters = lobby.lobby.characterSet.characters || [];
 
     return (
         <div className="text-green-700 font-medium">
             <h2 className="text-gray-700 mb-2">Players:</h2>
-            {/* <ul>
-                {lobby.lobby.players.map((player) => (
-                    <li key={player.id}>
-                        {player.user.email || player.user.id}
-                    </li>
-                ))}
-            </ul> */}
-            {lobby.secretCharacter && (
+            {/* ... (Your Players list is commented out) */}
+
+            {/* {lobby.secretCharacter && (
                 <>
                     <h2 className="text-gray-700 mt-4 mb-2">Your Secret Character:</h2>
                     <div className="flex items-center justify-start mb-4">
@@ -80,31 +106,45 @@ export default function Players({ user, setError, lobby, setLobby }) {
                         </div>
                     </div>
                 </>
-            )}
+            )} */}
 
-            <h2 className="text-gray-700 mt-4 mb-2">Characters:</h2>
-            <div className="grid grid-cols-4 gap-4">
+            <h2 className="text-gray-700 mt-4 mb-2">Characters (The Grid):</h2>
+
+            {/* **The main change: Using MUI Grid to display all characters** */}
+            <Grid container spacing={2} justifyContent="center">
+                {characters.map((char) => {
+                    const isSelected = selectedCharacters.has(char.id);
+                    return (
+                        // Grid item: xs={6} for 2 columns, sm={4} for 3 columns, md={3} for 4 columns
+                        <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
+                            <Item
+                                isSelected={isSelected}
+                                onClick={() => toggleCharacter(char.id)}
+                                className="h-full" // Use h-full from Tailwind to make all Items the same height
+                            >
+                                <div className="flex flex-col items-center justify-between h-full">
+                                    <img
+                                        src={char.image}
+                                        alt={char.name}
+                                    />
+                                    <span className="text-sm font-semibold mt-2">{char.name}</span>
+                                </div>
+                            </Item>
+                        </Grid>
+                    );
+                })}
+            </Grid>
+            {/* **End of MUI Grid** */}
+
+            {/* The old Tailwind-based character grid is now replaced by the MUI Grid above. 
+                I'm commenting it out here, but you can remove it completely. 
+                
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {lobby.lobby.characterSet.characters.map((char) => (
-                    <div
-                        key={char.id}
-                        className="flex flex-col items-center cursor-pointer"
-                        onClick={() => toggleCharacter(char.id)}
-                    >
-                        <div className="relative w-16 h-16">
-                            <img
-                                src={char.image}
-                                alt={char.name}
-                                className="w-full h-full object-cover rounded"
-                            />
-                            {selectedCharacters.has(char.id) && (
-                                <div className="absolute inset-0 bg-gray-800 bg-opacity-70 rounded" />
-                            )}
-                        </div>
-                        <span className="text-sm mt-1">{char.name}</span>
-                    </div>
+                    // ... (old character card structure)
                 ))}
-            </div>
-
+            </div> 
+            */}
         </div>
     );
 }

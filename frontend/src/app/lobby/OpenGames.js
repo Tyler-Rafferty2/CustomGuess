@@ -39,7 +39,7 @@ export default function Players({ user, setError, lobbies, setLobbies }) {
         }
     }, [user?.id]);
 
-    const joinLobby = async (lobbyCode) => {
+    const joinLobby = async (lobbyCode, lobbyID) => {
         setError(null);
 
         try {
@@ -62,11 +62,15 @@ export default function Players({ user, setError, lobbies, setLobbies }) {
             console.error(err);
             setError("Network error");
         }
+        console.log(lobbyCode)
+        console.log(lobbies)
+        router.push(`/lobby/${lobbyID}`);
+
     };
 
     return (
         <div className="text-green-700 font-medium">
-            <span className="text-gray-700">Lobbies:</span>
+            <span className="text-gray-700">Lobbies you can join:</span>
             <ul className="mt-2">
                 {lobbies && lobbies.length > 0 ? (
                     lobbies.map((l) => (
@@ -74,7 +78,7 @@ export default function Players({ user, setError, lobbies, setLobbies }) {
                             ID: {l.id}, Code: {l.code}
                             <button
                                 className="ml-2 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                onClick={() => joinLobby(l.code)}
+                                onClick={() => joinLobby(l.code, l.id)}
                             >
                                 Join Lobby
                             </button>

@@ -122,15 +122,31 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
     return &lobby, nil
 }
 
-//find a lobby for the user to join 
 func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
-
     var lobbies []models.Lobby
-    if err := s.DB.Where("user_id != ?", user.ID).Find(&lobbies).Error; err != nil {
+    
+    // Subquery for lobbies with exactly 1 player
+    lobbiesWithOnePlayer := s.DB.Table("players").
+        Select("lobby_id").
+        Group("lobby_id").
+        Having("COUNT(*) = ?", 1)
+    
+    // Subquery for lobbies where user is already a player
+    userLobbies := s.DB.Table("players").
+        Select("lobby_id").
+        Where("user_id = ?", user.ID)
+    
+    err := s.DB.
+        Where("user_id != ?", user.ID).
+        Where("id IN (?)", lobbiesWithOnePlayer).
+        Where("id NOT IN (?)", userLobbies).
+        Find(&lobbies).Error
+    
+    if err != nil {
         return nil, err
     }
-
-	return lobbies, nil
+    
+    return lobbies, nil
 }
 
 // make a move for a player (update eliminated characters)

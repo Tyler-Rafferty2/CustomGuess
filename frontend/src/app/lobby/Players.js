@@ -45,7 +45,7 @@ export default function Players({ user, setError, players, setPlayers }) {
 
     return (
         <div className="text-green-700 font-medium">
-            <span className="text-gray-700">Players:</span>
+            <span className="text-gray-700">Lobbies you are in:</span>
             <ul className="mt-2">
                 {players && players.length > 0 ? (
                     players.map((p) => (
