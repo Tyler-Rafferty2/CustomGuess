@@ -17,6 +17,7 @@ export default function LobbyPage() {
     const { user } = useContext(UserContext);
     const [error, setError] = useState(null);
     const [lobby, setLobby] = useState(null);
+    const [gameState, setGameState] = useState(null);
     const [playerId, setPlayerId] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
     const [messagesGame, setMessagesGame] = useState([]);
@@ -35,17 +36,17 @@ export default function LobbyPage() {
     let username = user ? user.email : null;
 
 
-    console.log(playerId, lobby ? lobby.lobby.turn : null)
+    //console.log(playerId, lobby ? lobby.lobby.turn : null)
     useEffect(() => {
-        if (lobby && user) {
-            const id = lobby.lobby.players.find(p => p.userId === user.id)?.id;
+        if (lobby?.players && user) {
+            const id = lobby.players.find(p => p.userId === user.id)?.id;
             setPlayerId(id);
         }
     }, [lobby, user]);
 
     useEffect(() => {
         if (lobby && playerId != null) {
-            setTurn(playerId === lobby.lobby.turn);
+            setTurn(playerId === lobby.turn);
         }
     }, [lobby, playerId]);
 
@@ -113,10 +114,8 @@ export default function LobbyPage() {
                 }
             }
             else if (message.channel === "lobby_update") {
-                console.log("pre", lobby)
                 console.log("Received lobby update:", message.lobby);
                 setLobby(message.lobby);
-                console.log("post", lobby)
             }
             else if (message.channel === "response") {
                 console.log("thi plac", message.username, username);
@@ -196,12 +195,15 @@ export default function LobbyPage() {
     }, [lobbyID, username, playerId]);
 
     useEffect(() => {
-        if (lobby && lobby.lobby.players) {
-            console.log(`Player count changed: ${lobby.lobby.players.length}`);
+        if (lobby?.players) {
+            console.log(`Player count changed: ${lobby.players.length}`);
         }
     }, [lobby]);
 
-    if (lobby && lobby.lobby.players.length < 2) {
+    console.log("this is the lobby", lobby)
+    console.log("length", lobby?.players?.length)
+    if (lobby?.players?.length < 2) {
+        console.log("length insdie", lobby?.players?.length)
         return (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4">
                 <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
@@ -274,7 +276,7 @@ export default function LobbyPage() {
 
                     {/* 2. Secret Character Info (3/12 width) */}
                     <div className="w-3/12 pl-4 border-l border-gray-300">
-                        {lobby && lobby.secretCharacter && (
+                        {gameState && gameState.secretCharacter && (
                             <>
                                 <h2 className="text-gray-700 text-base font-semibold mb-2">
                                     Your Secret Character:
@@ -282,11 +284,11 @@ export default function LobbyPage() {
                                 <div className="flex items-center justify-start">
                                     <div className="flex flex-col items-center border-2 border-yellow-400 p-2 rounded w-full">
                                         <img
-                                            src={lobby.secretCharacter.image}
-                                            alt={lobby.secretCharacter.name}
+                                            src={gameState.secretCharacter.image}
+                                            alt={gameState.secretCharacter.name}
                                             className="w-20 h-20 object-cover rounded"
                                         />
-                                        <span className="font-bold text-sm mt-1">{lobby.secretCharacter.name}</span>
+                                        <span className="font-bold text-sm mt-1">{gameState.secretCharacter.name}</span>
                                     </div>
                                 </div>
                             </>
@@ -299,6 +301,8 @@ export default function LobbyPage() {
                     setError={setError}
                     lobby={lobby}
                     setLobby={setLobby}
+                    gameState={gameState}
+                    setGameState={setGameState}
                 />
                 {/* {user && user.email && lobbyID && (
                     <ChatApp

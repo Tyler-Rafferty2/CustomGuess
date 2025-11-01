@@ -56,7 +56,7 @@ export default function GameSend({ lobbyId, username, wsRef, setIsConnected, mes
         }
     };
 
-    console.log(messages)
+    //console.log(messages)
 
     return (
         <div className="p-3 bg-white border-t border-gray-200 rounded-b-lg">

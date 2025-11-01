@@ -10,7 +10,7 @@ import { styled } from '@mui/material/styles';
 const IMAGE_SIZE = '120px';
 
 
-export default function Players({ user, setError, lobby, setLobby }) {
+export default function Players({ user, setError, lobby, setLobby, gameState, setGameState }) {
     const params = useParams();
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
@@ -46,7 +46,7 @@ export default function Players({ user, setError, lobby, setLobby }) {
                 return;
             }
             console.log("Fetched gamestate:", data);
-            setLobby(data);
+            setGameState(data);
         } catch (err) {
             console.error(err);
             setError("Network error");
@@ -59,7 +59,7 @@ export default function Players({ user, setError, lobby, setLobby }) {
         }
     }, [user?.id]);
 
-    if (!lobby || !lobby.lobby || !lobby.lobby.characterSet) {
+    if (!gameState || !gameState.lobby || !gameState.lobby.characterSet) {
         return <div>Loading game data...</div>;
     }
 
@@ -85,7 +85,7 @@ export default function Players({ user, setError, lobby, setLobby }) {
     }));
 
     // This is the real data source you were using for characters
-    const characters = lobby.lobby.characterSet.characters || [];
+    const characters = gameState.lobby.characterSet.characters || [];
 
     return (
         <div className="text-green-700 font-medium">

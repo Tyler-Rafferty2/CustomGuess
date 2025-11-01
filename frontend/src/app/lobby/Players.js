@@ -3,35 +3,9 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Players({ user, setError, players, setPlayers }) {
+export default function Players({ user, setError, players, setPlayers, getPlayers }) {
 
     const router = useRouter();
-
-    const getPlayers = async () => {
-        setError(null);
-
-        try {
-            const res = await fetch(`http://localhost:8080/player/`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
-                },
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error || "Something went wrong");
-                return;
-            }
-            console.log("Fetched players:", data);
-            setPlayers(data);
-        } catch (err) {
-            console.error(err);
-            setError("Network error");
-        }
-    };
 
     useEffect(() => {
         if (user?.id) {
