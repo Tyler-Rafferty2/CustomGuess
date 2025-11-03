@@ -11,7 +11,7 @@ type Lobby struct {
     User     User       `gorm:"foreignKey:UserID" json:"user"`
     Code    string    `gorm:"unique;not null" json:"code"`
     TurnID  *uuid.UUID `gorm:"type:uuid" json:"turn"`
-    Players []Player   `gorm:"foreignKey:LobbyID" json:"players"`
+    Players []Player `gorm:"foreignKey:LobbyID;constraint:OnDelete:CASCADE;" json:"players"`
 
     CharacterSetID uuid.UUID     `gorm:"type:uuid;not null" json:"characterSetId"` 
     CharacterSet   CharacterSet  `gorm:"foreignKey:CharacterSetID" json:"characterSet"`

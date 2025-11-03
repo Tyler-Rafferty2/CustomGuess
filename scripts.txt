@@ -1,2 +1,4 @@
 Connect to db
 psql postgresql://postgres:example@localhost:5432/mydb
+
+docker exec -it guesswho-backend-1 sh

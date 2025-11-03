@@ -10,7 +10,7 @@ type Player struct {
     LobbyID   uuid.UUID  `gorm:"type:uuid;not null" json:"lobbyId"`   // FK → Lobby.ID
     UserID    uuid.UUID  `gorm:"type:uuid;not null" json:"userId"`    // FK → User.ID
     Name      string     `gorm:"not null" json:"name"`                // display name in this game
-    GameState GameState  `gorm:"foreignKey:PlayerID" json:"gameState"` // player's game state
+    GameState  GameState  `gorm:"constraint:OnDelete:CASCADE;" json:"gameState"`
 
     User      User       `gorm:"foreignKey:UserID" json:"-"`          // optional: preload user
 }

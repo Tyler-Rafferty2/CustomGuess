@@ -36,31 +36,31 @@ func ConnectDB() {
     }
 
     // Now create characters and assign SetID
-    characters := []models.Character{
-        {Name: "Bonney", Image: "/images/bonney.webp", SetID: charSet.ID},
-        {Name: "Buggy", Image: "/images/buggy.webp", SetID: charSet.ID},
-        {Name: "Chopper", Image: "/images/chopper.webp", SetID: charSet.ID},
-        {Name: "Dragon", Image: "/images/dragon.webp", SetID: charSet.ID},
-        {Name: "Enel", Image: "/images/enel.webp", SetID: charSet.ID},
-        {Name: "Franky", Image: "/images/franky.webp", SetID: charSet.ID},
-        {Name: "Ivankov", Image: "/images/ivankov.webp", SetID: charSet.ID},
-        {Name: "Luffy", Image: "/images/luffy.webp", SetID: charSet.ID},
-        {Name: "Morgans", Image: "/images/morgans.webp", SetID: charSet.ID},
-        {Name: "Oden", Image: "/images/oden.webp", SetID: charSet.ID},
-        {Name: "Saint Saturn", Image: "/images/saint_saturn.webp", SetID: charSet.ID},
-        {Name: "Sanji", Image: "/images/sanji.webp", SetID: charSet.ID},
-        {Name: "Shanks", Image: "/images/shanks.webp", SetID: charSet.ID},
-        {Name: "Tama", Image: "/images/tama.webp", SetID: charSet.ID},
-        {Name: "Yamato", Image: "/images/yamato.webp", SetID: charSet.ID},
-        {Name: "Zoro", Image: "/images/zoro.webp", SetID: charSet.ID},
-    }
+    // characters := []models.Character{
+    //     {Name: "Bonney", Image: "/images/bonney.webp", SetID: charSet.ID},
+    //     {Name: "Buggy", Image: "/images/buggy.webp", SetID: charSet.ID},
+    //     {Name: "Chopper", Image: "/images/chopper.webp", SetID: charSet.ID},
+    //     {Name: "Dragon", Image: "/images/dragon.webp", SetID: charSet.ID},
+    //     {Name: "Enel", Image: "/images/enel.webp", SetID: charSet.ID},
+    //     {Name: "Franky", Image: "/images/franky.webp", SetID: charSet.ID},
+    //     {Name: "Ivankov", Image: "/images/ivankov.webp", SetID: charSet.ID},
+    //     {Name: "Luffy", Image: "/images/luffy.webp", SetID: charSet.ID},
+    //     {Name: "Morgans", Image: "/images/morgans.webp", SetID: charSet.ID},
+    //     {Name: "Oden", Image: "/images/oden.webp", SetID: charSet.ID},
+    //     {Name: "Saint Saturn", Image: "/images/saint_saturn.webp", SetID: charSet.ID},
+    //     {Name: "Sanji", Image: "/images/sanji.webp", SetID: charSet.ID},
+    //     {Name: "Shanks", Image: "/images/shanks.webp", SetID: charSet.ID},
+    //     {Name: "Tama", Image: "/images/tama.webp", SetID: charSet.ID},
+    //     {Name: "Yamato", Image: "/images/yamato.webp", SetID: charSet.ID},
+    //     {Name: "Zoro", Image: "/images/zoro.webp", SetID: charSet.ID},
+    // }
 
-    // Insert characters into DB
-    for i := range characters {
-        if err := db.Create(&characters[i]).Error; err != nil {
-            log.Fatal(err)
-        }
-    }
+    // // Insert characters into DB
+    // for i := range characters {
+    //     if err := db.Create(&characters[i]).Error; err != nil {
+    //         log.Fatal(err)
+    //     }
+    // }
 
 
     fmt.Println("Database connected and migrated successfully")

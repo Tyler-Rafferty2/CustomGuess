@@ -113,7 +113,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
         // Simulate API call
         setTimeout(() => {
             setPublicSets(mockPublicSets);
-            setMySets(mockMySets);
+            //setMySets(mockMySets);
             setLoading(false);
         }, 300);
     };
@@ -170,10 +170,56 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
     };
 
     const handleCreateSet = async () => {
-        // Handle set creation logic here
-        console.log("Creating new set:", { newSetName, newSetDescription, newSetCards, newSetImage });
         setSetView("my-sets");
+        console.log("Original cards:", newSetCards);
+
+        // Create FormData instead of JSON
+        const formData = new FormData();
+        formData.append("name", newSetName);
+        formData.append("description", newSetDescription);
+        formData.append("coverImage", newSetImage?.file || ""); // optional cover image
+
+        // Append each character
+        newSetCards.forEach((card, index) => {
+            formData.append(`characters[${index}][name]`, card.name);
+            formData.append(`characters[${index}][image]`, card.file || card.image);
+            // card.file is a File object; card.image is fallback Base64 string
+        });
+
+        console.log(Array.from(formData.entries()));
+
+
+        try {
+            const res = await fetch("http://localhost:8080/player/set/create", {
+                method: "POST",
+                headers: {
+                    "X-User-ID": user?.id, // leave Content-Type unset; browser sets it automatically
+                },
+                body: formData,
+            });
+
+            // Cannot use res.json() if backend doesn't return JSON
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                data = await res.text();
+            }
+
+            console.log("Response:", data);
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
     };
+
+
 
     const filteredSets = () => {
         const sets = setView === "public" ? publicSets : mySets;
@@ -278,53 +324,89 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                         <h2 className="text-xl font-bold text-gray-800 mb-4">Create Custom Set</h2>
 
                                         <div className="space-y-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Set Name
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={newSetName}
-                                                    onChange={(e) => setNewSetName(e.target.value)}
-                                                    placeholder="Enter set name"
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Description
-                                                </label>
-                                                <textarea
-                                                    value={newSetDescription}
-                                                    onChange={(e) => setNewSetDescription(e.target.value)}
-                                                    placeholder="Describe your set"
-                                                    rows={3}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                                />
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Cover Image URL
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={newSetImage}
-                                                    onChange={(e) => setNewSetImage(e.target.value)}
-                                                    placeholder="https://example.com/image.jpg"
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                                                />
-                                                {newSetImage && (
-                                                    <div className="mt-3 rounded-lg overflow-hidden">
-                                                        <img
-                                                            src={newSetImage}
-                                                            alt="Preview"
-                                                            className="w-full h-48 object-cover"
-                                                            onError={(e) => e.target.src = 'https://via.placeholder.com/400x300?text=Invalid+Image'}
+                                            <div className="flex gap-6">
+                                                <div className="flex-1 space-y-4">
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                            Set Name
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={newSetName}
+                                                            onChange={(e) => setNewSetName(e.target.value)}
+                                                            placeholder="Enter set name"
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                                                         />
                                                     </div>
-                                                )}
+
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                            Description
+                                                        </label>
+                                                        <textarea
+                                                            value={newSetDescription}
+                                                            onChange={(e) => setNewSetDescription(e.target.value)}
+                                                            placeholder="Describe your set"
+                                                            rows={3}
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="w-64">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Cover Image (Optional)
+                                                    </label>
+                                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition h-full flex items-center justify-center">
+                                                        <input
+                                                            type="file"
+                                                            id="cover-upload"
+                                                            accept="image/*"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files[0];
+                                                                if (file) {
+                                                                    const reader = new FileReader();
+                                                                    reader.onload = (event) => {
+                                                                        setNewSetImage({
+                                                                            file,
+                                                                            preview: event.target.result,
+                                                                        });
+                                                                    };
+                                                                    reader.readAsDataURL(file);
+                                                                }
+                                                            }}
+                                                            className="hidden"
+                                                        />
+                                                        {newSetImage ? (
+                                                            <div className="relative">
+                                                                <img
+                                                                    src={newSetImage.preview}
+                                                                    alt="Cover preview"
+                                                                    className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                                                                />
+                                                                <button
+                                                                    onClick={() => setNewSetImage("")}
+                                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition"
+                                                                    title="Remove cover image"
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            <label htmlFor="cover-upload" className="cursor-pointer">
+                                                                <svg className="w-10 h-10 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                                </svg>
+                                                                <p className="text-gray-600 text-sm mb-2">Click to upload</p>
+                                                                <span className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition inline-block text-sm">
+                                                                    Upload Cover
+                                                                </span>
+                                                            </label>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div>
@@ -344,14 +426,14 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                                             files.forEach((file, index) => {
                                                                 const reader = new FileReader();
                                                                 reader.onload = (event) => {
-                                                                    setNewSetCards(prev => {
+                                                                    setNewSetCards((prev) => {
                                                                         const newCard = {
                                                                             id: Date.now() + Math.random(),
-                                                                            name: file.name.replace(/\.[^/.]+$/, ""), // Remove extension
+                                                                            name: file.name.replace(/\.[^/.]+$/, ""),
                                                                             originalName: file.name,
+                                                                            file,
                                                                             image: event.target.result,
                                                                             isEditing: false,
-                                                                            isCover: prev.length === 0 && index === 0 // First card is cover by default
                                                                         };
                                                                         return [...prev, newCard];
                                                                     });
@@ -372,10 +454,6 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                                     </label>
                                                 </div>
 
-                                                <p className="text-sm text-gray-600 mt-2">
-                                                    Starred image is the set cover
-                                                </p>
-
                                                 {/* Display uploaded images */}
                                                 {newSetCards.length > 0 && (
                                                     <div className="mt-4 grid grid-cols-3 gap-3">
@@ -386,30 +464,6 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                                                     alt={card.name}
                                                                     className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
                                                                 />
-
-                                                                {/* Cover Star Badge */}
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setNewSetCards(prev => prev.map(c => ({
-                                                                            ...c,
-                                                                            isCover: c.id === card.id
-                                                                        })));
-                                                                    }}
-                                                                    className={`absolute top-1 left-1 rounded-full p-1.5 transition ${card.isCover
-                                                                        ? "bg-yellow-400 shadow-lg"
-                                                                        : "bg-gray-700/50 opacity-0 group-hover:opacity-100"
-                                                                        }`}
-                                                                    title={card.isCover ? "Cover image" : "Set as cover"}
-                                                                >
-                                                                    <svg
-                                                                        className={`w-4 h-4 ${card.isCover ? "text-white" : "text-white"}`}
-                                                                        fill="currentColor"
-                                                                        viewBox="0 0 20 20"
-                                                                    >
-                                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                                                    </svg>
-                                                                </button>
 
                                                                 {/* Delete Button */}
                                                                 <button
@@ -561,7 +615,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                         </div>
 
                         {/* Right Panel - Game Settings */}
-                        <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
+                        {setView !== "create" && (<div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
                             <div className="p-6">
                                 <h2 className="text-lg font-bold text-gray-800 mb-4">Game Settings</h2>
 
@@ -654,7 +708,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                     Create Lobby
                                 </button>
                             </div>
-                        </div>
+                        </div>)}
                     </div>
                 </div>
             )}
