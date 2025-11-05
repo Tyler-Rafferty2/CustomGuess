@@ -20,7 +20,14 @@ type LobbyHandler struct {
 // POST /lobby/create
 func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)
-    lobby, err := h.Service.CreateLobby(user)
+
+    var req struct {
+        SetID   uuid.UUID `json:"setId"`
+        Private bool      `json:"isPrivate"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return

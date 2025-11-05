@@ -37,9 +37,9 @@ func generateLobbyCode() string {
 }
 
 // create a new lobby with the first player
-func (s *LobbyService) CreateLobby(user *models.User) (*models.Lobby, error) {
+func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool) (*models.Lobby, error) {
     var charSet models.CharacterSet
-    if err := s.DB.First(&charSet).Error; err != nil {
+    if err := s.DB.Where("id = ?", setID).First(&charSet).Error; err != nil {
         return nil, fmt.Errorf("no character sets available: %w", err)
     }
 

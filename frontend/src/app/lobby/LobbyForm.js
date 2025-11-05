@@ -156,6 +156,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
         setError(null);
 
         try {
+            console.log(selectedSet.id);
             const res = await fetch("http://localhost:8080/lobby/create", {
                 method: "POST",
                 headers: {
@@ -164,8 +165,6 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                 },
                 body: JSON.stringify({
                     setId: selectedSet.id,
-                    maxPlayers,
-                    roundTime,
                     isPrivate,
                 }),
             });

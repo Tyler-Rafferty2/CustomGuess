@@ -124,7 +124,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                             >
                                 <div className="flex flex-col items-center justify-between h-full">
                                     <img
-                                        src={char.image}
+                                        src={`http://localhost:8080` + char.image}
                                         alt={char.name}
                                     />
                                     <span className="text-sm font-semibold mt-2">{char.name}</span>

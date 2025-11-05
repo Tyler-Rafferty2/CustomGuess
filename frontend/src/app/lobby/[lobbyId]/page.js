@@ -284,7 +284,7 @@ export default function LobbyPage() {
                                 <div className="flex items-center justify-start">
                                     <div className="flex flex-col items-center border-2 border-yellow-400 p-2 rounded w-full">
                                         <img
-                                            src={gameState.secretCharacter.image}
+                                            src={`http://localhost:8080` + gameState.secretCharacter.image}
                                             alt={gameState.secretCharacter.name}
                                             className="w-20 h-20 object-cover rounded"
                                         />
