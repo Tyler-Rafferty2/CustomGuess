@@ -67,6 +67,7 @@ func MountRoutes(r chi.Router) {
 
         r.Get("/", playerHandler.GetPlayersHandler)
         r.Post("/set/create", playerHandler.CreateSetHandler)
+        r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
     })
 
     r.Get("/ws", wsHandler.HandleWebSocket)

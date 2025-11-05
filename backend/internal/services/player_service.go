@@ -2,6 +2,7 @@ package services
 
 import (
 	"gorm.io/gorm"
+    "fmt"
 
     "github.com/tyler-rafferty2/GuessWho/internal/models"
     "github.com/google/uuid"
@@ -51,21 +52,20 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, c
     return set, nil
 }
 
-// func (s *PlayerService) GetSet(user *models.User) (*models.CharacterSet, error) {
+func (s *PlayerService) GetSets(user *models.User) ([]models.CharacterSet, error) {
+    var sets []models.CharacterSet
+    
+    err := s.DB.Where("user_id = ?", user.ID).
+        Preload("Characters"). 
+        Find(&sets).Error
+    
+    if err != nil {
+        return nil, fmt.Errorf("failed to get character sets: %w", err)
+    }
+    
+    return sets, nil
+}
 
-//     // Assign SetID to each character
-//     for i := range characters {
-//         characters[i].SetID = set.ID
-//     }
-
-//     set.Characters = characters
-
-//     if err := s.DB.Create(set).Error; err != nil {
-//         return nil, err
-//     }
-
-//     return set, nil
-// }
 
 
 

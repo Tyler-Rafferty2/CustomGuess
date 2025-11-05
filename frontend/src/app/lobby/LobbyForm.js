@@ -110,12 +110,30 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
 
     const loadSets = async () => {
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
-            setPublicSets(mockPublicSets);
-            //setMySets(mockMySets);
+        setError(null);
+
+        try {
+            const res = await fetch("http://localhost:8080/player/set/player", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-User-ID": user?.id,
+                },
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+            console.log("Fetched my sets:", data);
+            setMySets(data);
             setLoading(false);
-        }, 300);
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
     };
 
     const openModal = () => {
@@ -565,12 +583,9 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                                     {/* Image */}
                                                     <div className="relative h-40 bg-gray-200 overflow-hidden">
                                                         <img
-                                                            src={set.image}
-                                                            alt={set.name}
-                                                            className="w-full h-full object-cover"
-                                                            onError={(e) => {
-                                                                e.target.src = 'https://via.placeholder.com/400x300?text=No+Image';
-                                                            }}
+                                                            src={`http://localhost:8080` + set.coverImageName}
+                                                            alt={set.coverImageName}
+                                                            className="w-full h-full object-cover" S
                                                         />
                                                         {selectedSet?.id === set.id && (
                                                             <div className="absolute top-2 right-2 w-7 h-7 bg-green-600 rounded-full flex items-center justify-center shadow-lg">

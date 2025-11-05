@@ -30,7 +30,7 @@ func (h *PlayerHandler) GetPlayersHandler(w http.ResponseWriter, r *http.Request
     json.NewEncoder(w).Encode(players)
 }
 
-// POST /player/set/create
+// POST /set/create
 func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)
 
@@ -111,4 +111,17 @@ func saveFile(file multipart.File, filename string) string {
 
     log.Println("✅ File saved to uploads/" + filename)
     return "/uploads/" + filename
+}
+
+
+// GET /set/player
+func (h *PlayerHandler) GetSetFromPlayerHandler(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUserFromContext(r)
+    sets, err := h.Service.GetSets(user)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    json.NewEncoder(w).Encode(sets)
 }
