@@ -122,3 +122,22 @@ func (h *LobbyHandler) GetLobbyHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
+
+// POST /guess
+func (h *LobbyHandler) GuessLobbyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    var req struct {
+        LobbyID uuid.UUID `json:"lobbyId"`
+        CharacterId    string    `json:"characterId"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    lobby, err := h.Service.MakeGuessLobby(user, req.LobbyID, req.CharacterId)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(lobby)
+}

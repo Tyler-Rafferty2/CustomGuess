@@ -30,6 +30,7 @@ export default function LobbyPage() {
     const wsRef = useRef(null);
     const [isMinimized, setIsMinimized] = useState(false);
     const isMinimizedRef = useRef(isMinimized);
+    const [isGuessMode, setIsGuessMode] = useState(false);
 
     const params = useParams();
     const lobbyID = params.lobbyId;
@@ -210,6 +211,21 @@ export default function LobbyPage() {
             </div>
         );
     }
+    //this needs to not look at user but instead look at players id save din storage
+    if (lobby?.gameOver) {
+        const currentPlayer = lobby.players.find(p => p.userId === user?.id);
+        const isWinner = currentPlayer?.id === lobby.winner;
+        console.log("user id", user?.id);
+        console.log("looks here", currentPlayer?.id, lobby.winner);
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Game Over</h1>
+                <h2 className="text-xl">
+                    {isWinner ? "You Won!" : "You Lost"}
+                </h2>
+            </div>
+        );
+    }
 
     const Item = styled(Paper)(({ theme }) => ({
         backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
@@ -270,6 +286,8 @@ export default function LobbyPage() {
                                 receivedMessage={receivedMessage}
                                 waitingReponse={waitingReponse}
                                 setWaitingReponse={setWaitingReponse}
+                                setIsGuessMode={setIsGuessMode}
+                                isGuessMode={isGuessMode}
                             />
                         )}
                     </div>
@@ -295,7 +313,6 @@ export default function LobbyPage() {
                         )}
                     </div>
                 </div>
-
                 <GameState
                     user={user}
                     setError={setError}
@@ -303,6 +320,7 @@ export default function LobbyPage() {
                     setLobby={setLobby}
                     gameState={gameState}
                     setGameState={setGameState}
+                    isGuessMode={isGuessMode}
                 />
                 {/* {user && user.email && lobbyID && (
                     <ChatApp

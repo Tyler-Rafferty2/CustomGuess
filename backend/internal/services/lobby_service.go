@@ -6,6 +6,7 @@ import (
     "math/rand"
     "time"
     "fmt"
+    "log"
 
     "github.com/google/uuid"
     "gorm.io/gorm"
@@ -14,11 +15,15 @@ import (
 )
 
 type LobbyService struct {
-    DB *gorm.DB
+    DB  *gorm.DB
+    Hub *Hub 
 }
 
-func NewLobbyService(db *gorm.DB) *LobbyService {
-    return &LobbyService{DB: db}
+func NewLobbyService(db *gorm.DB, hub *Hub) *LobbyService {
+    return &LobbyService{
+        DB:  db,
+        Hub: hub,
+    }
 }
 
 
@@ -34,6 +39,43 @@ func generateLobbyCode() string {
         b[i] = letters[rand.Intn(len(letters))]
     }
     return string(b)
+}
+
+func (s *LobbyService) broadcastLobbyUpdate(lobbyID string) {
+    if s.Hub == nil {
+        return
+    }
+    
+    lobby, err := s.getLobbyFromDB(lobbyID)
+    if err != nil {
+        log.Printf("Error fetching lobby for broadcast: %v", err)
+        return
+    }
+    
+    message := models.Message{
+        Type:    "lobby_update",
+        LobbyID: lobbyID,
+        Channel: "lobby_update",
+        Lobby:   lobby,
+    }
+    
+    s.Hub.BroadcastMessage(message)
+}
+
+func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
+    var lobby models.Lobby
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        return nil, err
+    }
+    
+    if err := s.DB.Preload("Players").
+        Preload("CharacterSet.Characters").
+        First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        return nil, err
+    }
+    
+    return &lobby, nil
 }
 
 // create a new lobby with the first player
@@ -190,4 +232,47 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
     }
 
     return &lobby, &gs.SecretCharacter, nil
+}
+
+//Make this guess
+//Needs to be fixed
+func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, characterID string) (*models.Lobby, error) {
+    var player models.Player
+    if err := s.DB.Where("user_id = ? and lobby_id = ?", user.ID, lobbyID).First(&player).Error; err != nil {
+        return nil, err
+    }
+    
+    var gameState models.GameState
+    if err := s.DB.Preload("SecretCharacter").Where("player_id != ? and lobby_id = ?", player.ID, lobbyID).First(&gameState).Error; err != nil {
+        return nil, err
+    }
+
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return nil, err
+    }
+
+    if gameState.SecretCharacter.ID.String() == characterID {
+        lobby.GameOver = true
+        winnerID := player.ID
+        lobby.Winner = &winnerID
+        if err := s.DB.Save(&lobby).Error; err != nil {
+            return nil, err
+        }
+        s.broadcastLobbyUpdate(lobbyID.String())
+        return &lobby, nil
+    } else {
+        var otherPlayer models.Player
+        if err := s.DB.Where("lobby_id = ? AND user_id != ?", lobbyID, user.ID).First(&otherPlayer).Error; err != nil {
+            return nil, err
+        }
+        
+        lobby.GameOver = true
+        lobby.Winner = &otherPlayer.ID
+        if err := s.DB.Save(&lobby).Error; err != nil {
+            return nil, err
+        }
+        s.broadcastLobbyUpdate(lobbyID.String())
+        return &lobby, nil
+    }
 }

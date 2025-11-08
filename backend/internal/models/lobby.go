@@ -15,6 +15,9 @@ type Lobby struct {
 
     CharacterSetID uuid.UUID     `gorm:"type:uuid;not null" json:"characterSetId"` 
     CharacterSet   CharacterSet  `gorm:"foreignKey:CharacterSetID" json:"characterSet"`
+
+    GameOver    bool        `gorm:"default:false" json:"gameOver"`
+    Winner    *uuid.UUID        `gorm:"type:uuid" json:"winner"`
 }
 
 func (l *Lobby) BeforeCreate(tx *gorm.DB) (err error) {

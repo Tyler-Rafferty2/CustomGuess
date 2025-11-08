@@ -10,7 +10,7 @@ import { styled } from '@mui/material/styles';
 const IMAGE_SIZE = '120px';
 
 
-export default function Players({ user, setError, lobby, setLobby, gameState, setGameState }) {
+export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode }) {
     const params = useParams();
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
@@ -53,6 +53,37 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
         }
     };
 
+    const makeGuess = async (charId) => {
+        setError(null);
+
+        try {
+            console.log("Making guess for character ID:", user?.id);
+            const res = await fetch(`http://localhost:8080/lobby/guess`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-User-ID": user?.id,
+                },
+                body: JSON.stringify({
+                    lobbyId: lobbyID,
+                    characterId: charId
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+            console.log("Fetched gamestate:", data);
+            setGameState(data);
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
+    };
+
     useEffect(() => {
         if (user?.id) {
             getGameState();
@@ -63,25 +94,43 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
         return <div>Loading game data...</div>;
     }
 
-    const Item = styled(Paper)(({ theme, isSelected }) => ({
-        // Use a background color to indicate selection
-        backgroundColor: isSelected
-            ? theme.palette.mode === 'dark' ? '#004d40' : '#e0f2f1' // Teal/light green for selected
-            : theme.palette.mode === 'dark' ? '#1A2027' : '#fff', // Default color
+    const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
         ...theme.typography.body2,
         padding: theme.spacing(1),
         textAlign: 'center',
-        color: theme.palette.text.primary, // Changed text color for better visibility
+        color: theme.palette.text.primary,
         cursor: 'pointer',
-        border: isSelected ? '2px solid #009688' : '1px solid #ccc', // Highlight border
         transition: 'all 0.2s',
+        position: 'relative',
+
+        ...(isGuessMode && {
+            border: '2px solid #4F46E5',
+            boxShadow: '0 0 10px rgba(79, 70, 229, 0.3)',
+            '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 0 15px rgba(79, 70, 229, 0.5)',
+            }
+        }),
+
         '& img': {
             width: IMAGE_SIZE,
             height: IMAGE_SIZE,
             objectFit: 'cover',
-            borderRadius: '4px',
-            border: isSelected ? '3px solid #009688' : 'none', // Inner border for image
-        }
+        },
+
+        ...(isSelected && {
+            '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: theme.spacing(1),
+                left: theme.spacing(1),
+                width: IMAGE_SIZE,
+                height: IMAGE_SIZE,
+                backgroundColor: '#424242',
+                pointerEvents: 'none',
+            }
+        }),
+
     }));
 
     // This is the real data source you were using for characters
@@ -119,8 +168,15 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                         <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
                             <Item
                                 isSelected={isSelected}
-                                onClick={() => toggleCharacter(char.id)}
-                                className="h-full" // Use h-full from Tailwind to make all Items the same height
+                                isGuessMode={isGuessMode}
+                                onClick={() => {
+                                    if (isGuessMode) {
+                                        makeGuess(char.id);
+                                    } else {
+                                        toggleCharacter(char.id)
+                                    }
+                                }}
+                                className="h-full"
                             >
                                 <div className="flex flex-col items-center justify-between h-full">
                                     <img
@@ -130,6 +186,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                                     <span className="text-sm font-semibold mt-2">{char.name}</span>
                                 </div>
                             </Item>
+
                         </Grid>
                     );
                 })}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, X, MessageCircle } from 'lucide-react';
 
-export default function GameSend({ lobbyId, username, wsRef, setIsConnected, messages, setMessages, turn, setSentMessage, receivedMessage, waitingReponse, setWaitingReponse }) {
+export default function GameSend({ lobbyId, username, wsRef, setIsConnected, messages, setMessages, turn, setSentMessage, receivedMessage, waitingReponse, setWaitingReponse, setIsGuessMode, isGuessMode }) {
     const [inputMessage, setInputMessage] = useState('');
     const messagesEndRef = useRef(null);
 
@@ -62,24 +62,36 @@ export default function GameSend({ lobbyId, username, wsRef, setIsConnected, mes
         <div className="p-3 bg-white border-t border-gray-200 rounded-b-lg">
             {turn ? (
                 // When it's your turn - show input
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
                     {!waitingReponse ? (
                         <>
-                            <input
-                                type="text"
-                                value={inputMessage}
-                                onChange={(e) => setInputMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder="Type a message..."
-                                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                            />
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder="Type a message..."
+                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                />
+                                <button
+                                    onClick={sendMessage}
+                                    disabled={!inputMessage.trim()}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
+                                >
+                                    <Send className="w-4 h-4" />
+                                </button>
+                            </div>
                             <button
-                                onClick={sendMessage}
-                                disabled={!inputMessage.trim()}
-                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
+                                onClick={() => setIsGuessMode(!isGuessMode)}
+                                className={`w-1/5 px-4 py-2 rounded-lg transition-colors ${isGuessMode
+                                    ? 'bg-red-500 hover:bg-red-600 text-white'   // Stop Making Guess
+                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white' // Make a Guess
+                                    }`}
                             >
-                                <Send className="w-4 h-4" />
+                                {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
                             </button>
+
                         </>
                     ) : (
                         <p className="text-sm text-gray-500">Waiting for opponent's response...</p>

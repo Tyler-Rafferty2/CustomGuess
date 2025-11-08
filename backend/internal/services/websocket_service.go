@@ -28,14 +28,6 @@ func (ws *WebSocketService) BroadcastLobbyUpdate(lobbyID string) {
 		return
 	}
 
-	// message := models.Message{
-	// 	Type:    "lobby_update",
-	// 	LobbyID: lobbyID,
-	// 	Content: "Lobby updated",
-	// 	Time:    "", 
-	// 	Lobby:   lobby, 
-	// }
-
 	message := models.Message{
 		Type:     "lobby_update",
 		Content:  "",

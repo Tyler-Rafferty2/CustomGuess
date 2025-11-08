@@ -12,9 +12,15 @@ import (
 
 func MountRoutes(r chi.Router) {
 
+    // Create chat hub and start it
+    chatHub := services.NewHub()
+    go chatHub.Run()
+
+    wsHandler := handlers.NewWebSocketHandler(chatHub)
+
 	// Create services
     userService := services.NewUserService(config.DB)
-    lobbyService := services.NewLobbyService(config.DB)
+    lobbyService := services.NewLobbyService(config.DB, chatHub)
     playerService := services.NewPlayerService(config.DB)
     gameStateService := services.NewGameStateService(config.DB)
 
@@ -23,12 +29,6 @@ func MountRoutes(r chi.Router) {
     lobbyHandler := &handlers.LobbyHandler{Service: lobbyService}
     playerHandler := &handlers.PlayerHandler{Service: playerService}
     gameStateHandler := &handlers.GameStateHandler{Service: gameStateService}
-
-    // Create chat hub and start it
-    chatHub := services.NewHub()
-    go chatHub.Run()
-
-    wsHandler := handlers.NewWebSocketHandler(chatHub)
 
     r.Use(middleware.CORSMiddleware)
 
@@ -51,6 +51,7 @@ func MountRoutes(r chi.Router) {
         r.Post("/join", lobbyHandler.JoinLobbyHandler)
         r.Post("/move", lobbyHandler.MakeMoveHandler)
         r.Get("/{lobbyID}", lobbyHandler.GetLobbyHandler)
+        r.Post("/guess", lobbyHandler.GuessLobbyHandler)
         
 
 
