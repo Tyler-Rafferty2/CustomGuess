@@ -2,6 +2,7 @@
 
 import { useState, useContext } from "react";
 import { UserContext } from "@/context/UserContext";
+import { useRouter } from "next/navigation";
 import LobbyForm from "./LobbyForm";
 import LobbyStatus from "./LobbyStatus";
 import Players from "./Players";
@@ -13,6 +14,8 @@ export default function LobbyPage() {
     const [lobby, setLobby] = useState(null);
     const [players, setPlayers] = useState(null);
     const [lobbies, setLobbies] = useState(null);
+
+    const router = useRouter();
 
     const getPlayers = async () => {
         setError(null);
@@ -40,6 +43,35 @@ export default function LobbyPage() {
         }
     };
 
+    const joinLobby = async (lobbyCode, lobbyID) => {
+        setError(null);
+
+        try {
+            const res = await fetch(`http://localhost:8080/lobby/join`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-User-ID": user?.id,
+                },
+                body: JSON.stringify({ code: lobbyCode }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
+        console.log(lobbyCode)
+        console.log(lobbies)
+        router.push(`/lobby/${lobbyID}`);
+
+    };
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4">
             <h1 className="text-2xl font-bold">Create Lobby</h1>
@@ -64,6 +96,7 @@ export default function LobbyPage() {
                 setError={setError}
                 lobbies={lobbies}
                 setLobbies={setLobbies}
+                joinLobby={joinLobby}
             />
         </div>
     );

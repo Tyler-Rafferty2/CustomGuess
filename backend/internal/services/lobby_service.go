@@ -161,6 +161,8 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
         return nil, err
     }
 
+    s.broadcastLobbyUpdate((lobby.ID).String())
+
     return &lobby, nil
 }
 

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Players({ user, setError, lobbies, setLobbies }) {
+export default function Players({ user, setError, lobbies, setLobbies, joinLobby }) {
 
     const router = useRouter();
 
@@ -38,35 +38,6 @@ export default function Players({ user, setError, lobbies, setLobbies }) {
             getLobbies();
         }
     }, [user?.id]);
-
-    const joinLobby = async (lobbyCode, lobbyID) => {
-        setError(null);
-
-        try {
-            const res = await fetch(`http://localhost:8080/lobby/join`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
-                },
-                body: JSON.stringify({ code: lobbyCode }),
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error || "Something went wrong");
-                return;
-            }
-        } catch (err) {
-            console.error(err);
-            setError("Network error");
-        }
-        console.log(lobbyCode)
-        console.log(lobbies)
-        router.push(`/lobby/${lobbyID}`);
-
-    };
 
     return (
         <div className="text-green-700 font-medium">

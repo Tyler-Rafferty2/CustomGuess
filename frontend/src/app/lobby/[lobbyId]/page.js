@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useContext, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
 import GameState from "./GameState";
@@ -37,6 +38,35 @@ export default function LobbyPage() {
     const lobbyID = params.lobbyId;
     let username = user ? user.email : null;
 
+    const router = useRouter();
+
+    const joinLobby = async (lobbyCode, lobbyID) => {
+        setError(null);
+        try {
+            const res = await fetch(`http://localhost:8080/lobby/join`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-User-ID": user?.id,
+                },
+                body: JSON.stringify({ code: lobbyCode }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+            console.log("joined about to check")
+            checkLobbyStatus();
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
+    };
+
+
     const checkLobbyStatus = async () => {
         if (!lobbyID) return;
 
@@ -61,6 +91,7 @@ export default function LobbyPage() {
                 gameStarted: data.gameStarted,
                 isFull: data.playerCount >= 2
             });
+
         } catch (err) {
             console.error(err);
             setLobbyStatus({ exists: false, error: "Network error" });
@@ -241,6 +272,17 @@ export default function LobbyPage() {
         console.log("lobbyStatus updated:", lobbyStatus);
     }, [lobbyStatus]);
 
+    useEffect(() => {
+        // Only auto-join if lobby exists, has less than 2 players, and user is not already in it
+        if (lobby &&
+            lobby.players?.length < 2 &&
+            !lobby.players.some(player => player.userId === user?.id) &&
+            lobby.code &&
+            lobby.id) {
+            joinLobby(lobby.code, lobby.id);
+        }
+    }, [lobby?.id, lobby?.players?.length]);
+
     console.log("this is the lobby", lobby)
     console.log("length", lobby?.players?.length)
     //this needs to not look at user but instead look at players id save din storage
@@ -283,7 +325,18 @@ export default function LobbyPage() {
         );
     }
 
-    if (lobbyStatus.isFull && !lobby) {
+    // Wait for lobby data from WebSocket before making decisions
+    if (!lobby && lobbyStatus?.exists) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Connecting to game...</h1>
+            </div>
+        );
+    }
+
+    // Now check if user is in the game (only after lobby is loaded)
+    if (lobby && !lobby.players.some(player => player.userId === user?.id)) {
+        // User tried to join but isn't in the player list = game is full
         return (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4">
                 <h1 className="text-2xl font-bold">Game is Full</h1>
@@ -299,7 +352,7 @@ export default function LobbyPage() {
     }
 
     // Your existing waiting for players check
-    if (lobby?.players?.length < 2) {
+    if (lobby?.players?.length < 2 && (lobby?.players.some(player => player.userId === user?.id))) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4">
                 <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
