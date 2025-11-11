@@ -10,6 +10,8 @@ type Lobby struct {
     UserID   uuid.UUID  `gorm:"type:uuid;not null" json:"userId"`
     User     User       `gorm:"foreignKey:UserID" json:"user"`
     Code    string    `gorm:"unique;not null" json:"code"`
+    Private bool    `gorm:"default:false" json:"isPrivate"`
+    RandomSecret bool `gorm:"default:false" json:"randomizeSecret"`
     TurnID  *uuid.UUID `gorm:"type:uuid" json:"turn"`
     Players []Player `gorm:"foreignKey:LobbyID;constraint:OnDelete:CASCADE;" json:"players"`
 

@@ -9,8 +9,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
     const router = useRouter();
     const [showModal, setShowModal] = useState(false);
     const [selectedSet, setSelectedSet] = useState(null);
-    const [maxPlayers, setMaxPlayers] = useState(4);
-    const [roundTime, setRoundTime] = useState(60);
+    const [selectSecret, setSelectSecret] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);
 
     // Set browsing state
@@ -156,6 +155,8 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
 
         setError(null);
 
+        const randomizeSecret = !selectSecret;
+        console.log("randomize Sec:", randomizeSecret)
         try {
             console.log(selectedSet.id);
             const res = await fetch("http://localhost:8080/lobby/create", {
@@ -167,6 +168,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                 body: JSON.stringify({
                     setId: selectedSet.id,
                     isPrivate,
+                    randomizeSecret,
                 }),
             });
 
@@ -556,44 +558,23 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                 )}
 
                                 <div className="space-y-6">
-                                    {/* Max Players */}
+                                    {/* Randomize Secret Character */}
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                            Max Players: {maxPlayers}
+                                        <label className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                                            <div>
+                                                <span className="block text-sm font-semibold text-gray-700">
+                                                    Select Secret Character
+                                                </span>
+                                            </div>
+                                            <input
+                                                type="checkbox"
+                                                checked={selectSecret}
+                                                onChange={(e) => setSelectSecret(e.target.checked)}
+                                                className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                                            />
                                         </label>
-                                        <input
-                                            type="range"
-                                            min="2"
-                                            max="8"
-                                            value={maxPlayers}
-                                            onChange={(e) => setMaxPlayers(parseInt(e.target.value))}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                                        />
-                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                            <span>2</span>
-                                            <span>8</span>
-                                        </div>
                                     </div>
 
-                                    {/* Round Time */}
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                                            Round Time: {roundTime}s
-                                        </label>
-                                        <input
-                                            type="range"
-                                            min="30"
-                                            max="180"
-                                            step="15"
-                                            value={roundTime}
-                                            onChange={(e) => setRoundTime(parseInt(e.target.value))}
-                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                                        />
-                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                            <span>30s</span>
-                                            <span>180s</span>
-                                        </div>
-                                    </div>
 
                                     {/* Privacy Toggle */}
                                     <div>

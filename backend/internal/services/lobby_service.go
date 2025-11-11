@@ -79,7 +79,7 @@ func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
 }
 
 // create a new lobby with the first player
-func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool) (*models.Lobby, error) {
+func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool) (*models.Lobby, error) {
     var charSet models.CharacterSet
     if err := s.DB.Where("id = ?", setID).First(&charSet).Error; err != nil {
         return nil, fmt.Errorf("no character sets available: %w", err)
@@ -93,10 +93,14 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         return nil, fmt.Errorf("no characters found for this set")
     }
 
+    log.Printf("Is it randome: %t", randomizeChar)
+
     lobby := &models.Lobby{
         UserID: user.ID,
         Code: generateLobbyCode(),
         CharacterSetID: charSet.ID,
+        Private: private,
+        RandomSecret: randomizeChar,
     }
 
     if err := s.DB.Create(lobby).Error; err != nil {
@@ -104,16 +108,30 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
     }
 
     rand.Seed(time.Now().UnixNano())
-    secretChar := characters[rand.Intn(len(characters))]
+    
+    var secretChar *models.Character
+
+    if randomizeChar {
+        c := characters[rand.Intn(len(characters))]
+        secretChar = &c
+    }
 
     player := &models.Player{
         LobbyID: lobby.ID,
         UserID:  user.ID,
         GameState: models.GameState{
-            LobbyID:         lobby.ID,      
-            SecretCharacter: secretChar,
+            LobbyID:         lobby.ID,
+            SecretCharacter: secretChar,       // ✅ pointer now
+            SecretCharacterID: nil,            // optional if no random
         },
     }
+
+
+    if secretChar != nil {
+        player.GameState.SecretCharacter = secretChar
+        player.GameState.SecretCharacterID = &secretChar.ID
+    }
+
 
     if err := s.DB.Create(player).Error; err != nil {
         return nil, err
@@ -146,25 +164,39 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
         return nil, errors.New("character set has no characters")
     }
     rand.Seed(time.Now().UnixNano())
-    secretChar := characters[rand.Intn(len(characters))]
+
+    var secretChar *models.Character
+
+    if lobby.RandomSecret {
+        c := characters[rand.Intn(len(characters))]
+        secretChar = &c
+    }
 
     player := &models.Player{
         LobbyID: lobby.ID,
         UserID:  user.ID,
         GameState: models.GameState{
-            LobbyID:         lobby.ID,      
-            SecretCharacter: secretChar,
+            LobbyID:         lobby.ID,
+            SecretCharacter: secretChar,       // ✅ pointer now
+            SecretCharacterID: nil,            // optional if no random
         },
+    }
+
+
+    if secretChar != nil {
+        player.GameState.SecretCharacter = secretChar
+        player.GameState.SecretCharacterID = &secretChar.ID
     }
 
     if err := s.DB.Create(player).Error; err != nil {
         return nil, err
     }
 
-    s.broadcastLobbyUpdate((lobby.ID).String())
+    s.broadcastLobbyUpdate(lobby.ID.String())
 
     return &lobby, nil
 }
+
 
 func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
     var lobbies []models.Lobby
@@ -233,7 +265,7 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
         return &lobby, nil, nil // return lobby even if the secret character isn't found yet
     }
 
-    return &lobby, &gs.SecretCharacter, nil
+    return &lobby, gs.SecretCharacter, nil
 }
 
 //Make this guess
