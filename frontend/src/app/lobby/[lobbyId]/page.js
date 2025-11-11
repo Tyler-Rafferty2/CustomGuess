@@ -31,10 +31,41 @@ export default function LobbyPage() {
     const [isMinimized, setIsMinimized] = useState(false);
     const isMinimizedRef = useRef(isMinimized);
     const [isGuessMode, setIsGuessMode] = useState(false);
+    const [lobbyStatus, setLobbyStatus] = useState(null);
 
     const params = useParams();
     const lobbyID = params.lobbyId;
     let username = user ? user.email : null;
+
+    const checkLobbyStatus = async () => {
+        if (!lobbyID) return;
+
+        try {
+            const res = await fetch(`http://localhost:8080/lobby/${lobbyID}/status`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setLobbyStatus({ exists: false, error: data.error });
+                return;
+            }
+
+            setLobbyStatus({
+                exists: true,
+                playerCount: data.playerCount,
+                gameStarted: data.gameStarted,
+                isFull: data.playerCount >= 2
+            });
+        } catch (err) {
+            console.error(err);
+            setLobbyStatus({ exists: false, error: "Network error" });
+        }
+    };
 
 
     //console.log(playerId, lobby ? lobby.lobby.turn : null)
@@ -201,16 +232,17 @@ export default function LobbyPage() {
         }
     }, [lobby]);
 
+    useEffect(() => {
+        checkLobbyStatus();
+        console.log("lobbyStatus:", lobbyStatus);
+    }, [lobbyID]);
+
+    useEffect(() => {
+        console.log("lobbyStatus updated:", lobbyStatus);
+    }, [lobbyStatus]);
+
     console.log("this is the lobby", lobby)
     console.log("length", lobby?.players?.length)
-    if (lobby?.players?.length < 2) {
-        console.log("length insdie", lobby?.players?.length)
-        return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
-            </div>
-        );
-    }
     //this needs to not look at user but instead look at players id save din storage
     if (lobby?.gameOver) {
         const currentPlayer = lobby.players.find(p => p.userId === user?.id);
@@ -223,6 +255,86 @@ export default function LobbyPage() {
                 <h2 className="text-xl">
                     {isWinner ? "You Won!" : "You Lost"}
                 </h2>
+            </div>
+        );
+    }
+
+    // Handle lobby status checks
+    if (lobbyStatus === null) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Checking lobby...</h1>
+            </div>
+        );
+    }
+
+    if (!lobbyStatus.exists) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Lobby Not Found</h1>
+                <p className="text-gray-600">This lobby doesn't exist or has expired.</p>
+                <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                    Create New Game
+                </button>
+            </div>
+        );
+    }
+
+    if (lobbyStatus.isFull && !lobby) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Game is Full</h1>
+                <p className="text-gray-600">This game already has 2 players.</p>
+                <button
+                    onClick={() => window.location.href = '/'}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                    Create New Game
+                </button>
+            </div>
+        );
+    }
+
+    // Your existing waiting for players check
+    if (lobby?.players?.length < 2) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
+                <p className="text-gray-600">Share this link with a friend:</p>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={window.location.href}
+                        readOnly
+                        className="px-4 py-2 border rounded w-96"
+                    />
+                    <button
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            alert('Link copied!');
+                        }}
+                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                    >
+                        Copy Link
+                    </button>
+                </div>
+                <p className="text-sm text-gray-500">Lobby ID: {lobbyID}</p>
+            </div>
+        );
+    } else if (!(lobby?.players.some(player => player.userId === user?.id))) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Game is Full</h1>
+                <p className="text-gray-600">This game already has 2 players.</p>
+                <button
+                    onClick={() => window.location.href = '/lobby'}
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                    Create New Game
+                </button>
             </div>
         );
     }

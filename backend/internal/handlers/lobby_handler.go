@@ -66,6 +66,19 @@ func (h *LobbyHandler) JoinLobbyHandler(w http.ResponseWriter, r *http.Request) 
     json.NewEncoder(w).Encode(lobby)
 }
 
+// GET /lobby/:lobbyId/status
+func (h *LobbyHandler) GetLobbyStatus(w http.ResponseWriter, r *http.Request) {
+    lobbyId := chi.URLParam(r, "lobbyId")
+    
+    status, err := h.Service.GetLobbyStatus(lobbyId)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusNotFound)
+        return
+    }
+    
+    json.NewEncoder(w).Encode(status)
+}
+
 // POST /player/move
 func (h *LobbyHandler) MakeMoveHandler(w http.ResponseWriter, r *http.Request) {
     var req struct {

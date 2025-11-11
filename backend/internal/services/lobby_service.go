@@ -276,3 +276,27 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
         return &lobby, nil
     }
 }
+
+type LobbyStatus struct {
+    Exists      bool `json:"exists"`
+    PlayerCount int  `json:"playerCount"`
+    IsFull      bool `json:"isFull"`
+    GameStarted bool `json:"gameStarted"`
+}
+
+func (s *LobbyService) GetLobbyStatus(lobbyId string) (*LobbyStatus, error) {
+    var lobby models.Lobby
+
+    // Load lobby with players to get count
+    if err := s.DB.
+        Preload("Players").
+        First(&lobby, "id = ?", lobbyId).Error; err != nil {
+        return nil, err
+    }
+
+    return &LobbyStatus{
+        Exists:      true,
+        PlayerCount: len(lobby.Players),
+        IsFull:      len(lobby.Players) >= 2,
+    }, nil
+}

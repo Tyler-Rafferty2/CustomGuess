@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import ImageCropperIntegration from './ImageCropperIntegration';
 
 export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
 
@@ -430,116 +431,21 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Card Images
                                                 </label>
-                                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition">
-                                                    <input
-                                                        type="file"
-                                                        id="card-upload"
-                                                        multiple
-                                                        accept="image/*"
-                                                        onChange={(e) => {
-                                                            const files = Array.from(e.target.files);
-                                                            console.log("Uploaded files:", files);
-                                                            // Handle the uploaded images here
-                                                            files.forEach((file, index) => {
-                                                                const reader = new FileReader();
-                                                                reader.onload = (event) => {
-                                                                    setNewSetCards((prev) => {
-                                                                        const newCard = {
-                                                                            id: Date.now() + Math.random(),
-                                                                            name: file.name.replace(/\.[^/.]+$/, ""),
-                                                                            originalName: file.name,
-                                                                            file,
-                                                                            image: event.target.result,
-                                                                            isEditing: false,
-                                                                        };
-                                                                        return [...prev, newCard];
-                                                                    });
-                                                                };
-                                                                reader.readAsDataURL(file);
-                                                            });
-                                                        }}
-                                                        className="hidden"
-                                                    />
-                                                    <label htmlFor="card-upload" className="cursor-pointer">
-                                                        <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                                        </svg>
-                                                        <p className="text-gray-600 mb-2">Drop card images here or click to browse</p>
-                                                        <span className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition inline-block">
-                                                            Upload Images
-                                                        </span>
-                                                    </label>
-                                                </div>
 
-                                                {/* Display uploaded images */}
-                                                {newSetCards.length > 0 && (
-                                                    <div className="mt-4 grid grid-cols-3 gap-3">
-                                                        {newSetCards.map((card, index) => (
-                                                            <div key={card.id} className="relative group">
-                                                                <img
-                                                                    src={card.image}
-                                                                    alt={card.name}
-                                                                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
-                                                                />
-
-                                                                {/* Delete Button */}
-                                                                <button
-                                                                    onClick={() => setNewSetCards(prev => prev.filter(c => c.id !== card.id))}
-                                                                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition"
-                                                                    title="Remove card"
-                                                                >
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                                                    </svg>
-                                                                </button>
-
-                                                                {/* Editable Name */}
-                                                                {card.isEditing ? (
-                                                                    <input
-                                                                        type="text"
-                                                                        value={card.name}
-                                                                        onChange={(e) => {
-                                                                            setNewSetCards(prev => prev.map(c =>
-                                                                                c.id === card.id ? { ...c, name: e.target.value } : c
-                                                                            ));
-                                                                        }}
-                                                                        onBlur={() => {
-                                                                            setNewSetCards(prev => prev.map(c =>
-                                                                                c.id === card.id ? { ...c, isEditing: false } : c
-                                                                            ));
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') {
-                                                                                setNewSetCards(prev => prev.map(c =>
-                                                                                    c.id === card.id ? { ...c, isEditing: false } : c
-                                                                                ));
-                                                                            }
-                                                                        }}
-                                                                        autoFocus
-                                                                        className="w-full text-xs text-gray-800 mt-1 px-2 py-1 border border-green-500 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-                                                                    />
-                                                                ) : (
-                                                                    <p
-                                                                        onClick={() => {
-                                                                            setNewSetCards(prev => prev.map(c =>
-                                                                                c.id === card.id ? { ...c, isEditing: true } : c
-                                                                            ));
-                                                                        }}
-                                                                        className="text-xs text-gray-600 mt-1 truncate cursor-pointer hover:text-gray-800 hover:bg-gray-100 px-1 py-0.5 rounded"
-                                                                        title="Click to edit"
-                                                                    >
-                                                                        {card.name}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {newSetCards.length > 0 && (
-                                                    <p className="text-sm text-gray-600 mt-2">
-                                                        {newSetCards.length} card{newSetCards.length !== 1 ? 's' : ''} uploaded
-                                                    </p>
-                                                )}
+                                                <ImageCropperIntegration
+                                                    onImagesProcessed={(processedImages) => {
+                                                        // Convert processed images to the format your backend expects
+                                                        const cards = processedImages.map(img => ({
+                                                            id: img.id,
+                                                            name: img.name,
+                                                            originalName: img.originalName,
+                                                            file: img.croppedFile || img.file, // Use cropped file if available
+                                                            image: img.cropped || img.original, // Preview image
+                                                            isEditing: img.isEditing
+                                                        }));
+                                                        setNewSetCards(cards);
+                                                    }}
+                                                />
                                             </div>
 
                                             <div className="flex gap-3 pt-4">

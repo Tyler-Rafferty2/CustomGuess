@@ -44,18 +44,21 @@ func MountRoutes(r chi.Router) {
 
 
 	r.Route("/lobby", func(r chi.Router) {
-        r.Use(middleware.UserMiddleware)
-
+    // First, define public routes (no middleware)
+    r.Get("/{lobbyId}/status", lobbyHandler.GetLobbyStatus)
+    
+    // Then, create a group with middleware for protected routes
+    r.Group(func(r chi.Router) {
+        r.Use(middleware.UserMiddleware) // Apply middleware to this group only
+        
         r.Post("/create", lobbyHandler.CreateLobbyHandler)
         r.Get("/find", lobbyHandler.FindLobbyHandler)
         r.Post("/join", lobbyHandler.JoinLobbyHandler)
         r.Post("/move", lobbyHandler.MakeMoveHandler)
         r.Get("/{lobbyID}", lobbyHandler.GetLobbyHandler)
         r.Post("/guess", lobbyHandler.GuessLobbyHandler)
-        
-
-
     })
+})
 
     r.Route("/gameState", func(r chi.Router) {
         r.Use(middleware.UserMiddleware)
