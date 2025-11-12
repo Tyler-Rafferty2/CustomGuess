@@ -59,6 +59,7 @@ export default function LobbyPage() {
                 return;
             }
             console.log("joined about to check")
+            getGameState();
             checkLobbyStatus();
         } catch (err) {
             console.error(err);
@@ -431,6 +432,7 @@ export default function LobbyPage() {
         );
     }
 
+    console.log("gameSTAte  ", gameState)
     if (gameState?.secretCharacter === undefined) {
 
         console.log("reloading")

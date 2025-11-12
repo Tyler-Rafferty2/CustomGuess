@@ -57,7 +57,6 @@ export default function LobbyPage() {
             });
 
             const data = await res.json();
-
             if (!res.ok) {
                 setError(data.error || "Something went wrong");
                 return;

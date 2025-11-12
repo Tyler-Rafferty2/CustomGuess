@@ -25,6 +25,9 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
     const [newSetCards, setNewSetCards] = useState([]);
     const [newSetImage, setNewSetImage] = useState("");
 
+    //Real set
+    const [images, setImages] = useState([]);
+
     // Mock data - replace with actual API calls
     const mockPublicSets = [
         {
@@ -191,7 +194,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
 
     const handleCreateSet = async () => {
         setSetView("my-sets");
-        console.log("Original cards:", newSetCards);
+        console.log("Original cards:", images);
 
         // Create FormData instead of JSON
         const formData = new FormData();
@@ -200,10 +203,9 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
         formData.append("coverImage", newSetImage?.file || ""); // optional cover image
 
         // Append each character
-        newSetCards.forEach((card, index) => {
+        images.forEach((card, index) => {
             formData.append(`characters[${index}][name]`, card.name);
-            formData.append(`characters[${index}][image]`, card.file || card.image);
-            // card.file is a File object; card.image is fallback Base64 string
+            formData.append(`characters[${index}][image]`, card.croppedFile || card.file);
         });
 
         console.log(Array.from(formData.entries()));
@@ -435,18 +437,8 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                                 </label>
 
                                                 <ImageCropperIntegration
-                                                    onImagesProcessed={(processedImages) => {
-                                                        // Convert processed images to the format your backend expects
-                                                        const cards = processedImages.map(img => ({
-                                                            id: img.id,
-                                                            name: img.name,
-                                                            originalName: img.originalName,
-                                                            file: img.croppedFile || img.file, // Use cropped file if available
-                                                            image: img.cropped || img.original, // Preview image
-                                                            isEditing: img.isEditing
-                                                        }));
-                                                        setNewSetCards(cards);
-                                                    }}
+                                                    images={images}
+                                                    setImages={setImages}
                                                 />
                                             </div>
 

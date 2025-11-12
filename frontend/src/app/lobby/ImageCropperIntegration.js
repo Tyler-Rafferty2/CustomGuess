@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Check, Move } from 'lucide-react';
 
-export default function ImageCropperIntegration() {
-    const [images, setImages] = useState([]);
+export default function ImageCropperIntegration({ images, setImages }) {
     const [editingIndex, setEditingIndex] = useState(null);
     const [cropBox, setCropBox] = useState({ x: 50, y: 50, width: 200, height: 200 });
     const [dragging, setDragging] = useState(null);
