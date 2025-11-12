@@ -268,8 +268,6 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
     return &lobby, gs.SecretCharacter, nil
 }
 
-//Make this guess
-//Needs to be fixed
 func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, characterID string) (*models.Lobby, error) {
     var player models.Player
     if err := s.DB.Where("user_id = ? and lobby_id = ?", user.ID, lobbyID).First(&player).Error; err != nil {
@@ -333,4 +331,34 @@ func (s *LobbyService) GetLobbyStatus(lobbyId string) (*LobbyStatus, error) {
         PlayerCount: len(lobby.Players),
         IsFull:      len(lobby.Players) >= 2,
     }, nil
+}
+
+func (s *LobbyService) SetSecretChar(user *models.User, lobbyID uuid.UUID, characterID uuid.UUID) (*models.GameState, error) {
+    // Find the player
+    var player models.Player
+    if err := s.DB.Where("user_id = ? AND lobby_id = ?", user.ID, lobbyID).First(&player).Error; err != nil {
+        return nil, err
+    }
+    
+    // Find the existing game state
+    var gameState models.GameState
+    if err := s.DB.Where("player_id = ? AND lobby_id = ?", player.ID, lobbyID).First(&gameState).Error; err != nil {
+        return nil, err
+    }
+    
+    // Update the secret character
+    gameState.SecretCharacterID = &characterID
+    if err := s.DB.Save(&gameState).Error; err != nil {
+        return nil, err
+    }
+    
+    // Preload the secret character for the response
+    if err := s.DB.Preload("SecretCharacter").First(&gameState, gameState.ID).Error; err != nil {
+        return nil, err
+    }
+    
+    // Broadcast lobby update
+    s.broadcastLobbyUpdate(lobbyID.String())
+    
+    return &gameState, nil
 }

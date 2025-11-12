@@ -57,6 +57,7 @@ func MountRoutes(r chi.Router) {
         r.Post("/move", lobbyHandler.MakeMoveHandler)
         r.Get("/{lobbyID}", lobbyHandler.GetLobbyHandler)
         r.Post("/guess", lobbyHandler.GuessLobbyHandler)
+        r.Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
     })
 })
 

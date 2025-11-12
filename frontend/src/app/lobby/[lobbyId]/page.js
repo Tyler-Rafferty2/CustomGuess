@@ -99,6 +99,33 @@ export default function LobbyPage() {
     };
 
 
+    const getGameState = async () => {
+        setError(null);
+
+        try {
+            const res = await fetch(`http://localhost:8080/lobby/${lobbyID}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-User-ID": user?.id,
+                },
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+            console.log("Fetched gamestate:", data);
+            setGameState(data);
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
+    };
+
+
     //console.log(playerId, lobby ? lobby.lobby.turn : null)
     useEffect(() => {
         if (lobby?.players && user) {
@@ -273,6 +300,11 @@ export default function LobbyPage() {
     }, [lobbyStatus]);
 
     useEffect(() => {
+        console.log("gameState updated:", gameState);
+        console.log("secretChat updated:", gameState?.secretCharacter);
+    }, [gameState]);
+
+    useEffect(() => {
         // Only auto-join if lobby exists, has less than 2 players, and user is not already in it
         if (lobby &&
             lobby.players?.length < 2 &&
@@ -282,6 +314,13 @@ export default function LobbyPage() {
             joinLobby(lobby.code, lobby.id);
         }
     }, [lobby?.id, lobby?.players?.length]);
+
+    useEffect(() => {
+        if (lobbyID && user?.id && lobby?.players?.length && !gameState) {
+            console.log("Fetching gameState...");
+            getGameState();
+        }
+    }, [lobbyID, user?.id, lobby?.players?.length, gameState]);
 
     console.log("this is the lobby", lobby)
     console.log("length", lobby?.players?.length)
@@ -392,6 +431,115 @@ export default function LobbyPage() {
         );
     }
 
+    if (gameState?.secretCharacter === undefined) {
+
+        console.log("reloading")
+
+        const IMAGE_SIZE = '120px';
+
+        const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
+            ...theme.typography.body2,
+            padding: theme.spacing(1),
+            textAlign: 'center',
+            color: theme.palette.text.primary,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            position: 'relative',
+
+            ...(isGuessMode && {
+                border: '2px solid #4F46E5',
+                boxShadow: '0 0 10px rgba(79, 70, 229, 0.3)',
+                '&:hover': {
+                    transform: 'scale(1.05)',
+                    boxShadow: '0 0 15px rgba(79, 70, 229, 0.5)',
+                }
+            }),
+
+            '& img': {
+                width: IMAGE_SIZE,
+                height: IMAGE_SIZE,
+                objectFit: 'cover',
+            },
+
+            ...(isSelected && {
+                '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    top: theme.spacing(1),
+                    left: theme.spacing(1),
+                    width: IMAGE_SIZE,
+                    height: IMAGE_SIZE,
+                    backgroundColor: '#424242',
+                    pointerEvents: 'none',
+                }
+            }),
+
+        }));
+
+        const selectSecretCharacter = async (charid) => {
+            setError(null);
+
+            try {
+                const res = await fetch(`http://localhost:8080/lobby/setSecretChar`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-User-ID": user?.id,
+                    },
+                    body: JSON.stringify({
+                        lobbyCode: lobby?.id,
+                        secretCharacter: charid
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setError(data.error || "Something went wrong");
+                    return;
+                }
+                console.log("Fetched gamestate:", data);
+                setGameState(data);
+            } catch (err) {
+                console.error(err);
+                setError("Network error");
+            }
+        };
+
+        const characters = gameState?.lobby.characterSet.characters || [];
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+                <h1 className="text-2xl font-bold">Need secret char</h1>
+                <p className="text-gray-600">please select</p>
+                <Grid container spacing={2} justifyContent="center">
+                    {characters.map((char) => {
+                        return (
+                            // Grid item: xs={6} for 2 columns, sm={4} for 3 columns, md={3} for 4 columns
+                            <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
+                                <Item
+                                    onClick={() => {
+                                        selectSecretCharacter(char.id);
+                                    }}
+                                    className="h-full"
+                                >
+                                    <div className="flex flex-col items-center justify-between h-full">
+                                        <img
+                                            src={`http://localhost:8080` + char.image}
+                                            alt={char.name}
+                                        />
+                                        <span className="text-sm font-semibold mt-2">{char.name}</span>
+                                    </div>
+                                </Item>
+
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </div>
+
+        );
+    }
+
     const Item = styled(Paper)(({ theme }) => ({
         backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
         ...theme.typography.body2,
@@ -486,6 +634,7 @@ export default function LobbyPage() {
                     gameState={gameState}
                     setGameState={setGameState}
                     isGuessMode={isGuessMode}
+                    getGameState={getGameState}
                 />
                 {/* {user && user.email && lobbyID && (
                     <ChatApp

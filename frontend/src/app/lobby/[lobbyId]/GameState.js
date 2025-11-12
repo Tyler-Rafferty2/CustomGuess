@@ -10,7 +10,7 @@ import { styled } from '@mui/material/styles';
 const IMAGE_SIZE = '120px';
 
 
-export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode }) {
+export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode, getGameState }) {
     const params = useParams();
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
@@ -25,32 +25,6 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
             }
             return newSet;
         });
-    };
-
-    const getGameState = async () => {
-        setError(null);
-
-        try {
-            const res = await fetch(`http://localhost:8080/lobby/${lobbyID}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
-                },
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error || "Something went wrong");
-                return;
-            }
-            console.log("Fetched gamestate:", data);
-            setGameState(data);
-        } catch (err) {
-            console.error(err);
-            setError("Network error");
-        }
     };
 
     const makeGuess = async (charId) => {

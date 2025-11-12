@@ -155,3 +155,22 @@ func (h *LobbyHandler) GuessLobbyHandler(w http.ResponseWriter, r *http.Request)
 
     json.NewEncoder(w).Encode(lobby)
 }
+
+// POST /setSecretChar
+func (h *LobbyHandler) SetSecretCharHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    var req struct {
+        LobbyCode uuid.UUID `json:"lobbyCode"`
+        CharacterId    uuid.UUID    `json:"secretCharacter"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    lobby, err := h.Service.SetSecretChar(user, req.LobbyCode, req.CharacterId)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(lobby)
+}
