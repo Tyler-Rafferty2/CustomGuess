@@ -197,7 +197,7 @@ export default function ImageCropperIntegration({ images, setImages }) {
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
-            <h1 className="text-2xl font-bold mb-4">Image Cropper</h1>
+            <h1 className="text-2xl font-bold mb-4">Upload Images</h1>
 
             {/* Upload Area */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition">
@@ -252,13 +252,6 @@ export default function ImageCropperIntegration({ images, setImages }) {
                                 </button>
                             </div>
 
-                            {/* Not cropped indicator */}
-                            {!card.cropped && (
-                                <div className="absolute bottom-1 left-1 right-1 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded text-center">
-                                    Not cropped
-                                </div>
-                            )}
-
                             {/* Editable Name */}
                             {card.isEditing ? (
                                 <input
@@ -297,11 +290,6 @@ export default function ImageCropperIntegration({ images, setImages }) {
             {images.length > 0 && (
                 <p className="text-sm text-gray-600 mt-2">
                     {images.length} card{images.length !== 1 ? 's' : ''} uploaded
-                    {images.filter(img => !img.cropped).length > 0 && (
-                        <span className="text-yellow-600 ml-2">
-                            ({images.filter(img => !img.cropped).length} not cropped)
-                        </span>
-                    )}
                 </p>
             )}
 

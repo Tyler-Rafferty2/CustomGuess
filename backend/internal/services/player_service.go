@@ -29,11 +29,12 @@ func (s *PlayerService) GetPlayers(user *models.User) ([]models.Player, error) {
 }
 
 //create a set
-func (s *PlayerService) CreateSet(user *models.User, name, description string, characters []models.Character, coverImage string) (*models.CharacterSet, error) {
+func (s *PlayerService) CreateSet(user *models.User, name, description string, public bool, characters []models.Character, coverImage string) (*models.CharacterSet, error) {
     set := &models.CharacterSet{
         ID:          uuid.New(),
         UserID:      user.ID,
         Name:        name,
+        Public:      public,
         Description: description,
         CoverImage:  coverImage,
     }
@@ -56,6 +57,20 @@ func (s *PlayerService) GetSets(user *models.User) ([]models.CharacterSet, error
     var sets []models.CharacterSet
     
     err := s.DB.Where("user_id = ?", user.ID).
+        Preload("Characters"). 
+        Find(&sets).Error
+    
+    if err != nil {
+        return nil, fmt.Errorf("failed to get character sets: %w", err)
+    }
+    
+    return sets, nil
+}
+
+func (s *PlayerService) GetPublicSets() ([]models.CharacterSet, error) {
+    var sets []models.CharacterSet
+    
+    err := s.DB.Where("public = ?", true).
         Preload("Characters"). 
         Find(&sets).Error
     

@@ -8,6 +8,10 @@ import (
     "mime/multipart"
     "os"
     "io"
+    "strconv"
+    "github.com/google/uuid"
+    "path/filepath"
+    "strings"
 
     "github.com/tyler-rafferty2/GuessWho/internal/services"
 	"github.com/tyler-rafferty2/GuessWho/internal/middleware"
@@ -43,13 +47,23 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
     // Get basic fields
     name := r.FormValue("name")
     description := r.FormValue("description")
+    publicStr  := r.FormValue("public")
+    public, err := strconv.ParseBool(publicStr)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
 
     // Handle cover image
     var coverImageURL string
     coverFile, coverHeader, err := r.FormFile("coverImage")
     if err == nil {
         defer coverFile.Close()
-        coverImageURL = saveFile(coverFile, coverHeader.Filename)
+        coverImageURL, err = saveFile(coverFile, coverHeader.Filename)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusBadRequest)
+            return
+        }
     }
 
     // Handle characters
@@ -69,7 +83,7 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
         var imageURL string
         if err == nil {
             defer file.Close()
-            imageURL = saveFile(file, header.Filename)
+            imageURL, err = saveFile(file, header.Filename)
         } else {
             // fallback: maybe Base64 string
             log.Println("No file uploaded for", err, "checking for Base64 string")
@@ -83,7 +97,7 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
     }
 
     // Call the service
-    set, err := h.Service.CreateSet(user, name, description, characters, coverImageURL)
+    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL)
     if err != nil {
         http.Error(w, "Failed to create set", http.StatusInternalServerError)
         return
@@ -94,23 +108,63 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
 }
 
 //Helper func
-func saveFile(file multipart.File, filename string) string {
-    log.Println("Attempting to save file:", filename)
+func saveFile(file multipart.File, originalFilename string) (string, error) {
+    // Preserve file extension
+    ext := strings.ToLower(filepath.Ext(originalFilename))
+
+    // Validate file extension
+    allowedExts := map[string]bool{
+        ".jpg": true, ".jpeg": true, ".png": true, 
+        ".gif": true, ".webp": true,
+    }
+    
+    if !allowedExts[ext] {
+        return "", fmt.Errorf("invalid file type: %s", ext)
+    }
+
+    // Read first 512 bytes to detect MIME type
+    buffer := make([]byte, 512)
+    _, err := file.Read(buffer)
+    if err != nil {
+        return "", fmt.Errorf("failed to read file: %w", err)
+    }
+    
+    // Reset file pointer to beginning
+    _, err = file.Seek(0, 0)
+    if err != nil {
+        return "", fmt.Errorf("failed to reset file pointer: %w", err)
+    }
+    
+    // Verify it's actually an image
+    mimeType := http.DetectContentType(buffer)
+    if !strings.HasPrefix(mimeType, "image/") {
+        return "", fmt.Errorf("file is not an image: %s", mimeType)
+    }
+
+    // Generate unique ID
+    uniqueID := uuid.New().String()
+    
+    // Create unique filename
+    filename := uniqueID + ext
+    
+    // Ensure uploads directory exists
+    if err := os.MkdirAll("uploads", 0755); err != nil {
+        return "", fmt.Errorf("failed to create uploads directory: %w", err)
+    }
+    
     out, err := os.Create("uploads/" + filename)
     if err != nil {
-        log.Println("Failed to save file:", err)
-        return ""
+        return "", fmt.Errorf("failed to create file: %w", err)
     }
     defer out.Close()
 
     _, err = io.Copy(out, file)
     if err != nil {
-        log.Println("Failed to copy file:", err)
-        return ""
+        return "", fmt.Errorf("failed to copy file: %w", err)
     }
 
     log.Println("✅ File saved to uploads/" + filename)
-    return "/uploads/" + filename
+    return "/uploads/" + filename, nil
 }
 
 
@@ -118,6 +172,17 @@ func saveFile(file multipart.File, filename string) string {
 func (h *PlayerHandler) GetSetFromPlayerHandler(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUserFromContext(r)
     sets, err := h.Service.GetSets(user)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    json.NewEncoder(w).Encode(sets)
+}
+
+// GET /set/public
+func (h *PlayerHandler) GetSetFromPublicHandler(w http.ResponseWriter, r *http.Request) {
+    sets, err := h.Service.GetPublicSets()
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return

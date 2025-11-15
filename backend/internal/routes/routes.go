@@ -68,11 +68,15 @@ func MountRoutes(r chi.Router) {
     })
 
     r.Route("/player", func(r chi.Router) {
-        r.Use(middleware.UserMiddleware)
+        r.Get("/set/public", playerHandler.GetSetFromPublicHandler)
 
-        r.Get("/", playerHandler.GetPlayersHandler)
-        r.Post("/set/create", playerHandler.CreateSetHandler)
-        r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
+        r.Group(func(r chi.Router) {
+            r.Use(middleware.UserMiddleware) // Apply middleware to this group only
+
+            r.Get("/", playerHandler.GetPlayersHandler)
+            r.Post("/set/create", playerHandler.CreateSetHandler)
+            r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
+        })
     })
 
     r.Get("/ws", wsHandler.HandleWebSocket)

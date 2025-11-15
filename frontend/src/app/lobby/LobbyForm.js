@@ -24,6 +24,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
     const [newSetDescription, setNewSetDescription] = useState("");
     const [newSetCards, setNewSetCards] = useState([]);
     const [newSetImage, setNewSetImage] = useState("");
+    const [isSetPublic, setIsSetPublic] = useState(false);
 
     //Real set
     const [images, setImages] = useState([]);
@@ -108,6 +109,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
     useEffect(() => {
         if (showModal) {
             loadSets();
+            loadSetsPublic();
         }
     }, [showModal, setView]);
 
@@ -132,6 +134,33 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
             }
             console.log("Fetched my sets:", data);
             setMySets(data);
+            setLoading(false);
+        } catch (err) {
+            console.error(err);
+            setError("Network error");
+        }
+    };
+
+    const loadSetsPublic = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const res = await fetch("http://localhost:8080/player/set/public", {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || "Something went wrong");
+                return;
+            }
+            console.log("Fetched my sets:", data);
+            setPublicSets(data);
             setLoading(false);
         } catch (err) {
             console.error(err);
@@ -200,6 +229,7 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
         const formData = new FormData();
         formData.append("name", newSetName);
         formData.append("description", newSetDescription);
+        formData.append("public", isSetPublic);
         formData.append("coverImage", newSetImage?.file || ""); // optional cover image
 
         // Append each character
@@ -227,8 +257,8 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
             } catch {
                 data = await res.text();
             }
-
-            console.log("Response:", data);
+            loadSets();
+            //console.log("Response:", data);
 
             if (!res.ok) {
                 setError(data.error || "Something went wrong");
@@ -432,14 +462,30 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                             </div>
 
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Card Images
-                                                </label>
 
                                                 <ImageCropperIntegration
                                                     images={images}
                                                     setImages={setImages}
                                                 />
+                                            </div>
+
+                                            <div>
+                                                <label className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                                                    <div>
+                                                        <span className="block text-sm font-semibold text-gray-700">
+                                                            Public Set
+                                                        </span>
+                                                        <span className="block text-xs text-gray-600 mt-1">
+                                                            Anyone can view this set
+                                                        </span>
+                                                    </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSetPublic}
+                                                        onChange={(e) => setIsSetPublic(e.target.checked)}
+                                                        className="w-5 h-5 text-green-600 rounded focus:ring-green-500"
+                                                    />
+                                                </label>
                                             </div>
 
                                             <div className="flex gap-3 pt-4">
@@ -537,8 +583,8 @@ export default function LobbyForm({ user, setError, setLobby, getPlayers }) {
                                 {selectedSet && (
                                     <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden mb-6">
                                         <img
-                                            src={selectedSet.image}
-                                            alt={selectedSet.name}
+                                            src={`http://localhost:8080` + selectedSet.coverImageName}
+                                            alt={selectedSet.coverImageName}
                                             className="w-full h-32 object-cover"
                                         />
                                         <div className="p-3">
