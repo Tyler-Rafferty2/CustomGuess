@@ -1,9 +1,18 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { UserContext } from "@/context/UserContext";
 import GoToPageButton from "../components/goToPageButton";
 
 export default function Navbar() {
     const { user, logout } = useContext(UserContext);
+    const [isClicked, setIsClicked] = useState(false);
+
+    const handleLogout = () => {
+        setIsClicked(true);
+        setTimeout(() => {
+            setIsClicked(false);
+            logout();
+        }, 200);
+    };
 
     return (
         <nav className="bg-gray-800 text-white shadow-lg">
@@ -22,8 +31,11 @@ export default function Navbar() {
                                     Welcome, <span className="font-semibold text-white">{user.name}</span>
                                 </span>
                                 <button
-                                    onClick={logout}
-                                    className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors duration-200"
+                                    onClick={handleLogout}
+                                    className={`px-4 py-2 rounded transition-all duration-200 ${isClicked
+                                            ? 'bg-red-800 scale-95'
+                                            : 'bg-red-600 hover:bg-red-700'
+                                        }`}
                                 >
                                     Logout
                                 </button>

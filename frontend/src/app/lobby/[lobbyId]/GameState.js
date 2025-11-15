@@ -6,9 +6,7 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 
-// Define a common image size for consistency (you can adjust this)
-const IMAGE_SIZE = '120px';
-
+const IMAGE_SIZE = '160px';
 
 export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode, getGameState }) {
     const params = useParams();
@@ -65,31 +63,60 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     }, [user?.id]);
 
     if (!gameState || !gameState.lobby || !gameState.lobby.characterSet) {
-        return <div>Loading game data...</div>;
+        return (
+            <div className="flex items-center justify-center p-8 text-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-emerald-500 mr-4"></div>
+                Loading game data...
+            </div>
+        );
     }
 
     const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
         ...theme.typography.body2,
         padding: theme.spacing(1),
         textAlign: 'center',
-        color: theme.palette.text.primary,
+        backgroundColor: 'rgba(71, 85, 105, 0.5)',
+        color: '#fff',
         cursor: 'pointer',
         transition: 'all 0.2s',
         position: 'relative',
+        height: 'auto',
+        minHeight: '240px',
+        width: '190px',
+        display: 'flex',
+        flexDirection: 'column',
+        border: '2px solid rgba(100, 116, 139, 0.3)',
+        borderRadius: '12px',
+
+        '&:hover': {
+            transform: 'scale(1.05)',
+            backgroundColor: 'rgba(71, 85, 105, 0.7)',
+            borderColor: isGuessMode ? '#8b5cf6' : '#10b981',
+            boxShadow: isGuessMode
+                ? '0 0 20px rgba(139, 92, 246, 0.4)'
+                : '0 0 20px rgba(16, 185, 129, 0.4)',
+        },
 
         ...(isGuessMode && {
-            border: '2px solid #4F46E5',
-            boxShadow: '0 0 10px rgba(79, 70, 229, 0.3)',
-            '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 0 15px rgba(79, 70, 229, 0.5)',
-            }
+            border: '2px solid #8b5cf6',
+            boxShadow: '0 0 10px rgba(139, 92, 246, 0.3)',
         }),
 
         '& img': {
             width: IMAGE_SIZE,
             height: IMAGE_SIZE,
             objectFit: 'cover',
+            borderRadius: '8px',
+            flexShrink: 0,
+        },
+
+        '& .character-name': {
+            marginTop: theme.spacing(1),
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            lineHeight: '1.25rem',
+            padding: '0 4px 8px 4px',
+            wordBreak: 'break-word',
         },
 
         ...(isSelected && {
@@ -97,49 +124,33 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                 content: '""',
                 position: 'absolute',
                 top: theme.spacing(1),
-                left: theme.spacing(1),
+                left: '50%',
+                transform: 'translateX(-50%)',
                 width: IMAGE_SIZE,
                 height: IMAGE_SIZE,
-                backgroundColor: '#424242',
+                backgroundColor: 'rgba(15, 23, 42, 1)',
                 pointerEvents: 'none',
+                borderRadius: '8px',
             }
         }),
-
     }));
 
-    // This is the real data source you were using for characters
     const characters = gameState.lobby.characterSet.characters || [];
 
     return (
-        <div className="text-green-700 font-medium">
-            <h2 className="text-gray-700 mb-2">Players:</h2>
-            {/* ... (Your Players list is commented out) */}
+        <div>
+            {isGuessMode && (
+                <div className="mb-6 p-4 bg-purple-500/20 border-2 border-purple-500 rounded-xl text-center">
+                    <p className="text-white font-bold text-lg">🎯 Guess Mode Active</p>
+                    <p className="text-purple-200 text-sm mt-1">Click on a character to make your final guess!</p>
+                </div>
+            )}
 
-            {/* {lobby.secretCharacter && (
-                <>
-                    <h2 className="text-gray-700 mt-4 mb-2">Your Secret Character:</h2>
-                    <div className="flex items-center justify-start mb-4">
-                        <div className="flex flex-col items-center border-2 border-yellow-400 p-2 rounded">
-                            <img
-                                src={lobby.secretCharacter.image}
-                                alt={lobby.secretCharacter.name}
-                                className="w-20 h-20 object-cover rounded"
-                            />
-                            <span className="font-bold">{lobby.secretCharacter.name}</span>
-                        </div>
-                    </div>
-                </>
-            )} */}
-
-            <h2 className="text-gray-700 mt-4 mb-2">Characters (The Grid):</h2>
-
-            {/* **The main change: Using MUI Grid to display all characters** */}
             <Grid container spacing={2} justifyContent="center">
                 {characters.map((char) => {
                     const isSelected = selectedCharacters.has(char.id);
                     return (
-                        // Grid item: xs={6} for 2 columns, sm={4} for 3 columns, md={3} for 4 columns
-                        <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
+                        <Grid item key={char.id}>
                             <Item
                                 isSelected={isSelected}
                                 isGuessMode={isGuessMode}
@@ -147,35 +158,22 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                                     if (isGuessMode) {
                                         makeGuess(char.id);
                                     } else {
-                                        toggleCharacter(char.id)
+                                        toggleCharacter(char.id);
                                     }
                                 }}
-                                className="h-full"
                             >
-                                <div className="flex flex-col items-center justify-between h-full">
+                                <div className="flex flex-col items-center">
                                     <img
                                         src={`http://localhost:8080` + char.image}
                                         alt={char.name}
                                     />
-                                    <span className="text-sm font-semibold mt-2">{char.name}</span>
+                                    <span className="character-name">{char.name}</span>
                                 </div>
                             </Item>
-
                         </Grid>
                     );
                 })}
             </Grid>
-            {/* **End of MUI Grid** */}
-
-            {/* The old Tailwind-based character grid is now replaced by the MUI Grid above. 
-                I'm commenting it out here, but you can remove it completely. 
-                
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {lobby.lobby.characterSet.characters.map((char) => (
-                    // ... (old character card structure)
-                ))}
-            </div> 
-            */}
         </div>
     );
 }

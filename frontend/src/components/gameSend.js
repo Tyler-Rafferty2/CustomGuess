@@ -5,6 +5,8 @@ export default function GameSend({ lobbyId, username, wsRef, setIsConnected, mes
     const [inputMessage, setInputMessage] = useState('');
     const messagesEndRef = useRef(null);
 
+    // ... (Your existing functions: disconnect, sendMessage, handleResponse, handleKeyPress) ...
+    // (No changes to the logic)
 
     const disconnect = () => {
         if (wsRef.current) {
@@ -56,72 +58,78 @@ export default function GameSend({ lobbyId, username, wsRef, setIsConnected, mes
         }
     };
 
-    //console.log(messages)
-
     return (
-        <div className="p-3 bg-white border-t border-gray-200 rounded-b-lg">
+        // Use a dark, semi-transparent background consistent with LobbyPage
+        <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
             {turn ? (
-                // When it's your turn - show input
-                <div className="flex flex-col gap-2">
+                // When it's your turn
+                <div className="flex flex-col gap-3"> {/* Increased gap for better spacing */}
                     {!waitingReponse ? (
                         <>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <input
                                     type="text"
                                     value={inputMessage}
                                     onChange={(e) => setInputMessage(e.target.value)}
                                     onKeyPress={handleKeyPress}
-                                    placeholder="Type a message..."
-                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                    placeholder="Type your question..."
+                                    // Style matching the input in LobbyPage's "Waiting" screen
+                                    className="flex-1 px-4 py-3 bg-slate-700/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500 transition"
                                 />
                                 <button
                                     onClick={sendMessage}
                                     disabled={!inputMessage.trim()}
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
+                                    // Style matching the "Copy Link" button in LobbyPage
+                                    className="px-4 py-2 bg-emerald-500 text-white font-bold rounded-xl hover:bg-emerald-400 transition-colors disabled:bg-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
                                 >
                                     <Send className="w-4 h-4" />
                                 </button>
                             </div>
                             <button
                                 onClick={() => setIsGuessMode(!isGuessMode)}
-                                className={`w-1/5 px-4 py-2 rounded-lg transition-colors ${isGuessMode
-                                    ? 'bg-red-500 hover:bg-red-600 text-white'   // Stop Making Guess
-                                    : 'bg-indigo-600 hover:bg-indigo-700 text-white' // Make a Guess
+                                // Use emerald for "positive" action and red for "negative/cancel"
+                                className={`w-full sm:w-1/3 px-4 py-2 rounded-xl font-bold transition-colors ${isGuessMode
+                                        ? 'bg-red-600 hover:bg-red-500 text-white'     // Stop Making Guess
+                                        : 'bg-emerald-500 hover:bg-emerald-400 text-white' // Make a Guess
                                     }`}
                             >
                                 {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
                             </button>
-
                         </>
                     ) : (
-                        <p className="text-sm text-gray-500">Waiting for opponent's response...</p>
+                        // Use the theme's secondary text color
+                        <p className="text-sm text-gray-400">Waiting for opponent's response...</p>
                     )}
                 </div>
             ) : (
-                // When it's NOT your turn - show received message with Yes/No buttons
-                <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                // When it's NOT your turn
+                // Use a nested dark card, similar to the Question Log items
+                <div className="p-3 bg-slate-700/50 rounded-lg">
                     {receivedMessage !== "" ? (
                         <div>
-                            <p className="text-sm text-gray-700 mb-3">
+                            <p className="text-md text-white mb-3 font-medium">
                                 {receivedMessage}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex gap-3">
                                 <button
                                     onClick={() => handleResponse('yes')}
-                                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                                    // Use emerald for "Yes"
+                                    className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-400 transition-colors text-sm font-bold"
                                 >
                                     Yes
                                 </button>
                                 <button
                                     onClick={() => handleResponse('no')}
-                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                                    // Use red for "No"
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-500 transition-colors text-sm font-bold"
                                 >
                                     No
                                 </button>
                             </div>
                         </div>
                     ) : (
-                        <p className="text-sm text-gray-500">No messages yet...</p>
+                        // Use the theme's secondary text color
+                        <p className="text-sm text-gray-400">Waiting for opponent to ask...</p>
                     )}
                 </div>
             )}

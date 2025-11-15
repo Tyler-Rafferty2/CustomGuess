@@ -332,11 +332,18 @@ export default function LobbyPage() {
         console.log("user id", user?.id);
         console.log("looks here", currentPlayer?.id, lobby.winner);
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Game Over</h1>
-                <h2 className="text-xl">
-                    {isWinner ? "You Won!" : "You Lost"}
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6">
+                <div className="text-6xl mb-4">{isWinner ? "🎉" : "😢"}</div>
+                <h1 className="text-4xl font-bold">{isWinner ? "Victory!" : "Game Over"}</h1>
+                <h2 className="text-2xl text-gray-300">
+                    {isWinner ? "You Won!" : "Better luck next time"}
                 </h2>
+                <button
+                    onClick={() => router.push('/')}
+                    className="mt-4 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-emerald-500/50"
+                >
+                    Back to Home
+                </button>
             </div>
         );
     }
@@ -344,7 +351,8 @@ export default function LobbyPage() {
     // Handle lobby status checks
     if (lobbyStatus === null) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
                 <h1 className="text-2xl font-bold">Checking lobby...</h1>
             </div>
         );
@@ -352,12 +360,13 @@ export default function LobbyPage() {
 
     if (!lobbyStatus.exists) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Lobby Not Found</h1>
-                <p className="text-gray-600">This lobby doesn't exist or has expired.</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
+                <div className="text-6xl mb-4">🚫</div>
+                <h1 className="text-3xl font-bold">Lobby Not Found</h1>
+                <p className="text-gray-300 text-lg">This lobby doesn't exist or has expired.</p>
                 <button
-                    onClick={() => window.location.href = '/'}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick={() => router.push('/')}
+                    className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/50"
                 >
                     Create New Game
                 </button>
@@ -368,7 +377,8 @@ export default function LobbyPage() {
     // Wait for lobby data from WebSocket before making decisions
     if (!lobby && lobbyStatus?.exists) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
                 <h1 className="text-2xl font-bold">Connecting to game...</h1>
             </div>
         );
@@ -378,12 +388,13 @@ export default function LobbyPage() {
     if (lobby && !lobby.players.some(player => player.userId === user?.id)) {
         // User tried to join but isn't in the player list = game is full
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Game is Full</h1>
-                <p className="text-gray-600">This game already has 2 players.</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
+                <div className="text-6xl mb-4">🔒</div>
+                <h1 className="text-3xl font-bold">Game is Full</h1>
+                <p className="text-gray-300 text-lg">This game already has 2 players.</p>
                 <button
-                    onClick={() => window.location.href = '/'}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick={() => router.push('/')}
+                    className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/50"
                 >
                     Create New Game
                 </button>
@@ -394,37 +405,39 @@ export default function LobbyPage() {
     // Your existing waiting for players check
     if (lobby?.players?.length < 2 && (lobby?.players.some(player => player.userId === user?.id))) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Waiting for players to join...</h1>
-                <p className="text-gray-600">Share this link with a friend:</p>
-                <div className="flex gap-2">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6">
+                <div className="text-6xl mb-4 animate-bounce">⏳</div>
+                <h1 className="text-3xl font-bold">Waiting for players to join...</h1>
+                <p className="text-gray-300 text-lg">Share this link with a friend:</p>
+                <div className="flex gap-3 w-full max-w-2xl">
                     <input
                         type="text"
                         value={window.location.href}
                         readOnly
-                        className="px-4 py-2 border rounded w-96"
+                        className="flex-1 px-4 py-3 bg-slate-700/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500 transition"
                     />
                     <button
                         onClick={() => {
                             navigator.clipboard.writeText(window.location.href);
                             alert('Link copied!');
                         }}
-                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-emerald-500/50"
                     >
                         Copy Link
                     </button>
                 </div>
-                <p className="text-sm text-gray-500">Lobby ID: {lobbyID}</p>
+                <p className="text-sm text-gray-400 mt-2">Lobby ID: {lobbyID}</p>
             </div>
         );
     } else if (!(lobby?.players.some(player => player.userId === user?.id))) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Game is Full</h1>
-                <p className="text-gray-600">This game already has 2 players.</p>
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
+                <div className="text-6xl mb-4">🔒</div>
+                <h1 className="text-3xl font-bold">Game is Full</h1>
+                <p className="text-gray-300 text-lg">This game already has 2 players.</p>
                 <button
-                    onClick={() => window.location.href = '/lobby'}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick={() => router.push('/lobby')}
+                    className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/50"
                 >
                     Create New Game
                 </button>
@@ -441,38 +454,41 @@ export default function LobbyPage() {
 
         const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
             ...theme.typography.body2,
-            padding: theme.spacing(1),
+            padding: theme.spacing(2),
             textAlign: 'center',
-            color: theme.palette.text.primary,
+            backgroundColor: 'rgba(71, 85, 105, 0.5)',
+            color: '#fff',
             cursor: 'pointer',
-            transition: 'all 0.2s',
+            transition: 'all 0.3s',
             position: 'relative',
+            border: '2px solid rgba(100, 116, 139, 0.3)',
+            borderRadius: '12px',
 
-            ...(isGuessMode && {
-                border: '2px solid #4F46E5',
-                boxShadow: '0 0 10px rgba(79, 70, 229, 0.3)',
-                '&:hover': {
-                    transform: 'scale(1.05)',
-                    boxShadow: '0 0 15px rgba(79, 70, 229, 0.5)',
-                }
-            }),
+            '&:hover': {
+                transform: 'scale(1.05)',
+                backgroundColor: 'rgba(71, 85, 105, 0.7)',
+                borderColor: '#10b981',
+                boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+            },
 
             '& img': {
                 width: IMAGE_SIZE,
                 height: IMAGE_SIZE,
                 objectFit: 'cover',
+                borderRadius: '8px',
             },
 
             ...(isSelected && {
                 '&::after': {
                     content: '""',
                     position: 'absolute',
-                    top: theme.spacing(1),
-                    left: theme.spacing(1),
+                    top: theme.spacing(2),
+                    left: theme.spacing(2),
                     width: IMAGE_SIZE,
                     height: IMAGE_SIZE,
-                    backgroundColor: '#424242',
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
                     pointerEvents: 'none',
+                    borderRadius: '8px',
                 }
             }),
 
@@ -510,13 +526,13 @@ export default function LobbyPage() {
 
         const characters = gameState?.lobby.characterSet.characters || [];
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen gap-4">
-                <h1 className="text-2xl font-bold">Need secret char</h1>
-                <p className="text-gray-600">please select</p>
-                <Grid container spacing={2} justifyContent="center">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6 py-12">
+                <div className="text-6xl mb-4">🎭</div>
+                <h1 className="text-4xl font-bold">Choose Your Secret Character</h1>
+                <p className="text-gray-300 text-lg mb-4">Select wisely - your opponent will try to guess!</p>
+                <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: '1200px' }}>
                     {characters.map((char) => {
                         return (
-                            // Grid item: xs={6} for 2 columns, sm={4} for 3 columns, md={3} for 4 columns
                             <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
                                 <Item
                                     onClick={() => {
@@ -532,54 +548,52 @@ export default function LobbyPage() {
                                         <span className="text-sm font-semibold mt-2">{char.name}</span>
                                     </div>
                                 </Item>
-
                             </Grid>
                         );
                     })}
                 </Grid>
             </div>
-
         );
     }
 
     const Item = styled(Paper)(({ theme }) => ({
-        backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
+        backgroundColor: 'rgba(71, 85, 105, 0.5)',
         ...theme.typography.body2,
         padding: theme.spacing(1),
         textAlign: 'center',
-        color: theme.palette.text.secondary,
+        color: '#fff',
     }));
 
     return (
-        <div className="flex min-h-screen">
+        <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
             {/* Question Log Sidebar */}
-            <div className="w-64 bg-gray-100 border-r border-gray-300 p-4 overflow-y-auto">
-                <h2 className="text-lg font-bold mb-4">Question Log</h2>
+            <div className="w-64 bg-slate-800/50 border-r border-slate-700 p-4 overflow-y-auto backdrop-blur-sm">
+                <h2 className="text-lg font-bold mb-4 text-white">Question Log</h2>
                 {questionLog.length > 0 ? (
                     <div className="space-y-2">
                         {questionLog.map((msg, index) => (
-                            <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-                                <p className="text-xs text-gray-500 mb-1">{msg.username}</p>
-                                <p className="text-sm text-gray-800">{msg.content}</p>
-                                <p className="text-xs text-gray-400 mt-1">{msg.time}</p>
+                            <div key={index} className="bg-slate-700/50 p-3 rounded-lg shadow-sm border border-slate-600">
+                                <p className="text-xs text-gray-400 mb-1">{msg.username}</p>
+                                <p className="text-sm text-white">{msg.content}</p>
+                                <p className="text-xs text-gray-500 mt-1">{msg.time}</p>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm text-gray-500">No questions yet...</p>
+                    <p className="text-sm text-gray-400">No questions yet...</p>
                 )}
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col">
-                <h1 className="text-2xl font-bold">Game State</h1>
-
+            <div className="flex-1 flex flex-col p-6 text-white">
                 {turn ? (
-                    <div className="text-green-700 font-medium">
-                        It's your turn! 🎉
+                    <div className="text-emerald-400 font-medium text-lg mb-6 flex items-center gap-2">
+                        <span className="text-2xl">🎯</span>
+                        It's your turn!
                     </div>
                 ) : (
-                    <div className="text-gray-500 font-medium">
+                    <div className="text-gray-400 font-medium text-lg mb-6 flex items-center gap-2">
+                        <span className="text-2xl">⏳</span>
                         Waiting for the other player...
                     </div>
                 )}
@@ -608,20 +622,20 @@ export default function LobbyPage() {
                     </div>
 
                     {/* 2. Secret Character Info (3/12 width) */}
-                    <div className="w-3/12 pl-4 border-l border-gray-300">
+                    <div className="w-3/12 pl-4 border-l border-slate-700">
                         {gameState && gameState.secretCharacter && (
                             <>
-                                <h2 className="text-gray-700 text-base font-semibold mb-2">
+                                <h2 className="text-white text-base font-semibold mb-3">
                                     Your Secret Character:
                                 </h2>
                                 <div className="flex items-center justify-start">
-                                    <div className="flex flex-col items-center border-2 border-yellow-400 p-2 rounded w-full">
+                                    <div className="flex flex-col items-center border-2 border-emerald-500 bg-slate-700/50 p-3 rounded-xl w-full shadow-lg shadow-emerald-500/20">
                                         <img
                                             src={`http://localhost:8080` + gameState.secretCharacter.image}
                                             alt={gameState.secretCharacter.name}
-                                            className="w-20 h-20 object-cover rounded"
+                                            className="w-20 h-20 object-cover rounded-lg"
                                         />
-                                        <span className="font-bold text-sm mt-1">{gameState.secretCharacter.name}</span>
+                                        <span className="font-bold text-sm mt-2 text-white">{gameState.secretCharacter.name}</span>
                                     </div>
                                 </div>
                             </>
@@ -638,19 +652,6 @@ export default function LobbyPage() {
                     isGuessMode={isGuessMode}
                     getGameState={getGameState}
                 />
-                {/* {user && user.email && lobbyID && (
-                    <ChatApp
-                        lobbyId={lobbyID}
-                        username={user.email}
-                        wsRef={wsRef}
-                        setIsConnected={setIsConnected}
-                        messages={messagesChat}
-                        setMessages={setMessagesChat}
-                        isMinimizedRef={isMinimizedRef}
-                        isMinimized={isMinimized}
-                        setIsMinimized={setIsMinimized}
-                    />
-                )} */}
             </div>
         </div>
     );
