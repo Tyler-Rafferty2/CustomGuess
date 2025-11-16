@@ -97,8 +97,6 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
         setError(null);
 
         const randomizeSecret = !selectSecret;
-        console.log("randomize Sec:", randomizeSecret)
-        console.log("chat fretus", chatFeature)
         try {
             console.log(selectedSet.id);
             const res = await fetch("http://localhost:8080/lobby/create", {
@@ -176,6 +174,13 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
             console.error(err);
             setError("Network error");
         }
+
+        setNewSetName("");
+        setNewSetDescription("");
+        setNewSetCards([]);
+        setNewSetImage("");
+        setIsSetPublic(false);
+        setChatFeature(true);
     };
 
     const filteredSets = () => {

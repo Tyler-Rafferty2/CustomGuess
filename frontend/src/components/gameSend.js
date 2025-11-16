@@ -31,6 +31,7 @@ export default function GameSend({ lobbyId, username, wsRef, setIsConnected, mes
 
         setSentMessage(inputMessage);
         setWaitingReponse(true);
+        setIsGuessMode(false);
 
         wsRef.current.send(JSON.stringify(message));
         setInputMessage('');
@@ -89,8 +90,8 @@ export default function GameSend({ lobbyId, username, wsRef, setIsConnected, mes
                                 onClick={() => setIsGuessMode(!isGuessMode)}
                                 // Use emerald for "positive" action and red for "negative/cancel"
                                 className={`w-full sm:w-1/3 px-4 py-2 rounded-xl font-bold transition-colors ${isGuessMode
-                                        ? 'bg-red-600 hover:bg-red-500 text-white'     // Stop Making Guess
-                                        : 'bg-emerald-500 hover:bg-emerald-400 text-white' // Make a Guess
+                                    ? 'bg-red-600 hover:bg-red-500 text-white'     // Stop Making Guess
+                                    : 'bg-emerald-500 hover:bg-emerald-400 text-white' // Make a Guess
                                     }`}
                             >
                                 {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}

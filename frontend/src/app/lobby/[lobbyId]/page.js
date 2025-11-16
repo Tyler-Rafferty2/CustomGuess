@@ -637,6 +637,18 @@ export default function LobbyPage() {
                             />
                         )}
                     </div>
+                    {!lobby.chatFeature && (
+                        <button
+                            onClick={() => setIsGuessMode(!isGuessMode)}
+                            // Use emerald for "positive" action and red for "negative/cancel"
+                            className={`w-full sm:w-1/3 px-4 py-2 rounded-xl font-bold transition-colors ${isGuessMode
+                                ? 'bg-red-600 hover:bg-red-500 text-white'     // Stop Making Guess
+                                : 'bg-emerald-500 hover:bg-emerald-400 text-white' // Make a Guess
+                                }`}
+                        >
+                            {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
+                        </button>
+                    )};
 
                     {/* 2. Secret Character Info (3/12 width) */}
                     <div className="w-3/12 pl-4 border-l border-slate-700">
