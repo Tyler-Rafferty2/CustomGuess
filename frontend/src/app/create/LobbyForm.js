@@ -23,6 +23,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
     const [newSetCards, setNewSetCards] = useState([]);
     const [newSetImage, setNewSetImage] = useState("");
     const [isSetPublic, setIsSetPublic] = useState(false);
+    const [chatFeature, setChatFeature] = useState(true);
 
     //Real set
     const [images, setImages] = useState([]);
@@ -97,6 +98,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
 
         const randomizeSecret = !selectSecret;
         console.log("randomize Sec:", randomizeSecret)
+        console.log("chat fretus", chatFeature)
         try {
             console.log(selectedSet.id);
             const res = await fetch("http://localhost:8080/lobby/create", {
@@ -109,6 +111,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
                     setId: selectedSet.id,
                     isPrivate,
                     randomizeSecret,
+                    chatFeature,
                 }),
             });
 
@@ -516,6 +519,26 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
                                             type="checkbox"
                                             checked={isPrivate}
                                             onChange={(e) => setIsPrivate(e.target.checked)}
+                                            className="w-5 h-5 text-emerald-500 rounded focus:ring-emerald-500 bg-slate-700 border-slate-600"
+                                        />
+                                    </label>
+                                </div>
+
+                                {/* Chat Feature */}
+                                <div>
+                                    <label className="flex items-center justify-between p-4 border-2 border-slate-700 rounded-lg cursor-pointer hover:bg-slate-700/30 transition">
+                                        <div>
+                                            <span className="block text-sm font-semibold text-gray-200">
+                                                Chat Feature
+                                            </span>
+                                            <span className="block text-xs text-gray-400 mt-1">
+                                                Ask alternating question through the chat
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={chatFeature}
+                                            onChange={(e) => setChatFeature(e.target.checked)}
                                             className="w-5 h-5 text-emerald-500 rounded focus:ring-emerald-500 bg-slate-700 border-slate-600"
                                         />
                                     </label>

@@ -25,10 +25,11 @@ func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request
         SetID   uuid.UUID `json:"setId"`
         Private bool      `json:"isPrivate"`
         RandomSecret bool `json:"randomizeSecret"`
+        ChatFeature bool  `json:"chatFeature"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
-    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret)
+    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return

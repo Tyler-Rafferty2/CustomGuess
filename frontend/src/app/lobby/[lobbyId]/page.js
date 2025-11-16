@@ -594,22 +594,23 @@ export default function LobbyPage() {
     return (
         <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
             {/* Question Log Sidebar */}
-            <div className="w-64 bg-slate-800/50 border-r border-slate-700 p-4 overflow-y-auto backdrop-blur-sm">
-                <h2 className="text-lg font-bold mb-4 text-white">Question Log</h2>
-                {questionLog.length > 0 ? (
-                    <div className="space-y-2">
-                        {questionLog.map((msg, index) => (
-                            <div key={index} className="bg-slate-700/50 p-3 rounded-lg shadow-sm border border-slate-600">
-                                <p className="text-xs text-gray-400 mb-1">{msg.username}</p>
-                                <p className="text-sm text-white">{msg.content}</p>
-                                <p className="text-xs text-gray-500 mt-1">{msg.time}</p>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-sm text-gray-400">No questions yet...</p>
-                )}
-            </div>
+            {lobby.chatFeature && (
+                <div className="w-64 bg-slate-800/50 border-r border-slate-700 p-4 overflow-y-auto backdrop-blur-sm">
+                    <h2 className="text-lg font-bold mb-4 text-white">Question Log</h2>
+                    {questionLog.length > 0 ? (
+                        <div className="space-y-2">
+                            {questionLog.map((msg, index) => (
+                                <div key={index} className="bg-slate-700/50 p-3 rounded-lg shadow-sm border border-slate-600">
+                                    <p className="text-xs text-gray-400 mb-1">{msg.username}</p>
+                                    <p className="text-sm text-white">{msg.content}</p>
+                                    <p className="text-xs text-gray-500 mt-1">{msg.time}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-gray-400">No questions yet...</p>
+                    )}
+                </div>)};
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col p-6 text-white">
@@ -618,7 +619,7 @@ export default function LobbyPage() {
 
                     {/* 1. GameSend Component (9/12 width) */}
                     <div className="w-9/12 pr-4">
-                        {user && user.email && lobbyID && (
+                        {user && user.email && lobbyID && lobby.chatFeature && (
                             <GameSend
                                 lobbyId={lobbyID}
                                 username={user.email}

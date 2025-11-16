@@ -12,6 +12,7 @@ type Lobby struct {
     Code    string    `gorm:"unique;not null" json:"code"`
     Private bool    `gorm:"default:false" json:"isPrivate"`
     RandomSecret bool `gorm:"default:false" json:"randomizeSecret"`
+    ChatFeature bool `json:"chatFeature"`
     TurnID  *uuid.UUID `gorm:"type:uuid" json:"turn"`
     Players []Player `gorm:"foreignKey:LobbyID;constraint:OnDelete:CASCADE;" json:"players"`
 

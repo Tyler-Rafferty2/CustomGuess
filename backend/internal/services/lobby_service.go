@@ -79,7 +79,7 @@ func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
 }
 
 // create a new lobby with the first player
-func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool) (*models.Lobby, error) {
+func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool) (*models.Lobby, error) {
     var charSet models.CharacterSet
     if err := s.DB.Where("id = ?", setID).First(&charSet).Error; err != nil {
         return nil, fmt.Errorf("no character sets available: %w", err)
@@ -93,7 +93,7 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         return nil, fmt.Errorf("no characters found for this set")
     }
 
-    log.Printf("Is it randome: %t", randomizeChar)
+    log.Printf("Is it chatFeature: %t", chatFeature)
 
     lobby := &models.Lobby{
         UserID: user.ID,
@@ -101,6 +101,7 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         CharacterSetID: charSet.ID,
         Private: private,
         RandomSecret: randomizeChar,
+        ChatFeature: chatFeature,
     }
 
     if err := s.DB.Create(lobby).Error; err != nil {
@@ -140,6 +141,7 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
     // Set the turn to the first player
     lobby.TurnID = &player.ID
     s.DB.Save(lobby)
+    log.Printf("right be fore return: %t", lobby.ChatFeature)
 
     return lobby, nil
 }
@@ -193,7 +195,6 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
     }
 
     s.broadcastLobbyUpdate(lobby.ID.String())
-
     return &lobby, nil
 }
 
