@@ -435,7 +435,6 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
                                                 <h3 className="font-bold text-white text-lg mb-1">{set.name}</h3>
                                                 <p className="text-sm text-gray-400 mb-3 line-clamp-2">{set.description}</p>
                                                 <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-gray-500">{set.cards} cards</span>
                                                     {set.creator && (
                                                         <span className="text-gray-500 text-xs">by {set.creator}</span>
                                                     )}
@@ -480,7 +479,6 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
                                     <div className="p-3">
                                         <p className="text-xs text-emerald-400 font-medium mb-1">SELECTED SET</p>
                                         <p className="font-bold text-white">{selectedSet.name}</p>
-                                        <p className="text-sm text-gray-400 mt-1">{selectedSet.cards} cards</p>
                                     </div>
                                 </div>
                             )}
@@ -511,7 +509,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
                                                 Private Lobby
                                             </span>
                                             <span className="block text-xs text-gray-400 mt-1">
-                                                Only players with the link can join
+                                                Only players with the link or code can join
                                             </span>
                                         </div>
                                         <input

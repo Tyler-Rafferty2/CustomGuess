@@ -33,6 +33,7 @@ export default function LobbyPage() {
     const isMinimizedRef = useRef(isMinimized);
     const [isGuessMode, setIsGuessMode] = useState(false);
     const [lobbyStatus, setLobbyStatus] = useState(null);
+    const [isCopied, setIsCopied] = useState(false);
 
     const params = useParams();
     const lobbyID = params.lobbyId;
@@ -124,6 +125,19 @@ export default function LobbyPage() {
             console.error(err);
             setError("Network error");
         }
+    };
+
+    const handleCopyClick = () => {
+        // Only copy if not already in "copied" state
+        if (isCopied) return;
+
+        navigator.clipboard.writeText(window.location.href);
+        setIsCopied(true);
+
+        // Reset the button after 2 seconds
+        setTimeout(() => {
+            setIsCopied(false);
+        }, 2000);
     };
 
 
@@ -408,25 +422,38 @@ export default function LobbyPage() {
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6">
                 <div className="text-6xl mb-4 animate-bounce">⏳</div>
                 <h1 className="text-3xl font-bold">Waiting for players to join...</h1>
+
+                {/* Share Link Section */}
                 <p className="text-gray-300 text-lg">Share this link with a friend:</p>
                 <div className="flex gap-3 w-full max-w-2xl">
                     <input
                         type="text"
-                        value={window.location.href}
+                        value={typeof window !== 'undefined' ? window.location.href : ''}
                         readOnly
                         className="flex-1 px-4 py-3 bg-slate-700/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500 transition"
                     />
                     <button
-                        onClick={() => {
-                            navigator.clipboard.writeText(window.location.href);
-                            alert('Link copied!');
-                        }}
-                        className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-emerald-500/50"
+                        onClick={handleCopyClick}
+                        disabled={isCopied} // Briefly disable button to prevent spamming
+                        className={`px-6 py-3 font-bold rounded-xl transition-all duration-300 shadow-lg ${isCopied
+                            ? 'bg-green-600 text-white' // Success state
+                            : 'bg-emerald-500 hover:bg-emerald-400 text-white hover:scale-105 shadow-lg hover:shadow-emerald-500/50' // Default state
+                            }`}
                     >
-                        Copy Link
+                        {isCopied ? 'Copied! ✓' : 'Copy Link'}
                     </button>
                 </div>
-                <p className="text-sm text-gray-400 mt-2">Lobby ID: {lobbyID}</p>
+
+                {/* Separator */}
+                <div className="text-gray-400 text-lg mt-4">or</div>
+
+                {/* Join Code Section */}
+                <p className="text-gray-300 text-lg">Have your friend join with this code:</p>
+                <div className="bg-slate-700/50 border-2 border-slate-600 rounded-xl px-12 py-4">
+                    <p className="text-5xl font-bold tracking-widest text-emerald-400">
+                        {lobby?.code} {/* Displays the lobby code */}
+                    </p>
+                </div>
             </div>
         );
     } else if (!(lobby?.players.some(player => player.userId === user?.id))) {
@@ -586,17 +613,6 @@ export default function LobbyPage() {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col p-6 text-white">
-                {turn ? (
-                    <div className="text-emerald-400 font-medium text-lg mb-6 flex items-center gap-2">
-                        <span className="text-2xl">🎯</span>
-                        It's your turn!
-                    </div>
-                ) : (
-                    <div className="text-gray-400 font-medium text-lg mb-6 flex items-center gap-2">
-                        <span className="text-2xl">⏳</span>
-                        Waiting for the other player...
-                    </div>
-                )}
 
                 <div className="flex w-full mb-6">
 

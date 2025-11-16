@@ -6,18 +6,48 @@ import { useContext, useState } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { convertSegmentPathToStaticExportFilename } from "next/dist/shared/lib/segment-cache/segment-value-encoding";
 
 export default function Home() {
   const { user } = useContext(UserContext);
   const router = useRouter();
-  const [gameCode, setGameCode] = useState("");
+  const [lobbyCode, setLobbyCode] = useState("");
+  const [error, setError] = useState(null);
 
-  const handleJoinWithCode = (e) => {
+
+  const joinLobby = async (e) => {
     e.preventDefault();
-    if (gameCode.trim()) {
-      router.push(`/lobby/join/${gameCode.trim().toUpperCase()}`);
+    setError(null);
+
+    try {
+      const res = await fetch(`http://localhost:8080/lobby/join`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-ID": user?.id,
+        },
+        body: JSON.stringify({ code: lobbyCode }),
+      });
+
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        setError(data?.error || "Could not find game");
+        return;
+      }
+
+      router.push(`/lobby/${data.id}`);
+    } catch (err) {
+      console.error(err);
+      setError("Network error");
     }
   };
+
 
   return (
     <div className="h-screen w-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
@@ -56,7 +86,6 @@ export default function Home() {
             onClick={() => router.push("/create")}
             className="group bg-emerald-500 hover:bg-emerald-400 p-6 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-emerald-500/50 border-2 border-emerald-400/50"
           >
-            <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">🎮</div>
             <h2 className="text-2xl font-bold mb-2 text-white">Create Game</h2>
             <p className="text-sm text-white/90 leading-relaxed">
               Start a new game and invite your friends to join
@@ -68,7 +97,6 @@ export default function Home() {
             onClick={() => router.push("/lobby")}
             className="group bg-blue-500 hover:bg-blue-400 p-6 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-blue-500/50 border-2 border-blue-400/50"
           >
-            <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">🔍</div>
             <h2 className="text-2xl font-bold mb-2 text-white">Public Games</h2>
             <p className="text-sm text-white/90 leading-relaxed">
               Browse and join open games from players worldwide
@@ -77,27 +105,35 @@ export default function Home() {
 
           {/* Join with Code - Purple */}
           <div className="group bg-purple-500 hover:bg-purple-400 p-6 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-purple-500/50 border-2 border-purple-400/50">
-            <div className="text-5xl mb-3 group-hover:scale-110 transition-transform">🔑</div>
             <h2 className="text-2xl font-bold mb-2 text-white">Join with Code</h2>
             <p className="text-sm text-white/90 mb-3 leading-relaxed">
               Have a game code? Enter it below
             </p>
-            <form onSubmit={handleJoinWithCode} className="mt-3">
+            <form onSubmit={joinLobby} className="mt-3">
               <input
                 type="text"
-                value={gameCode}
-                onChange={(e) => setGameCode(e.target.value.toUpperCase())}
+                value={lobbyCode}
+                onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
                 placeholder="ENTER CODE"
                 maxLength={6}
                 className="w-full px-4 py-2 rounded-lg text-center text-lg font-bold text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-4 focus:ring-purple-300 transition"
               />
               <button
                 type="submit"
-                className="w-full mt-2 px-4 py-2 bg-white text-purple-600 font-bold rounded-lg hover:bg-purple-50 transition"
+                className="w-full mt-2 px-4 py-2 bg-white text-purple-600 font-bold rounded-lg hover:bg-purple-50 active:bg-purple-200 transition"
               >
                 Join Game
               </button>
+
             </form>
+            <div className="h-6 mt-2 flex items-center justify-center">
+              {error && (
+                <p className="text-rose-200 font-semibold text-sm">
+                  {error}
+                </p>
+              )}
+            </div>
+
           </div>
         </motion.div>
 
