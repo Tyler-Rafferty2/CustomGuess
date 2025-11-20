@@ -25,6 +25,7 @@ export const UserProvider = ({ children }) => {
         setUser({
             id: guestId,
             email: "guest",
+            isGuest: true,
         });
     }, []);
 

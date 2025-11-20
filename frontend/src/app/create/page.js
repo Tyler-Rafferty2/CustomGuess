@@ -14,6 +14,8 @@ export default function LobbyPage() {
 
     const router = useRouter();
 
+    console.log("lobby user", user)
+
     const getPlayers = async () => {
         setError(null);
 

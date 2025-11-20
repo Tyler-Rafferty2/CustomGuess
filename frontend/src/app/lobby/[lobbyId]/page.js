@@ -195,7 +195,6 @@ export default function LobbyPage() {
 
         websocket.onmessage = (event) => {
             const message = JSON.parse(event.data);
-            console.log('Received message:', message);
 
             if (message.channel === "game") {
                 console.log("adding game message");
@@ -220,8 +219,6 @@ export default function LobbyPage() {
                 });
 
                 // ALSO add to question log immediately (without answer yet)
-                console.log("looker here", message, username)
-                console.log(playerId)
                 if (message.SenderId === playerId) {
                     setQuestionLog(prev => [...prev, {
                         ...message,
