@@ -221,7 +221,8 @@ export default function LobbyPage() {
 
                 // ALSO add to question log immediately (without answer yet)
                 console.log("looker here", message, username)
-                if (message.username === username) {
+                console.log(playerId)
+                if (message.SenderId === playerId) {
                     setQuestionLog(prev => [...prev, {
                         ...message,
                         content: message.content,  // Just the question for now

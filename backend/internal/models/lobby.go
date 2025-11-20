@@ -7,7 +7,8 @@ import (
 
 type Lobby struct {
     ID      uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-    UserID   uuid.UUID  `gorm:"type:uuid;not null" json:"userId"`
+    UserID   uuid.UUID  `gorm:"type:uuid;" json:"userId"`
+    GuestID   uuid.UUID  `gorm:"type:uuid;" json:"userId"`
     User     User       `gorm:"foreignKey:UserID" json:"user"`
     Code    string    `gorm:"unique;not null" json:"code"`
     Private bool    `gorm:"default:false" json:"isPrivate"`

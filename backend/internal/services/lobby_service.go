@@ -95,14 +95,22 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
 
     log.Printf("Is it chatFeature: %t", chatFeature)
 
+
+    
     lobby := &models.Lobby{
-        UserID: user.ID,
         Code: generateLobbyCode(),
         CharacterSetID: charSet.ID,
         Private: private,
         RandomSecret: randomizeChar,
         ChatFeature: chatFeature,
     }
+
+    if user.IsGuest {
+        lobby.GuestID = user.ID
+    } else {
+        lobby.UserID = user.ID
+    }
+
 
     if err := s.DB.Create(lobby).Error; err != nil {
         return nil, err
