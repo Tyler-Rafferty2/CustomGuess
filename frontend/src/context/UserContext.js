@@ -6,21 +6,48 @@ export const UserContext = createContext();
 export const UserProvider = ({ children }) => {
     const [user, setUser] = useState(null); // null if not logged in
 
-    // optional: persist user across page reloads
     useEffect(() => {
+        // First check for registered user
         const savedUser = localStorage.getItem("user");
-        if (savedUser) setUser(JSON.parse(savedUser));
+        if (savedUser) {
+            setUser(JSON.parse(savedUser));
+            return;
+        }
+
+        // If no registered user, check for/create guest
+        let guestId = localStorage.getItem("guestId");
+        if (!guestId) {
+            guestId = crypto.randomUUID();
+            localStorage.setItem("guestId", guestId);
+        }
+
+        // Set guest user
+        setUser({
+            id: guestId,
+            email: "guest",
+        });
     }, []);
 
     const login = (userData) => {
+        // When logging in, remove guest data
+        localStorage.removeItem("guestId");
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
     };
 
     const logout = () => {
-        setUser(null);
+        // On logout, create a new guest identity
+        const guestId = crypto.randomUUID();
+        localStorage.setItem("guestId", guestId);
+
+        setUser({
+            id: guestId,
+            email: "guest",
+        });
+
         localStorage.removeItem("user");
     };
+
 
     return (
         <UserContext.Provider value={{ user, login, logout }}>

@@ -3,6 +3,7 @@ package middleware
 import (
     "context"
     "net/http"
+    "gorm.io/gorm"
 
     "github.com/google/uuid"
     "github.com/tyler-rafferty2/GuessWho/internal/config"
@@ -30,9 +31,21 @@ func UserMiddleware(next http.Handler) http.Handler {
         }
 
         var user models.User
-        if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
-            http.Error(w, "user not found", http.StatusNotFound)
-            return
+        err = config.DB.First(&user, "id = ?", userID).Error
+        
+        if err != nil {
+            if err == gorm.ErrRecordNotFound {
+                // User not in DB, treat as guest
+                user = models.User{
+                    ID:      userID,
+                    IsGuest: true,
+                    // Don't set other fields that might cause issues
+                }
+            } else {
+                // Actual database error
+                http.Error(w, "database error", http.StatusInternalServerError)
+                return
+            }
         }
 
         // Inject user into context

@@ -34,6 +34,7 @@ func (ws *WebSocketService) BroadcastLobbyUpdate(lobbyID string) {
 		Time:     "",
 		Channel: "lobby_update",
 		Username: "",
+		SenderId: "",
 		LobbyID: lobbyID,
 		LobbyTurn: "",
 		Lobby:   lobby, 
@@ -60,7 +61,7 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 			}
 			break
 		}
-		
+
 		
 		// Build message with client metadata
 		message := models.Message{
@@ -68,6 +69,7 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 			Content:  getStringValue(msg, "content"),
 			Time:     getStringValue(msg, "time"),
 			Channel: getStringValue(msg, "channel"),
+			SenderId: client.PlayerId,
 			Username: client.Username,
 			LobbyID:  client.LobbyID,
 			LobbyTurn: "",

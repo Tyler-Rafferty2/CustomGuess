@@ -176,14 +176,19 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
 
     player := &models.Player{
         LobbyID: lobby.ID,
-        UserID:  user.ID,
+        Name:    "Guest", // Set default name
         GameState: models.GameState{
-            LobbyID:         lobby.ID,
-            SecretCharacter: secretChar,       // ✅ pointer now
-            SecretCharacterID: nil,            // optional if no random
+            LobbyID:           lobby.ID,
+            SecretCharacter:   secretChar,
+            SecretCharacterID: nil,
         },
     }
 
+    if user.IsGuest {
+        player.GuestID = user.ID
+    } else {
+        player.UserID = user.ID
+    }
 
     if secretChar != nil {
         player.GameState.SecretCharacter = secretChar
@@ -261,7 +266,7 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
     var gs models.GameState
     if err := s.DB.Preload("SecretCharacter").
         Joins("JOIN players ON players.id = game_states.player_id").
-        Where("players.user_id = ? AND players.lobby_id = ?", userID, lobbyID).
+        Where("players.lobby_id = ? AND (players.user_id = ? OR players.guest_id = ?)", lobbyID, userID, userID).
         First(&gs).Error; err != nil {
         return &lobby, nil, nil // return lobby even if the secret character isn't found yet
     }
@@ -271,7 +276,7 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
 
 func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, characterID string) (*models.Lobby, error) {
     var player models.Player
-    if err := s.DB.Where("user_id = ? and lobby_id = ?", user.ID, lobbyID).First(&player).Error; err != nil {
+    if err := s.DB.Where("players.lobby_id = ? AND (players.user_id = ? OR players.guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {
         return nil, err
     }
     
@@ -337,7 +342,7 @@ func (s *LobbyService) GetLobbyStatus(lobbyId string) (*LobbyStatus, error) {
 func (s *LobbyService) SetSecretChar(user *models.User, lobbyID uuid.UUID, characterID uuid.UUID) (*models.GameState, error) {
     // Find the player
     var player models.Player
-    if err := s.DB.Where("user_id = ? AND lobby_id = ?", user.ID, lobbyID).First(&player).Error; err != nil {
+    if err := s.DB.Where("user_id = ? OR guest_id = ? AND lobby_id = ?", user.ID, user.ID, lobbyID).First(&player).Error; err != nil {
         return nil, err
     }
     

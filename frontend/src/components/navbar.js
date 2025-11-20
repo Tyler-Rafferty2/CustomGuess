@@ -7,6 +7,7 @@ export default function Navbar() {
     const [isClicked, setIsClicked] = useState(false);
 
     const handleLogout = () => {
+        console.log(user)
         setIsClicked(true);
         setTimeout(() => {
             setIsClicked(false);
@@ -25,16 +26,14 @@ export default function Navbar() {
 
                     {/* Right side - User info or auth buttons */}
                     <div className="flex items-center gap-4">
-                        {user ? (
+                        {user && user.email !== "guest" ? (
                             <>
                                 <span className="text-gray-300">
                                     Welcome, <span className="font-semibold text-white">{user.name}</span>
                                 </span>
                                 <button
                                     onClick={handleLogout}
-                                    className={`px-4 py-2 rounded transition-all duration-200 ${isClicked
-                                            ? 'bg-red-800 scale-95'
-                                            : 'bg-red-600 hover:bg-red-700'
+                                    className={`px-4 py-2 rounded transition-all duration-200 ${isClicked ? 'bg-red-800 scale-95' : 'bg-red-600 hover:bg-red-700'
                                         }`}
                                 >
                                     Logout
@@ -47,6 +46,7 @@ export default function Navbar() {
                             </>
                         )}
                     </div>
+
                 </div>
             </div>
         </nav>

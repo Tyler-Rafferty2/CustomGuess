@@ -8,11 +8,10 @@ import (
 type Player struct {
     ID        uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
     LobbyID   uuid.UUID  `gorm:"type:uuid;not null" json:"lobbyId"`   // FK → Lobby.ID
-    UserID    uuid.UUID  `gorm:"type:uuid;not null" json:"userId"`    // FK → User.ID
+    UserID    uuid.UUID  `gorm:"type:uuid;" json:"userId"`    // No FK constraint
+    GuestID   uuid.UUID  `gorm:"type:uuid" json:"guestId"`
     Name      string     `gorm:"not null" json:"name"`                // display name in this game
     GameState  GameState  `gorm:"constraint:OnDelete:CASCADE;" json:"gameState"`
-
-    User      User       `gorm:"foreignKey:UserID" json:"-"`          // optional: preload user
 }
 
 // BeforeCreate generates a UUID before inserting a new Player

@@ -11,6 +11,7 @@ import GameSend from '@/components/gameSend';
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
+import { FlameKindlingIcon } from "lucide-react";
 
 
 export default function LobbyPage() {
@@ -53,18 +54,36 @@ export default function LobbyPage() {
                 body: JSON.stringify({ code: lobbyCode }),
             });
 
+            // Check if response is JSON before parsing
+            const contentType = res.headers.get("content-type");
+
+            if (!contentType || !contentType.includes("application/json")) {
+                // Get the raw text response to see what the server is actually sending
+                const text = await res.text();
+                console.error("Non-JSON response received:", {
+                    status: res.status,
+                    statusText: res.statusText,
+                    contentType: contentType,
+                    body: text
+                });
+                setError(text || "Invalid response from server");
+                return;
+            }
+
             const data = await res.json();
 
             if (!res.ok) {
+                console.error("Join lobby failed:", res.status, data);
                 setError(data.error || "Something went wrong");
                 return;
             }
-            console.log("joined about to check")
+
+            console.log("Successfully joined lobby:", data);
             getGameState();
             checkLobbyStatus();
         } catch (err) {
-            console.error(err);
-            setError("Network error");
+            console.error("Join lobby error:", err);
+            setError(err.message || "Network error");
         }
     };
 
@@ -144,20 +163,20 @@ export default function LobbyPage() {
     //console.log(playerId, lobby ? lobby.lobby.turn : null)
     useEffect(() => {
         if (lobby?.players && user) {
-            const id = lobby.players.find(p => p.userId === user.id)?.id;
+            const id = lobby.players.find(p => p.userId === user.id || p.guestId === user.id)?.id;
             setPlayerId(id);
         }
     }, [lobby, user]);
 
     useEffect(() => {
         if (lobby && playerId != null) {
+            console.log("Checking lobby", playerId === lobby.turn)
             setTurn(playerId === lobby.turn);
         }
     }, [lobby, playerId]);
 
     useEffect(() => {
         if (!lobbyID || !username) return;
-
         // Prevent duplicate connections
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             console.log('WebSocket already connected');
@@ -201,6 +220,7 @@ export default function LobbyPage() {
                 });
 
                 // ALSO add to question log immediately (without answer yet)
+                console.log("looker here", message, username)
                 if (message.username === username) {
                     setQuestionLog(prev => [...prev, {
                         ...message,
@@ -219,42 +239,38 @@ export default function LobbyPage() {
                 }
             }
             else if (message.channel === "lobby_update") {
-                console.log("Received lobby update:", message.lobby);
+                //console.log("Received lobby update:", message.lobby);
                 setLobby(message.lobby);
             }
             else if (message.channel === "response") {
-                console.log("thi plac", message.username, username);
                 if (message.lobbyTurn === playerId) {
                     setTurn(true);
                 } else {
                     setTurn(false);
                 }
-                if (message.username === username) {
-                    return;
-                }
 
                 console.log("Handling response message");
 
                 // Update the LAST question in the log with the answer
-                setQuestionLog(prev => {
-                    if (prev.length === 0) return prev;
+                if (message.SenderId != playerId) {
+                    setQuestionLog(prev => {
+                        if (prev.length === 0) return prev;
 
-                    const updated = [...prev];
-                    const lastIndex = updated.length - 1;
+                        const updated = [...prev];
+                        const lastIndex = updated.length - 1;
 
-                    // Append the answer to the last question
-                    updated[lastIndex] = {
-                        ...updated[lastIndex],
-                        content: `${updated[lastIndex].content} - ${message.content}`,
-                        answer: message.content
-                    };
+                        // Append the answer to the last question
+                        updated[lastIndex] = {
+                            ...updated[lastIndex],
+                            content: `${updated[lastIndex].content} - ${message.content}`,
+                            answer: message.content
+                        };
 
-                    return updated;
-                });
-                console.log("after setQuestionLog");
-                console.log("message.lobbyTurn:", message.lobbyTurn, "playerId:", playerId);
-                setReceivedMessage("");
-                setWaitingReponse(false);
+                        return updated;
+                    });
+                    setReceivedMessage("");
+                    setWaitingReponse(false);
+                }
             }
             else {
                 // Chat messages
@@ -307,16 +323,12 @@ export default function LobbyPage() {
 
     useEffect(() => {
         checkLobbyStatus();
-        console.log("lobbyStatus:", lobbyStatus);
     }, [lobbyID]);
 
     useEffect(() => {
-        console.log("lobbyStatus updated:", lobbyStatus);
     }, [lobbyStatus]);
 
     useEffect(() => {
-        console.log("gameState updated:", gameState);
-        console.log("secretChat updated:", gameState?.secretCharacter);
     }, [gameState]);
 
     useEffect(() => {
@@ -332,7 +344,6 @@ export default function LobbyPage() {
 
     useEffect(() => {
         if (lobbyID && user?.id && lobby?.players?.length && !gameState) {
-            console.log("Fetching gameState...");
             getGameState();
         }
     }, [lobbyID, user?.id, lobby?.players?.length, gameState]);
@@ -341,7 +352,7 @@ export default function LobbyPage() {
     console.log("length", lobby?.players?.length)
     //this needs to not look at user but instead look at players id save din storage
     if (lobby?.gameOver) {
-        const currentPlayer = lobby.players.find(p => p.userId === user?.id);
+        const currentPlayer = lobby.players.find(p => p.userId === user.id || p.guestId === user.id);
         const isWinner = currentPlayer?.id === lobby.winner;
         console.log("user id", user?.id);
         console.log("looks here", currentPlayer?.id, lobby.winner);
@@ -399,7 +410,7 @@ export default function LobbyPage() {
     }
 
     // Now check if user is in the game (only after lobby is loaded)
-    if (lobby && !lobby.players.some(player => player.userId === user?.id)) {
+    if (lobby && !lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id)) {
         // User tried to join but isn't in the player list = game is full
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
@@ -456,7 +467,7 @@ export default function LobbyPage() {
                 </div>
             </div>
         );
-    } else if (!(lobby?.players.some(player => player.userId === user?.id))) {
+    } else if (!(lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id))) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
                 <div className="text-6xl mb-4">🔒</div>
