@@ -21,7 +21,7 @@ func cleanupStaleLobbies(db *gorm.DB) {
     cutoff := time.Now().Add(-staleLobbyThreshold)
 
     result := db.
-        Where("last_active < ?", cutoff).
+        Where("game_over = ? OR last_active < ?", true, cutoff).
         Delete(&models.Lobby{})
 
     if result.Error != nil {
@@ -30,6 +30,6 @@ func cleanupStaleLobbies(db *gorm.DB) {
     }
 
     if result.RowsAffected > 0 {
-        log.Printf("cleaned up %d stale lobbies", result.RowsAffected)
+        log.Printf("cleaned up %d stale/completed lobbies", result.RowsAffected)
     }
 }

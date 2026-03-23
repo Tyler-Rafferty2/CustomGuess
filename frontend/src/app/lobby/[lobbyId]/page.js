@@ -14,7 +14,6 @@ import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 
-/* ── Font injection ────────────────────────────────────────────────────── */
 const fontLink = typeof document !== 'undefined' && (() => {
     if (!document.getElementById('gw-fonts')) {
         const l = document.createElement('link');
@@ -25,7 +24,6 @@ const fontLink = typeof document !== 'undefined' && (() => {
     }
 })();
 
-/* ── CSS tokens ────────────────────────────────────────────────────────── */
 const GLOBAL_CSS = `
   :root {
     --bg:            #F7F3EE;
@@ -160,7 +158,6 @@ function StyleInjector() {
         s.id = 'gw-tokens';
         s.textContent = GLOBAL_CSS;
         document.head.appendChild(s);
-        // fonts
         if (!document.getElementById('gw-fonts')) {
             const l = document.createElement('link');
             l.id = 'gw-fonts';
@@ -193,6 +190,8 @@ export default function LobbyPage() {
     const [isGuessMode, setIsGuessMode] = useState(false);
     const [lobbyStatus, setLobbyStatus] = useState(null);
     const [isCopied, setIsCopied] = useState(false);
+    const [conflictLobbyId, setConflictLobbyId] = useState(null);
+    const conflictLobbyIdRef = useRef(null);
 
     const params = useParams();
     const lobbyID = params.lobbyId;
@@ -200,9 +199,34 @@ export default function LobbyPage() {
 
     const router = useRouter();
 
-    /* ── All original API + WS logic — untouched ── */
+    const handleConflict = (lobbyId) => {
+        conflictLobbyIdRef.current = lobbyId;
+        setConflictLobbyId(lobbyId);
+    };
 
-    const joinLobby = async (lobbyCode, lobbyID) => {
+    const clearConflict = () => {
+        conflictLobbyIdRef.current = null;
+        setConflictLobbyId(null);
+    };
+
+    const forfeitAndRejoin = async () => {
+        try {
+            await fetch(`http://localhost:8080/lobby/forfeit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                body: JSON.stringify({ lobbyId: conflictLobbyId }),
+            });
+            clearConflict();
+            if (lobby?.code && lobby?.id) {
+                joinLobby(lobby.code, lobby.id);
+            }
+        } catch (err) {
+            console.error("Forfeit error:", err);
+            setError("Network error");
+        }
+    };
+
+    const joinLobby = async (lobbyCode) => {
         setError(null);
         try {
             const res = await fetch(`http://localhost:8080/lobby/join`, {
@@ -210,6 +234,14 @@ export default function LobbyPage() {
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ code: lobbyCode }),
             });
+
+            if (res.status === 409) {
+                const data = await res.json();
+                handleConflict(data.lobbyId);
+                console.log("found conflict with lobby", data.lobbyId);
+                return;
+            }
+
             const contentType = res.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
                 const text = await res.text();
@@ -272,7 +304,6 @@ export default function LobbyPage() {
 
     useEffect(() => {
         if (lobby && playerId != null) {
-            console.log("Checking lobby", playerId === lobby.turn);
             setTurn(playerId === lobby.turn);
         }
     }, [lobby, playerId]);
@@ -283,7 +314,6 @@ export default function LobbyPage() {
             console.log('WebSocket already connected');
             return;
         }
-        console.log('Creating new WebSocket connection', { username, lobbyID, playerId });
         const websocket = new WebSocket(
             `ws://localhost:8080/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyID)}&playerId=${encodeURIComponent(playerId || '')}`
         );
@@ -291,10 +321,9 @@ export default function LobbyPage() {
         websocket.onmessage = (event) => {
             const message = JSON.parse(event.data);
             if (message.channel === "game") {
-                console.log("adding game message");
                 setMessagesGame(prev => {
                     const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
-                    if (isDuplicate) { console.log('Duplicate message detected, skipping'); return prev; }
+                    if (isDuplicate) return prev;
                     return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString() }];
                 });
                 if (message.SenderId === playerId) {
@@ -307,7 +336,6 @@ export default function LobbyPage() {
                 setLobby(message.lobby);
             } else if (message.channel === "response") {
                 if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
-                console.log("Handling response message");
                 if (message.SenderId != playerId) {
                     setQuestionLog(prev => {
                         if (prev.length === 0) return prev;
@@ -322,7 +350,7 @@ export default function LobbyPage() {
             } else {
                 setMessagesChat(prev => {
                     const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
-                    if (isDuplicate) { console.log('Duplicate message detected, skipping'); return prev; }
+                    if (isDuplicate) return prev;
                     return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString(), read: !isMinimizedRef.current }];
                 });
             }
@@ -331,7 +359,6 @@ export default function LobbyPage() {
         websocket.onclose = () => { setIsConnected(false); console.log('Disconnected from chat server'); };
         wsRef.current = websocket;
         return () => {
-            console.log('Cleaning up WebSocket');
             if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) { websocket.close(); }
             wsRef.current = null;
         };
@@ -344,8 +371,15 @@ export default function LobbyPage() {
     useEffect(() => { checkLobbyStatus(); }, [lobbyID]);
 
     useEffect(() => {
-        if (lobby && lobby.players?.length < 2 && !lobby.players.some(player => player.userId === user?.id) && lobby.code && lobby.id) {
-            joinLobby(lobby.code, lobby.id);
+        if (
+            lobby &&
+            lobby.players?.length < 2 &&
+            !lobby.players.some(player => player.userId === user?.id) &&
+            lobby.code &&
+            lobby.id &&
+            !conflictLobbyIdRef.current  // use ref — synchronous check
+        ) {
+            joinLobby(lobby.code);
         }
     }, [lobby?.id, lobby?.players?.length]);
 
@@ -353,16 +387,105 @@ export default function LobbyPage() {
         if (lobbyID && user?.id && lobby?.players?.length && !gameState) { getGameState(); }
     }, [lobbyID, user?.id, lobby?.players?.length, gameState]);
 
-    console.log("this is the lobby", lobby);
-    console.log("length", lobby?.players?.length);
+    const conflictModal = conflictLobbyId && (
+        <>
+            <style>{`
+                .conflict-overlay {
+                    position: fixed; inset: 0; z-index: 200;
+                    background: rgba(26, 21, 16, 0.5);
+                    display: flex; align-items: center; justify-content: center;
+                    animation: fadeIn 150ms ease-out;
+                }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                .conflict-modal {
+                    background: var(--surface-0);
+                    border: 1px solid var(--border);
+                    border-radius: var(--r);
+                    padding: 32px;
+                    width: 100%;
+                    max-width: 400px;
+                    margin: 16px;
+                    animation: slideUp 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+                }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+                .conflict-modal__icon {
+                    width: 48px; height: 48px;
+                    background: #FEF7ED; border: 1px solid #F5D28A;
+                    border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center;
+                    margin: 0 auto 20px; color: #C98C1A;
+                }
+                .conflict-modal__title {
+                    font-family: 'Fraunces', serif; font-size: 20px; font-weight: 700;
+                    color: var(--text-900); letter-spacing: -0.02em;
+                    text-align: center; margin-bottom: 8px;
+                }
+                .conflict-modal__sub {
+                    font-size: 14px; color: var(--text-600);
+                    text-align: center; line-height: 1.6; margin-bottom: 24px;
+                }
+                .conflict-modal__actions { display: flex; flex-direction: column; gap: 10px; }
+                .conflict-modal__btn {
+                    display: flex; align-items: center; justify-content: center;
+                    gap: 8px; height: 44px; border-radius: 6px;
+                    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+                    cursor: pointer; border: none; width: 100%;
+                    transition: background 150ms ease-out;
+                }
+                .conflict-modal__btn--rejoin { background: var(--accent); color: #fff; }
+                .conflict-modal__btn--rejoin:hover { background: var(--accent-dim); }
+                .conflict-modal__btn--forfeit {
+                    background: var(--surface-1); color: var(--state-out);
+                    border: 1px solid var(--border);
+                }
+                .conflict-modal__btn--forfeit:hover { background: var(--surface-2); }
+                .conflict-modal__cancel {
+                    background: none; border: none;
+                    font-family: 'DM Sans', sans-serif; font-size: 13px;
+                    color: var(--text-400); cursor: pointer; text-align: center;
+                    margin-top: 4px; padding: 4px; transition: color 150ms;
+                }
+                .conflict-modal__cancel:hover { color: var(--text-600); }
+            `}</style>
+            <div className="conflict-overlay">
+                <div className="conflict-modal">
+                    <div className="conflict-modal__icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                    </div>
+                    <div className="conflict-modal__title">You're already in a game</div>
+                    <div className="conflict-modal__sub">
+                        You have an active game in progress. Forfeit it to join this one, or go back to your existing game.
+                    </div>
+                    <div className="conflict-modal__actions">
+                        <button className="conflict-modal__btn conflict-modal__btn--rejoin"
+                            onClick={() => router.push(`/lobby/${conflictLobbyId}`)}>
+                            Back to My Game
+                        </button>
+                        <button className="conflict-modal__btn conflict-modal__btn--forfeit"
+                            onClick={forfeitAndRejoin}>
+                            Forfeit & Join This Game
+                        </button>
+                        <button className="conflict-modal__cancel"
+                            onClick={clearConflict}>
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
 
-    /* ── GAME OVER ─────────────────────────────────────────────────────── */
+    /* ── GAME OVER ── */
     if (lobby?.gameOver) {
         const currentPlayer = lobby.players.find(p => p.userId === user.id || p.guestId === user.id);
         const isWinner = currentPlayer?.id === lobby.winner;
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                     <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center', padding: 'var(--s12)' }}>
                         <div style={{ width: 48, height: 4, background: isWinner ? 'var(--state-live)' : 'var(--state-out)', borderRadius: 2, margin: '0 auto var(--s6)' }} />
@@ -381,11 +504,12 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── LOADING ───────────────────────────────────────────────────────── */
+    /* ── LOADING ── */
     if (lobbyStatus === null) {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s4)' }}>
                     <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-600)' }}>Checking lobby…</p>
@@ -394,11 +518,12 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── LOBBY NOT FOUND ───────────────────────────────────────────────── */
+    /* ── LOBBY NOT FOUND ── */
     if (!lobbyStatus.exists) {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                     <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
                         <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 32, color: 'var(--text-900)', letterSpacing: '-0.02em', marginBottom: 'var(--s3)' }}>Lobby not found</h1>
@@ -410,11 +535,12 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── CONNECTING ────────────────────────────────────────────────────── */
+    /* ── CONNECTING ── */
     if (!lobby && lobbyStatus?.exists) {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s4)' }}>
                     <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-600)' }}>Connecting to game…</p>
@@ -423,11 +549,12 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── GAME FULL (spectator) ─────────────────────────────────────────── */
+    /* ── GAME FULL (spectator) ── */
     if (lobby && !lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id) && lobby.players.length >= 2) {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                     <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
                         <Lock size={32} color="var(--text-400)" style={{ marginBottom: 'var(--s4)' }} />
@@ -440,11 +567,12 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── WAITING FOR PLAYER 2 ──────────────────────────────────────────── */
+    /* ── WAITING FOR PLAYER 2 ── */
     if (lobby?.players?.length < 2 && (lobby?.players.some(player => player.userId === user?.id))) {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                     <div style={{ maxWidth: 480, width: '100%' }}>
                         <div style={{ textAlign: 'center', marginBottom: 'var(--s8)' }}>
@@ -454,8 +582,6 @@ export default function LobbyPage() {
                             </h1>
                             <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>Share this game to get started.</p>
                         </div>
-
-                        {/* Share link */}
                         <div className="gw-card" style={{ marginBottom: 'var(--s3)', padding: 'var(--s6)' }}>
                             <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Share Link</span>
                             <div style={{ display: 'flex', gap: 'var(--s2)' }}>
@@ -476,15 +602,11 @@ export default function LobbyPage() {
                                 </button>
                             </div>
                         </div>
-
-                        {/* Divider */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', margin: 'var(--s6) 0' }}>
                             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                             <span className="gw-label">or join with code</span>
                             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                         </div>
-
-                        {/* Join code */}
                         <div className="gw-card" style={{ textAlign: 'center', padding: 'var(--s8)' }}>
                             <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s4)' }}>Room Code</span>
                             <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 56, letterSpacing: '0.12em', color: 'var(--text-900)', lineHeight: 1 }}>
@@ -499,6 +621,7 @@ export default function LobbyPage() {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                     <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
                         <Lock size={32} color="var(--text-400)" style={{ marginBottom: 'var(--s4)' }} />
@@ -511,9 +634,20 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── CHARACTER SELECTION ───────────────────────────────────────────── */
+    /* ── CHARACTER SELECTION ── */
     if (gameState?.secretCharacter === undefined) {
-        console.log("reloading");
+        if (conflictLobbyId) {
+            return (
+                <>
+                    <StyleInjector />
+                    {conflictModal}
+                    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s4)' }}>
+                        <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-600)' }}>Waiting to join…</p>
+                    </div>
+                </>
+            );
+        }
 
         const IMAGE_SIZE = '160px';
 
@@ -569,7 +703,6 @@ export default function LobbyPage() {
                 });
                 const data = await res.json();
                 if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-                console.log("Fetched gamestate:", data);
                 setGameState(data);
             } catch (err) {
                 console.error(err);
@@ -581,6 +714,7 @@ export default function LobbyPage() {
         return (
             <>
                 <StyleInjector />
+                {conflictModal}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 'var(--s12) var(--s6)' }}>
                     <div style={{ maxWidth: 960, margin: '0 auto' }}>
                         <div style={{ textAlign: 'center', marginBottom: 'var(--s10)' }}>
@@ -612,8 +746,7 @@ export default function LobbyPage() {
         );
     }
 
-    /* ── MAIN GAME SCREEN ──────────────────────────────────────────────── */
-
+    /* ── MAIN GAME SCREEN ── */
     const Item = styled(Paper)(({ theme }) => ({
         backgroundColor: 'var(--surface-1)',
         ...theme.typography.body2,
@@ -628,10 +761,9 @@ export default function LobbyPage() {
     return (
         <>
             <StyleInjector />
+            {conflictModal}
             <Navbar />
             <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
-
-                {/* Left sidebar — question log (chat mode) */}
                 {lobby.chatFeature && (
                     <div style={{
                         width: 256,
@@ -643,7 +775,6 @@ export default function LobbyPage() {
                         flexDirection: 'column',
                         overflowY: 'auto',
                     }}>
-                        {/* Secret character */}
                         {gameState && gameState.secretCharacter && (
                             <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)' }}>
                                 <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your Character</span>
@@ -657,8 +788,6 @@ export default function LobbyPage() {
                                 </p>
                             </div>
                         )}
-
-                        {/* Question log */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s4)' }}>
                             <MessageSquare size={13} color="var(--text-400)" />
                             <span className="gw-label">Question Log</span>
@@ -670,15 +799,9 @@ export default function LobbyPage() {
                                         padding: 'var(--s3) 0',
                                         borderBottom: index < questionLog.length - 1 ? '1px solid var(--border)' : 'none',
                                     }}>
-                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)', color: 'var(--accent)' }}>
-                                            {msg.username}
-                                        </span>
-                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', margin: 0, lineHeight: 1.5 }}>
-                                            {msg.content}
-                                        </p>
-                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>
-                                            {msg.time}
-                                        </span>
+                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)', color: 'var(--accent)' }}>{msg.username}</span>
+                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', margin: 0, lineHeight: 1.5 }}>{msg.content}</p>
+                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>{msg.time}</span>
                                     </div>
                                 ))}
                             </div>
@@ -690,10 +813,7 @@ export default function LobbyPage() {
                     </div>
                 )}
 
-                {/* Main content */}
                 <div style={{ flex: 1, padding: 'var(--s6)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-
-                    {/* Non-chat mode */}
                     {!lobby.chatFeature && (
                         <div style={{ display: 'flex', gap: 'var(--s6)', width: '100%', marginBottom: 'var(--s6)', alignItems: 'flex-start' }}>
                             <div style={{ width: 200, flexShrink: 0 }}>
@@ -718,54 +838,34 @@ export default function LobbyPage() {
                                     {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
                                 </button>
                             </div>
-
                             <div style={{ flex: 1 }}>
                                 <GameState
-                                    user={user}
-                                    setError={setError}
-                                    lobby={lobby}
-                                    setLobby={setLobby}
-                                    gameState={gameState}
-                                    setGameState={setGameState}
-                                    isGuessMode={isGuessMode}
-                                    getGameState={getGameState}
+                                    user={user} setError={setError} lobby={lobby} setLobby={setLobby}
+                                    gameState={gameState} setGameState={setGameState}
+                                    isGuessMode={isGuessMode} getGameState={getGameState}
                                 />
                             </div>
                         </div>
                     )}
 
-                    {/* Chat mode */}
                     {lobby.chatFeature && (
                         <>
                             <div style={{ marginBottom: 'var(--s4)' }}>
                                 {user && user.email && lobbyID && (
                                     <GameSend
-                                        lobbyId={lobbyID}
-                                        username={user.email}
-                                        wsRef={wsRef}
-                                        setIsConnected={setIsConnected}
-                                        messages={messagesGame}
-                                        setMessages={setMessagesGame}
-                                        turn={turn}
-                                        setSentMessage={setSentMessage}
-                                        receivedMessage={receivedMessage}
-                                        waitingReponse={waitingReponse}
-                                        setWaitingReponse={setWaitingReponse}
-                                        setIsGuessMode={setIsGuessMode}
-                                        isGuessMode={isGuessMode}
+                                        lobbyId={lobbyID} username={user.email} wsRef={wsRef}
+                                        setIsConnected={setIsConnected} messages={messagesGame}
+                                        setMessages={setMessagesGame} turn={turn}
+                                        setSentMessage={setSentMessage} receivedMessage={receivedMessage}
+                                        waitingReponse={waitingReponse} setWaitingReponse={setWaitingReponse}
+                                        setIsGuessMode={setIsGuessMode} isGuessMode={isGuessMode}
                                     />
                                 )}
                             </div>
-
                             <GameState
-                                user={user}
-                                setError={setError}
-                                lobby={lobby}
-                                setLobby={setLobby}
-                                gameState={gameState}
-                                setGameState={setGameState}
-                                isGuessMode={isGuessMode}
-                                getGameState={getGameState}
+                                user={user} setError={setError} lobby={lobby} setLobby={setLobby}
+                                gameState={gameState} setGameState={setGameState}
+                                isGuessMode={isGuessMode} getGameState={getGameState}
                             />
                         </>
                     )}

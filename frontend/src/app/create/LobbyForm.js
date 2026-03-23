@@ -647,7 +647,7 @@ const DESIGN_TOKENS = `
   }
 `;
 
-export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }) {
+export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, onConflict }) {
     const router = useRouter();
     const [selectedSet, setSelectedSet] = useState(null);
     const [selectSecret, setSelectSecret] = useState(false);
@@ -706,6 +706,10 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers }
                 body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature }),
             });
             const data = await res.json();
+            if (res.status === 409) {
+                onConflict(data.lobbyId);  // trigger the modal
+                return;
+            }
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
             setLobby(data);
             router.push(`/lobby/${data.id}`);

@@ -3,6 +3,7 @@ package handlers
 import (
     "encoding/json"
     "net/http"
+    "errors"
 
     "github.com/google/uuid"
     "github.com/go-chi/chi/v5"
@@ -22,27 +23,25 @@ func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request
     user := middleware.GetUserFromContext(r)
 
     var req struct {
-        SetID   uuid.UUID `json:"setId"`
-        Private bool      `json:"isPrivate"`
-        RandomSecret bool `json:"randomizeSecret"`
-        ChatFeature bool  `json:"chatFeature"`
+        SetID        uuid.UUID `json:"setId"`
+        Private      bool      `json:"isPrivate"`
+        RandomSecret bool      `json:"randomizeSecret"`
+        ChatFeature  bool      `json:"chatFeature"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
     lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-
-    json.NewEncoder(w).Encode(lobby)
-}
-
-// POST /find
-func (h *LobbyHandler) FindLobbyHandler(w http.ResponseWriter, r *http.Request) {
-    user := middleware.GetUserFromContext(r)
-    lobby, err := h.Service.FindLobby(user)
-    if err != nil {
+        var lobbyErr *services.LobbyError
+        if errors.As(err, &lobbyErr) {
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusConflict)
+            json.NewEncoder(w).Encode(map[string]any{
+                "error":   lobbyErr.Code,
+                "lobbyId": lobbyErr.LobbyID,
+            })
+            return
+        }
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
@@ -61,7 +60,29 @@ func (h *LobbyHandler) JoinLobbyHandler(w http.ResponseWriter, r *http.Request) 
 
     lobby, err := h.Service.JoinLobby(user, req.Code)
     if err != nil {
+        var lobbyErr *services.LobbyError
+        if errors.As(err, &lobbyErr) {
+            w.Header().Set("Content-Type", "application/json")
+            w.WriteHeader(http.StatusConflict)
+            json.NewEncoder(w).Encode(map[string]any{
+                "error":   lobbyErr.Code,
+                "lobbyId": lobbyErr.LobbyID,
+            })
+            return
+        }
         http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    json.NewEncoder(w).Encode(lobby)
+}
+
+// POST /find
+func (h *LobbyHandler) FindLobbyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    lobby, err := h.Service.FindLobby(user)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
 

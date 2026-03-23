@@ -78,8 +78,49 @@ func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
     return &lobby, nil
 }
 
+// GetPlayerByUser returns the player record for a given user (registered or guest)
+func (s *LobbyService) GetPlayerByUser(user *models.User) (*models.Player, error) {
+    var player models.Player
+
+    query := s.DB.Joins("JOIN lobbies ON lobbies.id = players.lobby_id").
+        Where("lobbies.game_over = ?", false)
+
+    if user.IsGuest {
+        query = query.Where("players.guest_id = ?", user.ID)
+    } else {
+        query = query.Where("players.user_id = ?", user.ID)
+    }
+
+    if err := query.First(&player).Error; err != nil {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
+            return nil, nil
+        }
+        return nil, fmt.Errorf("failed to look up player: %w", err)
+    }
+
+    return &player, nil
+}
+
+type LobbyError struct {
+    Code    string
+    LobbyID uuid.UUID
+}
+
+func (e *LobbyError) Error() string {
+    return e.Code
+}
+
 // create a new lobby with the first player
 func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool) (*models.Lobby, error) {
+
+    existing, err := s.GetPlayerByUser(user)
+    if err != nil {
+        return nil, err
+    }
+    if existing != nil {
+        return nil, &LobbyError{Code: "ALREADY_IN_GAME", LobbyID: existing.LobbyID}
+    }
+
     var charSet models.CharacterSet
     if err := s.DB.Where("id = ?", setID).First(&charSet).Error; err != nil {
         return nil, fmt.Errorf("no character sets available: %w", err)
@@ -156,6 +197,14 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
 
 // join an existing lobby
 func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby, error) {
+    existing, err := s.GetPlayerByUser(user)
+    if err != nil {
+        return nil, err
+    }
+    if existing != nil {
+        return nil, &LobbyError{Code: "ALREADY_IN_GAME", LobbyID: existing.LobbyID}
+    }
+
     var lobby models.Lobby
     if err := s.DB.
         Preload("Players").
