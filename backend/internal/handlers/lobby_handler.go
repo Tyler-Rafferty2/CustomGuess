@@ -175,3 +175,21 @@ func (h *LobbyHandler) SetSecretCharHandler(w http.ResponseWriter, r *http.Reque
 
     json.NewEncoder(w).Encode(lobby)
 }
+
+// POST /lobby/forfeit
+func (h *LobbyHandler) ForfeitHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    var req struct {
+        LobbyID uuid.UUID `json:"lobbyId"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    lobby, err := h.Service.ForfeitLobby(user, req.LobbyID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    json.NewEncoder(w).Encode(lobby)
+}

@@ -12,11 +12,14 @@ import (
 
     "github.com/tyler-rafferty2/GuessWho/internal/routes"
     "github.com/tyler-rafferty2/GuessWho/internal/config"
+    "github.com/tyler-rafferty2/GuessWho/internal/services"
 )
 
 func main() {
 
     config.ConnectDB()
+
+    services.StartLobbyCleanup(config.DB)
 
     r := chi.NewRouter()
 

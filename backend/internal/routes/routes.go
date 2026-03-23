@@ -58,8 +58,9 @@ func MountRoutes(r chi.Router) {
         r.Get("/{lobbyID}", lobbyHandler.GetLobbyHandler)
         r.Post("/guess", lobbyHandler.GuessLobbyHandler)
         r.Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
+        r.Post("/forfeit", lobbyHandler.ForfeitHandler)
+        })
     })
-})
 
     r.Route("/gameState", func(r chi.Router) {
         r.Use(middleware.UserMiddleware)

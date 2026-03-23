@@ -98,14 +98,37 @@ export default function Navbar() {
     const [soundEnabled, setSoundEnabled] = useState(true);
 
     const router = useRouter();
-    const pathname = usePathname();
-    const isInGame = pathname?.startsWith("/lobby/");
 
     const handleLogout = () => logout();
-    const handleLeaveGame = () => { setShowLeaveConfirm(false); router.push("/"); };
+
+    const pathname = usePathname();
+    const isInGame = pathname?.startsWith("/lobby/");
+    const lobbyID = pathname?.startsWith("/lobby/") ? pathname.split("/lobby/")[1] : null;
+
+    const handleLeaveGame = async () => {
+        setShowLeaveConfirm(false);
+        if (lobbyID) {
+            try {
+                await fetch(`http://localhost:8080/lobby/forfeit`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-User-ID": user?.id,
+                    },
+                    body: JSON.stringify({ lobbyId: lobbyID }),
+                });
+            } catch (err) {
+                console.error("Forfeit error:", err);
+            }
+        }
+        router.push("/");
+    };
+
 
     /* ── In-Game Bar ─────────────────────────────── */
     if (isInGame) {
+
+
         return (
             <>
                 <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');`}</style>

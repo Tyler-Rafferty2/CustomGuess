@@ -376,3 +376,29 @@ func (s *LobbyService) SetSecretChar(user *models.User, lobbyID uuid.UUID, chara
     
     return &gameState, nil
 }
+
+func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*models.Lobby, error) {
+    var player models.Player
+    if err := s.DB.Where("lobby_id = ? AND (user_id = ? OR guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {
+        return nil, err
+    }
+
+    var otherPlayer models.Player
+    if err := s.DB.Where("lobby_id = ? AND id != ?", lobbyID, player.ID).First(&otherPlayer).Error; err != nil {
+        return nil, err
+    }
+
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return nil, err
+    }
+
+    lobby.GameOver = true
+    lobby.Winner = &otherPlayer.ID
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        return nil, err
+    }
+
+    s.broadcastLobbyUpdate(lobbyID.String())
+    return &lobby, nil
+}

@@ -1,12 +1,15 @@
 package models
 
 import (
+    "time"
     "github.com/google/uuid"
     "gorm.io/gorm"
 )
 
 type Lobby struct {
     ID      uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+    CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
+    LastActive time.Time `gorm:"autoUpdateTime" json:"lastActive"`
     UserID   uuid.UUID  `gorm:"type:uuid;" json:"userId"`
     GuestID   uuid.UUID  `gorm:"type:uuid;" json:"userId"`
     User     User       `gorm:"foreignKey:UserID" json:"user"`
