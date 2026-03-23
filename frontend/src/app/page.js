@@ -1,153 +1,417 @@
 "use client";
 
 import Navbar from "../components/navbar";
-import GoToPageButton from "../components/goToPageButton";
 import { useContext, useState } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { convertSegmentPathToStaticExportFilename } from "next/dist/shared/lib/segment-cache/segment-value-encoding";
+import { Plus, Search } from "lucide-react";
 
+/* ─────────────────────────────────────────────
+   Design tokens — v3.0 schema
+───────────────────────────────────────────── */
+const T = {
+  bg: "#F7F3EE",
+  surface0: "#FFFFFF",
+  surface1: "#F2EDE7",
+  surface2: "#E8E0D8",
+  accent: "#D9572B",
+  accentLight: "#F2C5B4",
+  accentDim: "#B84422",
+  text900: "#1A1510",
+  text600: "#5C5047",
+  text400: "#A0937F",
+  border: "#DDD5CA",
+  borderStrong: "#C4B8A8",
+  stateOut: "#C0392B",
+  stateLive: "#2A7A56",
+};
+
+/* Placeholder character data */
+const CHARACTERS = [
+  { id: "1", name: "Alice", state: "active", hue: 28 },
+  { id: "2", name: "Bernard", state: "eliminated", hue: 195 },
+  { id: "3", name: "Clara", state: "active", hue: 340 },
+  { id: "4", name: "David", state: "active", hue: 60 },
+  { id: "5", name: "Elena", state: "active", hue: 150 },
+  { id: "6", name: "Frank", state: "eliminated", hue: 270 },
+  { id: "7", name: "Grace", state: "active", hue: 10 },
+  { id: "8", name: "Henry", state: "active", hue: 220 },
+  { id: "9", name: "Irene", state: "eliminated", hue: 85 },
+  { id: "10", name: "James", state: "active", hue: 310 },
+  { id: "11", name: "Karen", state: "active", hue: 165 },
+  { id: "12", name: "Leo", state: "active", hue: 45 },
+];
+
+/* Warm-tinted flat face placeholder */
+function FaceSVG({ hue, eliminated }) {
+  const faceColor = eliminated ? "#E8E0D8" : `hsl(${hue}, 38%, 82%)`;
+  const skinColor = eliminated ? "#DDD5CA" : `hsl(${hue}, 32%, 74%)`;
+  const featureCol = eliminated ? "#C4B8A8" : `hsl(${hue}, 20%, 52%)`;
+  return (
+    <svg viewBox="0 0 48 56" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="56" fill={faceColor} />
+      <circle cx="24" cy="22" r="13" fill={skinColor} />
+      <ellipse cx="24" cy="45" rx="14" ry="9" fill={skinColor} />
+      {!eliminated && (
+        <>
+          <circle cx="19" cy="20" r="2" fill={featureCol} opacity="0.9" />
+          <circle cx="29" cy="20" r="2" fill={featureCol} opacity="0.9" />
+          <path d="M19 27 Q24 31 29 27" stroke={featureCol} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.8" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function CharacterCard({ char, index }) {
+  const isEliminated = char.state === "eliminated";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.3, ease: [0, 0, 0.2, 1] }}
+      style={{
+        position: "relative",
+        background: T.surface0,
+        border: `1px solid ${T.border}`,
+        borderRadius: "6px",
+        overflow: "hidden",
+        opacity: isEliminated ? 0.35 : 1,
+        filter: isEliminated ? "saturate(0)" : "none",
+        aspectRatio: "3 / 4",
+        transition: "opacity 250ms",
+      }}
+    >
+      {/* Face area — 78% height */}
+      <div style={{ width: "100%", height: "78%" }}>
+        <FaceSVG hue={char.hue} eliminated={isEliminated} />
+      </div>
+
+      {/* Name strip */}
+      <div style={{
+        height: "22%",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        borderTop: `1px solid ${T.border}`,
+        background: isEliminated ? T.surface1 : T.surface0,
+        padding: "0 4px",
+      }}>
+        <span style={{
+          fontFamily: "'DM Sans', sans-serif",
+          fontSize: 9, fontWeight: 600,
+          color: isEliminated ? T.text400 : T.text600,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          textAlign: "center",
+          lineHeight: 1.2,
+        }}>
+          {char.name}
+        </span>
+      </div>
+
+      {/* Elimination diagonal strike */}
+      {isEliminated && (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <svg viewBox="0 0 48 56" width="100%" height="100%"
+            style={{ position: "absolute", top: 0, left: 0 }}>
+            <line x1="4" y1="4" x2="44" y2="52"
+              stroke={T.stateOut} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+          </svg>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Page
+───────────────────────────────────────────── */
 export default function Home() {
   const { user } = useContext(UserContext);
   const router = useRouter();
   const [lobbyCode, setLobbyCode] = useState("");
   const [error, setError] = useState(null);
-
+  const [joining, setJoining] = useState(false);
 
   const joinLobby = async (e) => {
     e.preventDefault();
     setError(null);
-
+    setJoining(true);
     try {
-      const res = await fetch(`http://localhost:8080/lobby/join`, {
+      const res = await fetch("http://localhost:8080/lobby/join", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-ID": user?.id,
-        },
+        headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
         body: JSON.stringify({ code: lobbyCode }),
       });
-
       let data;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
-
-      if (!res.ok) {
-        setError(data?.error || "Could not find game");
-        return;
-      }
-
+      try { data = await res.json(); } catch { data = null; }
+      if (!res.ok) { setError(data?.error || "Could not find game"); return; }
       router.push(`/lobby/${data.id}`);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setError("Network error");
+    } finally {
+      setJoining(false);
     }
   };
 
-
   return (
-    <div className="h-screen w-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Animated background pattern */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDEzNGg3djdjMC0zLjktMy4xLTctNy03ek0zNiAxNDFoN3Y3YzAtMy45LTMuMS03LTctN3pNNDMgMTM0aDd2N2MwLTMuOS0zLjEtNy03LTd6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-20 pointer-events-none"></div>
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .primary-btn {
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          width: 100%; height: 48px; padding: 0 24px;
+          background: ${T.accent}; border: 1px solid ${T.accent};
+          border-radius: 6px; color: #FFFFFF;
+          font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+          letter-spacing: 0.02em;
+          cursor: pointer; outline: none;
+          transition: background 150ms, border-color 150ms;
+        }
+        .primary-btn:hover  { background: ${T.accentDim}; border-color: ${T.accentDim}; }
+        .primary-btn:active { transform: scale(0.98); }
+        .primary-btn:focus-visible { outline: 2px solid ${T.accent}; outline-offset: 2px; }
+
+        .ghost-btn {
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          width: 100%; height: 48px; padding: 0 24px;
+          background: transparent; border: 1px solid ${T.border};
+          border-radius: 6px; color: ${T.text600};
+          font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+          letter-spacing: 0.02em;
+          cursor: pointer; outline: none;
+          transition: border-color 150ms, color 150ms, background 150ms;
+        }
+        .ghost-btn:hover  { border-color: ${T.borderStrong}; color: ${T.text900}; background: ${T.surface1}; }
+        .ghost-btn:active { transform: scale(0.98); }
+        .ghost-btn:focus-visible { outline: 2px solid ${T.accent}; outline-offset: 2px; }
+
+        .code-input {
+          flex: 1; height: 44px; padding: 0 16px;
+          background: ${T.surface0}; border: 1px solid ${T.border};
+          border-right: none;
+          border-radius: 6px 0 0 6px;
+          color: ${T.text900}; font-family: 'DM Sans', sans-serif;
+          font-size: 16px; font-weight: 600; letter-spacing: 0.25em; text-align: center;
+          text-transform: uppercase; outline: none;
+          transition: border-color 150ms;
+        }
+        .code-input::placeholder { color: ${T.text400}; letter-spacing: 0.1em; font-weight: 400; }
+        .code-input:focus { border-color: ${T.accent}; }
+        .code-input:focus + .code-submit { border-left-color: ${T.accent}; }
+
+        .code-submit {
+          height: 44px; padding: 0 20px;
+          background: ${T.surface1}; border: 1px solid ${T.border};
+          border-radius: 0 6px 6px 0;
+          color: ${T.accent}; font-family: 'DM Sans', sans-serif;
+          font-size: 13px; font-weight: 600; letter-spacing: 0.04em;
+          cursor: pointer; outline: none;
+          transition: background 150ms, color 150ms, border-color 150ms;
+          white-space: nowrap;
+        }
+        .code-submit:hover:not(:disabled) { background: ${T.accent}; color: #fff; border-color: ${T.accent}; }
+        .code-submit:active:not(:disabled) { transform: scale(0.97); }
+        .code-submit:disabled { opacity: 0.38; cursor: not-allowed; }
+
+        @media (max-width: 1024px) {
+          .board-col { display: none !important; }
+          .content-col { max-width: 520px !important; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+      `}</style>
 
       <Navbar />
 
-      <div className="h-[calc(100vh-64px)] flex flex-col items-center justify-center text-center text-white relative z-10 px-6">
-        <motion.h1
-          className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight drop-shadow-2xl mb-2"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          Guess Who?
-        </motion.h1>
+      <main style={{
+        flex: 1,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "48px 24px",
+      }}>
+        <div style={{
+          maxWidth: 1080, width: "100%", margin: "0 auto",
+          display: "flex", alignItems: "center", gap: 80,
+        }}>
 
-        <motion.p
-          className="text-lg md:text-xl mb-8 text-gray-300 max-w-2xl"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.5 }}
-        >
-          Challenge your friends in the ultimate guessing game
-        </motion.p>
-
-        <motion.div
-          className="grid md:grid-cols-3 gap-4 md:gap-6 max-w-5xl w-full"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-        >
-          {/* Create Game - Green */}
-          <button
-            onClick={() => router.push("/create")}
-            className="group bg-emerald-500 hover:bg-emerald-400 p-6 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-emerald-500/50 border-2 border-emerald-400/50"
+          {/* LEFT — Board preview */}
+          <motion.div
+            className="board-col"
+            style={{ flexShrink: 0, width: 340 }}
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
           >
-            <h2 className="text-2xl font-bold mb-2 text-white">Create Game</h2>
-            <p className="text-sm text-white/90 leading-relaxed">
-              Start a new game and invite your friends to join
-            </p>
-          </button>
+            <div style={{
+              background: T.surface0,
+              border: `1px solid ${T.border}`,
+              borderRadius: "6px",
+              padding: 16,
+            }}>
+              {/* Board header */}
+              <div style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                marginBottom: 12,
+              }}>
+                <span style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
+                  textTransform: "uppercase", color: T.text400,
+                }}>
+                  Classic Deck · 24 Characters
+                </span>
+                <span style={{
+                  fontFamily: "'DM Sans', sans-serif",
+                  fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
+                  textTransform: "uppercase", color: T.stateLive,
+                  background: "#EBF6F1",
+                  border: `1px solid ${T.stateLive}44`,
+                  borderRadius: "6px", padding: "2px 8px",
+                }}>
+                  Live
+                </span>
+              </div>
 
-          {/* Search Public Games - Blue */}
-          <button
-            onClick={() => router.push("/lobby")}
-            className="group bg-blue-500 hover:bg-blue-400 p-6 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-blue-500/50 border-2 border-blue-400/50"
+              {/* 4×3 grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                {CHARACTERS.map((char, i) => (
+                  <CharacterCard key={char.id} char={char} index={i} />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* RIGHT — Actions */}
+          <motion.div
+            className="content-col"
+            style={{ flex: 1, maxWidth: 440, display: "flex", flexDirection: "column", gap: 28 }}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, ease: [0, 0, 0.2, 1], delay: 0.08 }}
           >
-            <h2 className="text-2xl font-bold mb-2 text-white">Public Games</h2>
-            <p className="text-sm text-white/90 leading-relaxed">
-              Browse and join open games from players worldwide
-            </p>
-          </button>
+            {/* Headline */}
+            <div>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.1em",
+                textTransform: "uppercase", color: T.accent,
+                marginBottom: 10,
+              }}>
+                Multiplayer · Real-time
+              </p>
+              <h1 style={{
+                fontFamily: "'Fraunces', serif",
+                fontSize: 52, fontWeight: 900, lineHeight: 1.0,
+                color: T.text900, letterSpacing: "-0.03em",
+              }}>
+                Guess Who?
+              </h1>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 15, fontWeight: 400, lineHeight: 1.6,
+                color: T.text600, marginTop: 12,
+              }}>
+                Ask questions. Eliminate suspects. Identify your opponent's hidden character before they find yours.
+              </p>
+            </div>
 
-          {/* Join with Code - Purple */}
-          <div className="group bg-purple-500 hover:bg-purple-400 p-6 rounded-2xl shadow-2xl transition-all duration-300 hover:scale-105 hover:shadow-purple-500/50 border-2 border-purple-400/50">
-            <h2 className="text-2xl font-bold mb-2 text-white">Join with Code</h2>
-            <p className="text-sm text-white/90 mb-3 leading-relaxed">
-              Have a game code? Enter it below
-            </p>
-            <form onSubmit={joinLobby} className="mt-3">
-              <input
-                type="text"
-                value={lobbyCode}
-                onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
-                placeholder="ENTER CODE"
-                maxLength={6}
-                className="w-full px-4 py-2 rounded-lg text-center text-lg font-bold text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-4 focus:ring-purple-300 transition"
-              />
-              <button
-                type="submit"
-                className="w-full mt-2 px-4 py-2 bg-white text-purple-600 font-bold rounded-lg hover:bg-purple-50 active:bg-purple-200 transition"
+            <div style={{ height: 1, background: T.border }} />
+
+            {/* CTAs */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <motion.button
+                className="primary-btn"
+                onClick={() => router.push("/create")}
+                whileTap={{ scale: 0.98 }}
               >
-                Join Game
-              </button>
+                <Plus size={16} strokeWidth={2.5} />
+                Create Game
+              </motion.button>
 
-            </form>
-            <div className="h-6 mt-2 flex items-center justify-center">
+              <motion.button
+                className="ghost-btn"
+                onClick={() => router.push("/lobby")}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Search size={15} strokeWidth={1.8} />
+                Browse Public Games
+              </motion.button>
+            </div>
+
+            {/* Join with code */}
+            <div>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
+                textTransform: "uppercase", color: T.text400, marginBottom: 8,
+              }}>
+                Join with code
+              </p>
+              <form onSubmit={joinLobby} style={{ display: "flex" }}>
+                <input
+                  className="code-input"
+                  type="text"
+                  value={lobbyCode}
+                  onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
+                  placeholder="XXXXXX"
+                  maxLength={6}
+                  aria-label="Lobby code"
+                />
+                <button
+                  type="submit"
+                  className="code-submit"
+                  disabled={joining || lobbyCode.length < 4}
+                  aria-label="Join lobby"
+                >
+                  {joining ? "…" : "Join →"}
+                </button>
+              </form>
               {error && (
-                <p className="text-rose-200 font-semibold text-sm">
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 12, color: T.stateOut, marginTop: 8,
+                  }}
+                >
                   {error}
-                </p>
+                </motion.p>
               )}
             </div>
 
-          </div>
-        </motion.div>
+            <div style={{ height: 1, background: T.border }} />
 
-        {!user && (
-          <motion.p
-            className="mt-6 text-sm text-gray-400 max-w-md"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-          >
-            💡 Sign in to save your stats and compete on the leaderboard
-          </motion.p>
-        )}
-      </div>
+            {/* Guest nudge */}
+            {!user && (
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 13, color: T.text400, lineHeight: 1.5,
+              }}>
+                Playing as guest.{" "}
+                <button
+                  onClick={() => router.push("/signin")}
+                  style={{
+                    background: "none", border: "none", padding: 0,
+                    color: T.accent, fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 13, fontWeight: 500, cursor: "pointer",
+                    textDecoration: "underline", textUnderlineOffset: 3,
+                  }}
+                >
+                  Sign in
+                </button>
+                {" "}to save stats and track your record.
+              </p>
+            )}
+          </motion.div>
+
+        </div>
+      </main>
     </div>
   );
 }

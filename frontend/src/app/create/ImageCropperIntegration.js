@@ -8,7 +8,8 @@ export default function ImageCropperIntegration({ images, setImages }) {
     const containerRef = useRef(null);
     const fileInputRef = useRef(null);
 
-    const TARGET_SIZE = 800;
+    const CONTAINER_SIZE = 400; // Size of the preview container
+    const OUTPUT_SIZE = 300; // Fixed output size for all images
     const HANDLE_SIZE = 12;
 
     const handleFileSelect = (e) => {
@@ -18,17 +19,48 @@ export default function ImageCropperIntegration({ images, setImages }) {
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    setImages(prev => [...prev, {
-                        id: Date.now() + Math.random(),
-                        name: file.name.replace(/\.[^/.]+$/, ""),
-                        originalName: file.name,
-                        file,
-                        original: event.target.result,
-                        width: img.width,
-                        height: img.height,
-                        cropped: null,
-                        isEditing: false
-                    }]);
+                    // Auto-crop to square at fixed OUTPUT_SIZE
+                    const canvas = document.createElement('canvas');
+                    canvas.width = OUTPUT_SIZE;
+                    canvas.height = OUTPUT_SIZE;
+                    const ctx = canvas.getContext('2d');
+
+                    // Calculate center crop coordinates
+                    const size = Math.min(img.width, img.height);
+                    const sourceX = (img.width - size) / 2;
+                    const sourceY = (img.height - size) / 2;
+
+                    // Draw cropped and resized image
+                    ctx.drawImage(
+                        img,
+                        sourceX,
+                        sourceY,
+                        size,
+                        size,
+                        0,
+                        0,
+                        OUTPUT_SIZE,
+                        OUTPUT_SIZE
+                    );
+
+                    // Convert to blob and create file
+                    canvas.toBlob((blob) => {
+                        const croppedFile = new File([blob], file.name, { type: 'image/png' });
+                        const croppedDataUrl = canvas.toDataURL('image/png');
+
+                        setImages(prev => [...prev, {
+                            id: Date.now() + Math.random(),
+                            name: file.name.replace(/\.[^/.]+$/, ""),
+                            originalName: file.name,
+                            file: croppedFile,
+                            original: event.target.result,
+                            width: OUTPUT_SIZE,
+                            height: OUTPUT_SIZE,
+                            cropped: croppedDataUrl,
+                            croppedFile: croppedFile,
+                            isEditing: false
+                        }]);
+                    }, 'image/png');
                 };
                 img.src = event.target.result;
             };
@@ -58,8 +90,8 @@ export default function ImageCropperIntegration({ images, setImages }) {
         let newBox = { ...cropBox };
 
         if (dragging.type === 'move') {
-            newBox.x = Math.max(0, Math.min(400 - cropBox.width, dragging.startBox.x + deltaX));
-            newBox.y = Math.max(0, Math.min(400 - cropBox.height, dragging.startBox.y + deltaY));
+            newBox.x = Math.max(0, Math.min(CONTAINER_SIZE - cropBox.width, dragging.startBox.x + deltaX));
+            newBox.y = Math.max(0, Math.min(CONTAINER_SIZE - cropBox.height, dragging.startBox.y + deltaY));
         } else if (dragging.type === 'nw') {
             const newWidth = Math.max(50, dragging.startBox.width - deltaX);
             const newHeight = Math.max(50, dragging.startBox.height - deltaY);
@@ -90,8 +122,8 @@ export default function ImageCropperIntegration({ images, setImages }) {
             newBox.height = size;
         }
 
-        newBox.x = Math.max(0, Math.min(400 - newBox.width, newBox.x));
-        newBox.y = Math.max(0, Math.min(400 - newBox.height, newBox.y));
+        newBox.x = Math.max(0, Math.min(CONTAINER_SIZE - newBox.width, newBox.x));
+        newBox.y = Math.max(0, Math.min(CONTAINER_SIZE - newBox.height, newBox.y));
 
         setCropBox(newBox);
     };
@@ -113,44 +145,46 @@ export default function ImageCropperIntegration({ images, setImages }) {
 
     const applyCrop = () => {
         const img = images[editingIndex];
-        const canvas = document.createElement('canvas');
-        canvas.width = TARGET_SIZE;
-        canvas.height = TARGET_SIZE;
-        const ctx = canvas.getContext('2d');
-
         const image = new Image();
-        image.onload = () => {
-            const containerSize = 400;
-            const imageAspect = image.width / image.height;
 
+        image.onload = () => {
+            // Calculate how the image is rendered in the container
+            const imageAspect = image.width / image.height;
             let renderedWidth, renderedHeight, offsetX, offsetY;
 
             if (imageAspect > 1) {
-                renderedWidth = containerSize;
-                renderedHeight = containerSize / imageAspect;
+                renderedWidth = CONTAINER_SIZE;
+                renderedHeight = CONTAINER_SIZE / imageAspect;
                 offsetX = 0;
-                offsetY = (containerSize - renderedHeight) / 2;
+                offsetY = (CONTAINER_SIZE - renderedHeight) / 2;
             } else {
-                renderedHeight = containerSize;
-                renderedWidth = containerSize * imageAspect;
-                offsetX = (containerSize - renderedWidth) / 2;
+                renderedHeight = CONTAINER_SIZE;
+                renderedWidth = CONTAINER_SIZE * imageAspect;
+                offsetX = (CONTAINER_SIZE - renderedWidth) / 2;
                 offsetY = 0;
             }
 
+            // Calculate crop coordinates relative to the rendered image
             const cropXRelative = cropBox.x - offsetX;
             const cropYRelative = cropBox.y - offsetY;
 
+            // Scale factors between rendered size and actual image size
             const scaleX = image.width / renderedWidth;
             const scaleY = image.height / renderedHeight;
 
+            // Calculate source coordinates in the original image
             const sourceX = cropXRelative * scaleX;
             const sourceY = cropYRelative * scaleY;
             const sourceWidth = cropBox.width * scaleX;
             const sourceHeight = cropBox.height * scaleY;
 
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, TARGET_SIZE, TARGET_SIZE);
+            // Create canvas with fixed OUTPUT_SIZE
+            const canvas = document.createElement('canvas');
+            canvas.width = OUTPUT_SIZE;
+            canvas.height = OUTPUT_SIZE;
+            const ctx = canvas.getContext('2d');
 
+            // Draw the cropped portion scaled to OUTPUT_SIZE
             ctx.drawImage(
                 image,
                 sourceX,
@@ -159,8 +193,8 @@ export default function ImageCropperIntegration({ images, setImages }) {
                 sourceHeight,
                 0,
                 0,
-                TARGET_SIZE,
-                TARGET_SIZE
+                OUTPUT_SIZE,
+                OUTPUT_SIZE
             );
 
             canvas.toBlob((blob) => {
@@ -197,10 +231,10 @@ export default function ImageCropperIntegration({ images, setImages }) {
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
-            <h1 className="text-2xl font-bold mb-4">Upload Images</h1>
+            <h1 className="text-2xl font-bold mb-4 text-white">Upload Images</h1>
 
             {/* Upload Area */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition">
+            <div className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-white/50 transition bg-white/5 backdrop-blur-sm">
                 <input
                     ref={fileInputRef}
                     type="file"
@@ -211,11 +245,11 @@ export default function ImageCropperIntegration({ images, setImages }) {
                     className="hidden"
                 />
                 <label htmlFor="card-upload" className="cursor-pointer">
-                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-12 h-12 text-white/60 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p className="text-gray-600 mb-2">Drop card images here or click to browse</p>
-                    <span className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition inline-block">
+                    <p className="text-white/80 mb-2">Drop card images here or click to browse</p>
+                    <span className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-white/90 transition inline-block font-medium">
                         Upload Images
                     </span>
                 </label>
@@ -230,7 +264,7 @@ export default function ImageCropperIntegration({ images, setImages }) {
                                 <img
                                     src={card.cropped || card.original}
                                     alt={card.name}
-                                    className="w-full h-full object-cover rounded-lg border-2 border-gray-200"
+                                    className="w-full h-full object-cover rounded-lg border-2 border-white/30"
                                 />
                             </div>
 
@@ -269,14 +303,14 @@ export default function ImageCropperIntegration({ images, setImages }) {
                                         }
                                     }}
                                     autoFocus
-                                    className="w-full text-xs text-gray-800 mt-1 px-2 py-1 border border-green-500 rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    className="w-full text-xs text-gray-800 mt-1 px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
                             ) : (
                                 <p
                                     onClick={() => setImages(prev => prev.map(c =>
                                         c.id === card.id ? { ...c, isEditing: true } : c
                                     ))}
-                                    className="text-xs text-gray-600 mt-1 truncate cursor-pointer hover:text-gray-800 hover:bg-gray-100 px-1 py-0.5 rounded"
+                                    className="text-xs text-white/80 mt-1 truncate cursor-pointer hover:text-white hover:bg-white/10 px-1 py-0.5 rounded"
                                     title="Click to edit"
                                 >
                                     {card.name}
@@ -288,22 +322,22 @@ export default function ImageCropperIntegration({ images, setImages }) {
             )}
 
             {images.length > 0 && (
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-white/70 mt-2">
                     {images.length} card{images.length !== 1 ? 's' : ''} uploaded
                 </p>
             )}
 
             {/* Crop Modal */}
             {editingIndex !== null && images[editingIndex] && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
-                    <div className="bg-white rounded-lg p-6 max-w-3xl w-full">
+                <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
+                    <div className="bg-white rounded-xl p-6 max-w-3xl w-full">
                         <h2 className="text-xl font-bold mb-4">Crop Image - Drag corners to resize, drag center to move</h2>
 
                         <div className="flex gap-6 mb-4">
                             <div
                                 ref={containerRef}
-                                className="relative bg-gray-100 flex-shrink-0"
-                                style={{ width: 400, height: 400 }}
+                                className="relative bg-gray-100 flex-shrink-0 rounded-lg overflow-hidden"
+                                style={{ width: CONTAINER_SIZE, height: CONTAINER_SIZE }}
                             >
                                 <img
                                     src={images[editingIndex].original}
@@ -320,6 +354,7 @@ export default function ImageCropperIntegration({ images, setImages }) {
                                         top: cropBox.y,
                                         width: cropBox.width,
                                         height: cropBox.height,
+                                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
                                     }}
                                     onMouseDown={(e) => handleMouseDown(e, 'move')}
                                 >
@@ -356,14 +391,15 @@ export default function ImageCropperIntegration({ images, setImages }) {
                                         <li>• Drag the white box to move it</li>
                                         <li>• Drag any corner to resize (stays square)</li>
                                         <li>• The selected area will be your final image</li>
+                                        <li>• Output size matches the crop box proportions</li>
                                     </ul>
                                 </div>
 
                                 <div className="p-4 bg-gray-50 rounded-lg">
-                                    <h3 className="font-semibold mb-2">Debug Info:</h3>
-                                    <p className="text-xs text-gray-600">Editing Index: {editingIndex}</p>
-                                    <p className="text-xs text-gray-600">Image Name: {images[editingIndex].name}</p>
-                                    <p className="text-xs text-gray-600 truncate">Image Source: {images[editingIndex].original.substring(0, 50)}...</p>
+                                    <h3 className="font-semibold mb-2">Crop Info:</h3>
+                                    <p className="text-xs text-gray-600">Crop Size: {Math.round(cropBox.width)} × {Math.round(cropBox.height)}px</p>
+                                    <p className="text-xs text-gray-600">Output: {OUTPUT_SIZE} × {OUTPUT_SIZE}px (fixed)</p>
+                                    <p className="text-xs text-gray-500 mt-1">All images resized to same dimensions</p>
                                 </div>
                             </div>
                         </div>
@@ -377,7 +413,7 @@ export default function ImageCropperIntegration({ images, setImages }) {
                             </button>
                             <button
                                 onClick={applyCrop}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
                             >
                                 <Check size={18} />
                                 Apply Crop

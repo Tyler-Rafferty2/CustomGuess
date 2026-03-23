@@ -1,0 +1,350 @@
+# GUESS WHO — Web App Design Schema v3.0
+Master Plan · UI/UX · Component Architecture · Design Tokens
+
+---
+
+## 1. Vision & Design Philosophy
+
+Guess Who is a social multiplayer deduction game. The interface must feel warm and inviting — like opening a well-made board game box — while being sharp, consistent, and production-quality at every level of zoom and every interaction state.
+
+**The key test: it must hold up everywhere.** Not just on a first screenshot. Every hover state is designed. Every disabled state is designed. Every component looks the same quality as every other component.
+
+**Design DNA — inspired by Wordle, Jackbox, and Ravensburger packaging**
+- Light, warm base — cream off-white, not stark white and not dark navy
+- One accent color (terracotta), used sparingly and purposefully
+- Typography carries warmth and personality — not emojis, not illustration
+- Depth comes from surface layering and careful border contrast — not shadows or gradients
+- Radius is consistent (one value) across all components — no pill-next-to-square inconsistency
+- Every interactive state designed: default, hover, active, disabled, loading
+
+**Anti-patterns (what to avoid)**
+- Emoji in UI chrome — they are not icons and do not scale
+- Gratuitous gradients, neon glows, or decorative shadows
+- Palette sprawl — more than one accent color makes the UI feel unfocused
+- Inconsistent radius — pill buttons next to square cards signal uneven design
+- Hover-only states with no touch equivalent
+- Components that look polished on screenshot but are broken or undesigned on interaction
+- Purple-gradient-on-white — the default AI look
+- Overloaded sidebars with stats no one reads mid-game
+
+---
+
+## 2. Color System
+
+Warm off-white base. Grays lean warm (never blue-gray). One accent color — terracotta — used for brand, CTAs, and the active turn indicator. State colors (green, red) appear only where the game demands them.
+
+| Token                | Hex       | Usage                                         |
+|----------------------|-----------|-----------------------------------------------|
+| `--bg`               | #F7F3EE   | Page background                               |
+| `--surface-0`        | #FFFFFF   | Cards, panels, modals                         |
+| `--surface-1`        | #F2EDE7   | Hover surfaces, table headers, section fills  |
+| `--surface-2`        | #E8E0D8   | Active/pressed states                         |
+| `--accent`           | #D9572B   | Primary CTA, active turn, focus ring          |
+| `--accent-light`     | #F2C5B4   | Focus ring outline, tinted backgrounds        |
+| `--accent-dim`       | #B84422   | Hover state on accent buttons                 |
+| `--text-900`         | #1A1510   | Headlines, labels — warm black, not pure black|
+| `--text-600`         | #5C5047   | Body copy, secondary labels                   |
+| `--text-400`         | #A0937F   | Muted labels, timestamps, meta text           |
+| `--border`           | #DDD5CA   | Standard dividers, card borders               |
+| `--border-strong`    | #C4B8A8   | Hover borders, active element borders         |
+| `--state-out`        | #C0392B   | Eliminated character state only               |
+| `--state-live`       | #2A7A56   | Active/alive indicator, "Yes" answers only    |
+
+**Rules:**
+- Never use raw hex values in component CSS — always reference tokens
+- `--state-out` and `--state-live` are for game state only, not UI decoration
+- `--accent` is the only color used for interactive affordances (buttons, focus rings, active states)
+
+---
+
+## 3. Typography
+
+Two fonts. Both earn their place.
+
+**Display — Fraunces (Google Fonts)**
+- Used for: game logo, screen titles, winner headline, panel headings, character names
+- Weights: 700 (headings), 900 (hero / logo)
+- Optical-size variable font with a warm, characterful personality — feels handcrafted and playful without being novelty. Letter-spacing: -0.02em to -0.04em at large sizes.
+
+**UI — DM Sans (Google Fonts)**
+- Used for: all UI chrome — buttons, labels, body text, question log, toasts, meta
+- Weights: 400 (body), 500 (meta, secondary), 600 (buttons, strong labels)
+- Clean, geometric, and highly legible — approachable without being bland
+- `font-variant-numeric: tabular-nums` on all timers and counts
+
+**Type Scale**
+```
+--text-hero:   42px / 1.0  — Fraunces 900  — Logo, win/lose screen
+--text-xl:     26px / 1.1  — Fraunces 700  — Screen titles
+--text-lg:     20px / 1.2  — Fraunces 700  — Panel headings
+--text-md:     16px / 1.4  — DM Sans 600   — Strong labels
+--text-base:   14px / 1.6  — DM Sans 400   — Body, chat
+--text-sm:     12px / 1.5  — DM Sans 500   — Meta, timestamps
+--text-xs:     11px / 1.4  — DM Sans 600, 0.08em tracking, uppercase — Badges, caps
+```
+
+---
+
+## 4. Spacing & Border Radius
+
+**Base Unit: 4px**
+All spacing is a multiple of 4.
+
+```
+--s1:   4px
+--s2:   8px
+--s3:  12px
+--s4:  16px
+--s5:  20px
+--s6:  24px
+--s8:  32px
+--s10: 40px
+--s12: 48px
+--s16: 64px
+```
+
+**Border Radius: one value**
+```
+--r: 6px
+```
+Applied to all components: buttons, cards, inputs, modals, toasts, badges, character cards.
+Explicit exceptions only (e.g. a circular avatar uses `border-radius: 50%` with a comment).
+No pill radius. No inconsistency between components.
+
+**Layout Grid**
+- Desktop (>1024px): 3-column — left sidebar (240px) | game board (fluid) | right sidebar (280px)
+- Tablet (768–1024px): 2-column — collapsible left overlay | game board full width
+- Mobile (<768px): Single column; sidebars slide in as drawers; question panel is a bottom sheet
+- Max content width: 1080px, centered
+- Gutters: 24px desktop, 16px mobile
+
+---
+
+## 5. Component Library
+
+| Component            | Description |
+|----------------------|-------------|
+| `<CharacterCard />`  | 4:3 portrait card. Face area is a flat-color block (warm tint, unique per character, no gradients). Name initials as placeholder. States: default, selected (accent border + focus ring), eliminated (desaturated + diagonal strike line overlay + opacity 0.35). 3D flip on elimination. |
+| `<GameBoard />`      | 4×6 grid of CharacterCards. Owns local flip state. Keyboard navigable (arrow keys + Enter to select). Mobile: 3-column scrollable grid. |
+| `<QuestionPanel />`  | Right sidebar or bottom sheet (mobile). Dropdown category + trait selector. Send button. Disabled when not your turn. Shows last 3 questions in QuestionLog. |
+| `<PlayerBadge />`    | Square avatar (initials, flat color) + name + status text. Active state: accent border, tinted background, animated pip. No pill shape. |
+| `<TurnTimer />`      | Circular SVG ring + countdown. Accent color at >50%, transitions to `--state-out` at <25%. Shake animation at ≤5s. Tabular numeral font. |
+| `<Button />`         | Variants: primary (accent fill), secondary (surface-1 + border), ghost (transparent + border), danger (transparent + light red border). States: default, hover, active, disabled (opacity 0.38), loading (spinner replaces label). Heights: 40px standard / 32px small / 44px large. Radius: --r. |
+| `<Modal />`          | Centered overlay, surface-0 panel, --bg backdrop at 75% opacity. Max-width 480px. Entry: translateY(16px) + opacity 0 → 1. Sections: header (title + deck), body (content), footer (actions, right-aligned). |
+| `<Toast />`          | Bottom-center stack. Left border accent (3px) indicates variant: accent=info, state-live=success, state-out=error. Title + subtitle. Auto-dismiss 3s. No icons. |
+| `<ChatDrawer />`     | V1.5. Right panel desktop, bottom sheet mobile. Name + message + timestamp. Monochrome — no color per sender. |
+| `<LobbyCard />`      | Host name + player count + deck type. Status badge (waiting / in game). Hover: surface-1 + border-strong. No box-shadow gimmick. |
+| `<ScoreBoard />`     | Winner modal with character reveal block, three stat cells (questions / rounds / time), and two action buttons. Uses Fraunces for headline. |
+| `<QuestionLog />`    | Stacked rows, 1px gap (shows border). Columns: who (uppercase, accent if you), question text, yes/no answer (state-live / state-out). |
+
+---
+
+## 6. Screen Flows
+
+**6.1 Landing / Home**
+- Logo (Fraunces 900, large) centered
+- Two CTAs: 'Create Game' (primary button) and 'Join Game' (ghost button)
+- Below fold: 3-step how-to (label + one-line text, no icons or emoji)
+- No auth wall — enter a display name and play
+
+**6.2 Lobby**
+- Left: live LobbyCard list with WebSocket-updated player counts
+- Right: 'Create Game' panel — deck theme, turn timer duration, public/private
+- Waiting room state: player list with Ready toggles; host can start when all ready
+
+**6.3 Active Game**
+- Center: GameBoard — dominates layout at all times
+- Top bar: two PlayerBadges + TurnTimer — nothing else
+- Left sidebar: your secret character (face shown to you, face-down visual indicator)
+- Right sidebar: QuestionPanel + QuestionLog (last 3)
+- Mobile: fixed bottom bar → 'Ask Question' opens bottom sheet
+
+**6.4 Winner Screen**
+- Full-screen modal takeover
+- Character reveal block + winner headline in Fraunces 900
+- Three stat cells: questions asked, rounds played, time taken
+- Two buttons: 'Rematch' (primary) and 'Back to Lobby' (ghost)
+- Confetti: canvas-based, plays once, non-looping, respects prefers-reduced-motion
+
+---
+
+## 7. Motion Principles
+
+Motion is functional. It communicates state. The card flip is the one cinematic moment in the game — everything else is tight and invisible.
+
+**Timing tokens**
+```
+--dur-instant:  80ms  — Button press, checkbox toggle
+--dur-fast:    150ms  — Hover states, border color transitions
+--dur-default: 250ms  — Panel transitions, card highlight
+--dur-slow:    400ms  — Modal enter/exit, page transitions
+--dur-scene:   600ms  — Card 3D flip (hero), winner reveal
+```
+
+**Easing**
+```
+--ease-out:   cubic-bezier(0.0, 0.0, 0.2, 1)       — Things entering
+--ease-in:    cubic-bezier(0.4, 0.0, 1.0, 1)        — Things leaving
+--ease-snap:  cubic-bezier(0.34, 1.56, 0.64, 1)     — Card flip snap
+```
+
+**Key animations**
+- Card elimination: rotateY 0→90° (face disappears), swap content, rotateY 90°→0. Duration: --dur-scene. CSS transform-style: preserve-3d.
+- Turn pip: scale 1→1.3→1 + opacity 1→0.4→1, infinite, 1.6s. Stops when turn ends.
+- Timer urgency: at ≤5s, number shakes (translateX ±2px keyframe). Color transitions to --state-out.
+- Modal entry: translateY(16px) + opacity 0 → position + opacity 1. Duration: --dur-slow.
+- Toast entry: translateY(8px) + opacity 0 → position + opacity 1 from bottom.
+- `prefers-reduced-motion`: all animations collapse to instant opacity transitions. No exceptions.
+
+---
+
+## 8. Game State Architecture
+
+Server is authoritative. No optimistic UI for game-critical actions.
+
+**Client State Shape**
+```typescript
+gameState: {
+  phase: 'lobby' | 'playing' | 'finished',
+  myPlayerId: string,
+  mySecretCharacter: Character,
+  board: Character[],          // All 24 characters
+  eliminated: string[],        // IDs of eliminated characters
+  currentTurn: string,         // Player ID whose turn it is
+  timeRemaining: number,       // Seconds left in turn
+  questionLog: Question[],     // Last N questions
+  winner: string | null,
+}
+```
+
+**Character Schema**
+```typescript
+type Character = {
+  id: string,
+  name: string,
+  imageUrl: string,
+  faceColor: string,           // Flat color token for card face bg
+  attributes: {
+    hairColor: string,
+    eyeColor: string,
+    facialHair: boolean,
+    glasses: boolean,
+    hat: boolean,
+    gender: string,
+  }
+}
+```
+
+**WebSocket Events**
+- `game:state_update` — Full state sync on reconnect
+- `game:card_eliminated` — `{ characterId }` — triggers flip animation
+- `game:question_asked` — `{ question, answer }` — updates log
+- `game:turn_changed` — `{ playerId, timeLimit }` — resets timer, updates badges
+- `game:finished` — `{ winnerId }` — triggers winner screen
+
+---
+
+## 9. Responsive Behavior
+
+**Breakpoints**
+```
+--bp-mobile:   640px
+--bp-tablet:   768px
+--bp-desktop: 1024px
+--bp-wide:    1440px
+```
+
+**Mobile-specific rules**
+- CharacterCard grid: 3 columns max, 2 columns minimum
+- QuestionPanel: full-width bottom sheet (not sidebar), triggered by sticky bottom CTA bar
+- Timer: compact ring in top bar (48×48px)
+- Chat: bottom sheet only; toggle in top bar
+- Touch targets: minimum 44×44px for all interactive elements — measured, not assumed
+- No hover-only states — every hover state has a tap-equivalent
+
+---
+
+## 10. Accessibility
+
+- All interactive elements keyboard-navigable
+- Focus ring: 2px `--accent` outline, 2px offset — never removed, only restyled
+- ARIA labels on all icon-only buttons and the timer SVG
+- CharacterCard eliminated state: `aria-label` includes "eliminated" + character name
+- `aria-live="polite"` region for question log updates and turn change announcements
+- Color is never the sole state indicator — eliminated cards have opacity reduction + visual strike overlay in addition to color change
+- Minimum contrast: 4.5:1 body text, 3:1 large text (WCAG AA)
+- `prefers-reduced-motion`: all CSS animations wrapped in media query, collapsing to instant transitions — no exceptions
+- `prefers-color-scheme`: dark mode is a v1.5 feature; not required for v1
+
+---
+
+## 11. Naming Conventions
+
+**CSS**
+```
+--color-*      →  Use token names from §2 (--bg, --accent, --surface-0, etc.)
+--s*           →  Spacing tokens
+--text-*       →  Font size tokens
+--dur-*        →  Animation timing tokens
+--r            →  Single radius token
+
+.component           BEM: .card, .card__name, .card--eliminated
+```
+
+**JavaScript**
+```
+PascalCase      →  React components: CharacterCard, GameBoard
+camelCase       →  Hooks, utils, state: useGameState, formatTimer
+SCREAMING_SNAKE →  Constants: MAX_PLAYERS, TURN_DURATION_DEFAULT
+kebab-case      →  CSS files, class names: character-card.module.css
+```
+
+---
+
+## 12. Tech Stack
+
+**Frontend**
+- React 18 — component model, hooks for local state
+- Vite — fast dev build, HMR
+- Vanilla CSS with custom properties — the token system in §2–4 is the design system; Tailwind would fight it
+- Framer Motion — card flip and modal animations only; nothing else
+- Zustand — game state; no Redux overhead
+
+**Backend**
+- Node.js + Express — REST for lobby, WebSocket (socket.io) for live events
+- Redis — game state persistence, pub/sub for multi-instance WebSocket
+- Postgres — player history (optional for v1; start in-memory)
+
+**Infrastructure**
+- Vercel (frontend) + Railway or Fly.io (backend + Redis)
+- Character images: SVG flat vectors bundled in repo for Classic deck; Cloudflare R2 for future themes
+
+---
+
+## 13. V1 Ship Checklist
+
+**Must have**
+- 2-player real-time game loop (question → answer → eliminate → win)
+- Classic character deck, 24 characters with distinct flat-color face regions
+- Turn timer with normal and urgent states (≤5s: shake + red)
+- Card 3D flip animation on elimination
+- Mobile-responsive layout; bottom-sheet question panel
+- Winner screen with stats and rematch
+- Keyboard accessibility, ARIA, visible focus rings
+
+**Nice to have (v1.5)**
+- Chat drawer
+- Multiple deck themes (Pixel Art, Abstract)
+- Game history / per-player stats
+- Private rooms with shareable link
+- Dark mode
+
+**Out of scope for v1**
+- AI opponent
+- Spectator mode
+- Accounts / auth (guest display names only)
+- Custom character upload
+
+---
+
+*Guess Who — Design Schema v3.0 · Feed this document back to maintain consistency across the entire build.*

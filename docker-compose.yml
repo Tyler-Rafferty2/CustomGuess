@@ -6,13 +6,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3080:3000"
     environment:
       - NODE_ENV=development
     volumes:
       - ./frontend:/app      
       - node_modules_cache:/app/node_modules    
-    command: npm run dev
+    command: npx next dev -p 3000 -H 0.0.0.0
     depends_on:
       - backend
 

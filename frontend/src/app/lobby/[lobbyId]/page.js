@@ -6,13 +6,171 @@ import { useParams } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
 import GameState from "./GameState";
 import ChatApp from '@/components/chatapp';
+import Navbar from "@/components/navbar";
 import GameSend from '@/components/gameSend';
+import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare } from "lucide-react";
 
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
-import { FlameKindlingIcon } from "lucide-react";
 
+/* ── Font injection ────────────────────────────────────────────────────── */
+const fontLink = typeof document !== 'undefined' && (() => {
+    if (!document.getElementById('gw-fonts')) {
+        const l = document.createElement('link');
+        l.id = 'gw-fonts';
+        l.rel = 'stylesheet';
+        l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=DM+Sans:wght@400;500;600&display=swap';
+        document.head.appendChild(l);
+    }
+})();
+
+/* ── CSS tokens ────────────────────────────────────────────────────────── */
+const GLOBAL_CSS = `
+  :root {
+    --bg:            #F7F3EE;
+    --surface-0:     #FFFFFF;
+    --surface-1:     #F2EDE7;
+    --surface-2:     #E8E0D8;
+    --accent:        #D9572B;
+    --accent-light:  #F2C5B4;
+    --accent-dim:    #B84422;
+    --text-900:      #1A1510;
+    --text-600:      #5C5047;
+    --text-400:      #A0937F;
+    --border:        #DDD5CA;
+    --border-strong: #C4B8A8;
+    --state-out:     #C0392B;
+    --state-live:    #2A7A56;
+    --r: 6px;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
+    --s6:24px; --s8:32px; --s10:40px; --s12:48px; --s16:64px;
+  }
+  body { background: var(--bg); }
+  .gw-label {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-400);
+  }
+  .gw-btn-primary {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    height: 40px;
+    padding: 0 var(--s6);
+    border-radius: var(--r);
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s2);
+    transition: background 150ms;
+  }
+  .gw-btn-primary:hover { background: var(--accent-dim); }
+  .gw-btn-primary:disabled { opacity: 0.38; cursor: not-allowed; }
+  .gw-btn-ghost {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    height: 40px;
+    padding: 0 var(--s6);
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-900);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s2);
+    transition: border-color 150ms, background 150ms;
+  }
+  .gw-btn-ghost:hover { border-color: var(--border-strong); background: var(--surface-1); }
+  .gw-btn-danger {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    height: 40px;
+    padding: 0 var(--s6);
+    border-radius: var(--r);
+    border: 1px solid var(--accent-light);
+    cursor: pointer;
+    background: transparent;
+    color: var(--state-out);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--s2);
+    transition: background 150ms;
+  }
+  .gw-btn-danger:hover { background: #fef2ef; }
+  .gw-card {
+    background: var(--surface-0);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: var(--s8);
+  }
+  .gw-input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text-900);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 0 var(--s4);
+    height: 36px;
+    outline: none;
+    transition: border-color 150ms;
+    width: 100%;
+  }
+  .gw-input:focus { border-color: var(--accent); }
+  .gw-char-card {
+    background: var(--surface-0);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: var(--s3);
+    cursor: pointer;
+    transition: border-color 150ms, background 150ms, transform 150ms;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .gw-char-card:hover {
+    border-color: var(--accent);
+    background: var(--surface-1);
+    transform: translateY(-2px);
+  }
+  @keyframes gw-spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+`;
+
+function StyleInjector() {
+    useEffect(() => {
+        if (document.getElementById('gw-tokens')) return;
+        const s = document.createElement('style');
+        s.id = 'gw-tokens';
+        s.textContent = GLOBAL_CSS;
+        document.head.appendChild(s);
+        // fonts
+        if (!document.getElementById('gw-fonts')) {
+            const l = document.createElement('link');
+            l.id = 'gw-fonts';
+            l.rel = 'stylesheet';
+            l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=DM+Sans:wght@400;500;600&display=swap';
+            document.head.appendChild(l);
+        }
+    }, []);
+    return null;
+}
 
 export default function LobbyPage() {
 
@@ -42,125 +200,69 @@ export default function LobbyPage() {
 
     const router = useRouter();
 
+    /* ── All original API + WS logic — untouched ── */
+
     const joinLobby = async (lobbyCode, lobbyID) => {
         setError(null);
         try {
             const res = await fetch(`http://localhost:8080/lobby/join`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
-                },
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ code: lobbyCode }),
             });
-
-            // Check if response is JSON before parsing
             const contentType = res.headers.get("content-type");
-
             if (!contentType || !contentType.includes("application/json")) {
-                // Get the raw text response to see what the server is actually sending
                 const text = await res.text();
-                console.error("Non-JSON response received:", {
-                    status: res.status,
-                    statusText: res.statusText,
-                    contentType: contentType,
-                    body: text
-                });
                 setError(text || "Invalid response from server");
                 return;
             }
-
             const data = await res.json();
-
-            if (!res.ok) {
-                console.error("Join lobby failed:", res.status, data);
-                setError(data.error || "Something went wrong");
-                return;
-            }
-
-            console.log("Successfully joined lobby:", data);
+            if (!res.ok) { setError(data.error || "Something went wrong"); return; }
             getGameState();
             checkLobbyStatus();
         } catch (err) {
-            console.error("Join lobby error:", err);
             setError(err.message || "Network error");
         }
     };
 
-
     const checkLobbyStatus = async () => {
         if (!lobbyID) return;
-
         try {
             const res = await fetch(`http://localhost:8080/lobby/${lobbyID}/status`, {
                 method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
             });
-
             const data = await res.json();
-
-            if (!res.ok) {
-                setLobbyStatus({ exists: false, error: data.error });
-                return;
-            }
-
-            setLobbyStatus({
-                exists: true,
-                playerCount: data.playerCount,
-                gameStarted: data.gameStarted,
-                isFull: data.playerCount >= 2
-            });
-
+            if (!res.ok) { setLobbyStatus({ exists: false, error: data.error }); return; }
+            setLobbyStatus({ exists: true, playerCount: data.playerCount, gameStarted: data.gameStarted, isFull: data.playerCount >= 2 });
         } catch (err) {
-            console.error(err);
             setLobbyStatus({ exists: false, error: "Network error" });
         }
     };
 
-
     const getGameState = async () => {
         setError(null);
-
         try {
             const res = await fetch(`http://localhost:8080/lobby/${lobbyID}`, {
                 method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
-                },
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
-
             const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error || "Something went wrong");
-                return;
-            }
+            if (!res.ok) { setError(data.error || "Something went wrong"); return; }
             console.log("Fetched gamestate:", data);
             setGameState(data);
         } catch (err) {
-            console.error(err);
             setError("Network error");
         }
     };
 
     const handleCopyClick = () => {
-        // Only copy if not already in "copied" state
         if (isCopied) return;
-
         navigator.clipboard.writeText(window.location.href);
         setIsCopied(true);
-
-        // Reset the button after 2 seconds
-        setTimeout(() => {
-            setIsCopied(false);
-        }, 2000);
+        setTimeout(() => setIsCopied(false), 2000);
     };
 
-
-    //console.log(playerId, lobby ? lobby.lobby.turn : null)
     useEffect(() => {
         if (lobby?.players && user) {
             const id = lobby.players.find(p => p.userId === user.id || p.guestId === user.id)?.id;
@@ -170,388 +272,303 @@ export default function LobbyPage() {
 
     useEffect(() => {
         if (lobby && playerId != null) {
-            console.log("Checking lobby", playerId === lobby.turn)
+            console.log("Checking lobby", playerId === lobby.turn);
             setTurn(playerId === lobby.turn);
         }
     }, [lobby, playerId]);
 
     useEffect(() => {
         if (!lobbyID || !username) return;
-        // Prevent duplicate connections
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
             console.log('WebSocket already connected');
             return;
         }
-
         console.log('Creating new WebSocket connection', { username, lobbyID, playerId });
         const websocket = new WebSocket(
             `ws://localhost:8080/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyID)}&playerId=${encodeURIComponent(playerId || '')}`
         );
-
-        websocket.onopen = () => {
-            setIsConnected(true);
-            console.log('Connected to chat server');
-        };
-
+        websocket.onopen = () => { setIsConnected(true); console.log('Connected to chat server'); };
         websocket.onmessage = (event) => {
             const message = JSON.parse(event.data);
-
             if (message.channel === "game") {
                 console.log("adding game message");
-
-                // Add to messagesGame for display
                 setMessagesGame(prev => {
-                    const isDuplicate = prev.some(m =>
-                        m.content === message.content &&
-                        m.username === message.username &&
-                        m.time === message.time
-                    );
-
-                    if (isDuplicate) {
-                        console.log('Duplicate message detected, skipping');
-                        return prev;
-                    }
-
-                    return [...prev, {
-                        ...message,
-                        time: message.time || new Date().toLocaleTimeString(),
-                    }];
+                    const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
+                    if (isDuplicate) { console.log('Duplicate message detected, skipping'); return prev; }
+                    return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString() }];
                 });
-
-                // ALSO add to question log immediately (without answer yet)
                 if (message.SenderId === playerId) {
-                    setQuestionLog(prev => [...prev, {
-                        ...message,
-                        content: message.content,  // Just the question for now
-                        answer: null,  // No answer yet
-                        time: message.time || new Date().toLocaleTimeString(),
-                    }]);
+                    setQuestionLog(prev => [...prev, { ...message, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }]);
                 } else {
                     setReceivedMessage(message.content);
                 }
-
-                if (message.lobbyTurn === playerId) {
-                    setTurn(true);
-                } else {
-                    setTurn(false);
-                }
-            }
-            else if (message.channel === "lobby_update") {
-                //console.log("Received lobby update:", message.lobby);
+                if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
+            } else if (message.channel === "lobby_update") {
                 setLobby(message.lobby);
-            }
-            else if (message.channel === "response") {
-                if (message.lobbyTurn === playerId) {
-                    setTurn(true);
-                } else {
-                    setTurn(false);
-                }
-
+            } else if (message.channel === "response") {
+                if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
                 console.log("Handling response message");
-
-                // Update the LAST question in the log with the answer
                 if (message.SenderId != playerId) {
                     setQuestionLog(prev => {
                         if (prev.length === 0) return prev;
-
                         const updated = [...prev];
                         const lastIndex = updated.length - 1;
-
-                        // Append the answer to the last question
-                        updated[lastIndex] = {
-                            ...updated[lastIndex],
-                            content: `${updated[lastIndex].content} - ${message.content}`,
-                            answer: message.content
-                        };
-
+                        updated[lastIndex] = { ...updated[lastIndex], content: `${updated[lastIndex].content} - ${message.content}`, answer: message.content };
                         return updated;
                     });
                     setReceivedMessage("");
                     setWaitingReponse(false);
                 }
-            }
-            else {
-                // Chat messages
+            } else {
                 setMessagesChat(prev => {
-                    const isDuplicate = prev.some(m =>
-                        m.content === message.content &&
-                        m.username === message.username &&
-                        m.time === message.time
-                    );
-
-                    if (isDuplicate) {
-                        console.log('Duplicate message detected, skipping');
-                        return prev;
-                    }
-
-                    return [...prev, {
-                        ...message,
-                        time: message.time || new Date().toLocaleTimeString(),
-                        read: !isMinimizedRef.current
-                    }];
+                    const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
+                    if (isDuplicate) { console.log('Duplicate message detected, skipping'); return prev; }
+                    return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString(), read: !isMinimizedRef.current }];
                 });
             }
         };
-
-        websocket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
-
-        websocket.onclose = () => {
-            setIsConnected(false);
-            console.log('Disconnected from chat server');
-        };
-
+        websocket.onerror = (error) => { console.error('WebSocket error:', error); };
+        websocket.onclose = () => { setIsConnected(false); console.log('Disconnected from chat server'); };
         wsRef.current = websocket;
-
         return () => {
             console.log('Cleaning up WebSocket');
-            if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) {
-                websocket.close();
-            }
+            if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) { websocket.close(); }
             wsRef.current = null;
         };
     }, [lobbyID, username, playerId]);
 
     useEffect(() => {
-        if (lobby?.players) {
-            console.log(`Player count changed: ${lobby.players.length}`);
-        }
+        if (lobby?.players) { console.log(`Player count changed: ${lobby.players.length}`); }
     }, [lobby]);
 
-    useEffect(() => {
-        checkLobbyStatus();
-    }, [lobbyID]);
+    useEffect(() => { checkLobbyStatus(); }, [lobbyID]);
 
     useEffect(() => {
-    }, [lobbyStatus]);
-
-    useEffect(() => {
-    }, [gameState]);
-
-    useEffect(() => {
-        // Only auto-join if lobby exists, has less than 2 players, and user is not already in it
-        if (lobby &&
-            lobby.players?.length < 2 &&
-            !lobby.players.some(player => player.userId === user?.id) &&
-            lobby.code &&
-            lobby.id) {
+        if (lobby && lobby.players?.length < 2 && !lobby.players.some(player => player.userId === user?.id) && lobby.code && lobby.id) {
             joinLobby(lobby.code, lobby.id);
         }
     }, [lobby?.id, lobby?.players?.length]);
 
     useEffect(() => {
-        if (lobbyID && user?.id && lobby?.players?.length && !gameState) {
-            getGameState();
-        }
+        if (lobbyID && user?.id && lobby?.players?.length && !gameState) { getGameState(); }
     }, [lobbyID, user?.id, lobby?.players?.length, gameState]);
 
-    console.log("this is the lobby", lobby)
-    console.log("length", lobby?.players?.length)
-    //this needs to not look at user but instead look at players id save din storage
+    console.log("this is the lobby", lobby);
+    console.log("length", lobby?.players?.length);
+
+    /* ── GAME OVER ─────────────────────────────────────────────────────── */
     if (lobby?.gameOver) {
         const currentPlayer = lobby.players.find(p => p.userId === user.id || p.guestId === user.id);
         const isWinner = currentPlayer?.id === lobby.winner;
-        console.log("user id", user?.id);
-        console.log("looks here", currentPlayer?.id, lobby.winner);
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6">
-                <div className="text-6xl mb-4">{isWinner ? "🎉" : "😢"}</div>
-                <h1 className="text-4xl font-bold">{isWinner ? "Victory!" : "Game Over"}</h1>
-                <h2 className="text-2xl text-gray-300">
-                    {isWinner ? "You Won!" : "Better luck next time"}
-                </h2>
-                <button
-                    onClick={() => router.push('/')}
-                    className="mt-4 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-emerald-500/50"
-                >
-                    Back to Home
-                </button>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                    <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center', padding: 'var(--s12)' }}>
+                        <div style={{ width: 48, height: 4, background: isWinner ? 'var(--state-live)' : 'var(--state-out)', borderRadius: 2, margin: '0 auto var(--s6)' }} />
+                        <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 40, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s3)' }}>
+                            {isWinner ? "Victory!" : "Game Over"}
+                        </h1>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>
+                            {isWinner ? "You guessed correctly!" : "Better luck next time!"}
+                        </p>
+                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>
+                            Back to Home
+                        </button>
+                    </div>
+                </div>
+            </>
         );
     }
 
-    // Handle lobby status checks
+    /* ── LOADING ───────────────────────────────────────────────────────── */
     if (lobbyStatus === null) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-emerald-500"></div>
-                <h1 className="text-2xl font-bold">Checking lobby...</h1>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s4)' }}>
+                    <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-600)' }}>Checking lobby…</p>
+                </div>
+            </>
         );
     }
 
+    /* ── LOBBY NOT FOUND ───────────────────────────────────────────────── */
     if (!lobbyStatus.exists) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
-                <div className="text-6xl mb-4">🚫</div>
-                <h1 className="text-3xl font-bold">Lobby Not Found</h1>
-                <p className="text-gray-300 text-lg">This lobby doesn't exist or has expired.</p>
-                <button
-                    onClick={() => router.push('/')}
-                    className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/50"
-                >
-                    Create New Game
-                </button>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                    <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
+                        <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 32, color: 'var(--text-900)', letterSpacing: '-0.02em', marginBottom: 'var(--s3)' }}>Lobby not found</h1>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>This lobby doesn't exist or has expired.</p>
+                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>Create New Game</button>
+                    </div>
+                </div>
+            </>
         );
     }
 
-    // Wait for lobby data from WebSocket before making decisions
+    /* ── CONNECTING ────────────────────────────────────────────────────── */
     if (!lobby && lobbyStatus?.exists) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-                <h1 className="text-2xl font-bold">Connecting to game...</h1>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s4)' }}>
+                    <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-600)' }}>Connecting to game…</p>
+                </div>
+            </>
         );
     }
 
-    // Now check if user is in the game (only after lobby is loaded)
-    if (lobby && !lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id)) {
-        // User tried to join but isn't in the player list = game is full
+    /* ── GAME FULL (spectator) ─────────────────────────────────────────── */
+    if (lobby && !lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id) && lobby.players.length >= 2) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
-                <div className="text-6xl mb-4">🔒</div>
-                <h1 className="text-3xl font-bold">Game is Full</h1>
-                <p className="text-gray-300 text-lg">This game already has 2 players.</p>
-                <button
-                    onClick={() => router.push('/')}
-                    className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/50"
-                >
-                    Create New Game
-                </button>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                    <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
+                        <Lock size={32} color="var(--text-400)" style={{ marginBottom: 'var(--s4)' }} />
+                        <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 32, color: 'var(--text-900)', letterSpacing: '-0.02em', marginBottom: 'var(--s3)' }}>Game is full</h1>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>This game already has 2 players.</p>
+                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>Browse Games</button>
+                    </div>
+                </div>
+            </>
         );
     }
 
-    // Your existing waiting for players check
+    /* ── WAITING FOR PLAYER 2 ──────────────────────────────────────────── */
     if (lobby?.players?.length < 2 && (lobby?.players.some(player => player.userId === user?.id))) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6">
-                <div className="text-6xl mb-4 animate-bounce">⏳</div>
-                <h1 className="text-3xl font-bold">Waiting for players to join...</h1>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                    <div style={{ maxWidth: 480, width: '100%' }}>
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--s8)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Lobby</span>
+                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 36, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s2)' }}>
+                                Waiting for a second player
+                            </h1>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>Share this game to get started.</p>
+                        </div>
 
-                {/* Share Link Section */}
-                <p className="text-gray-300 text-lg">Share this link with a friend:</p>
-                <div className="flex gap-3 w-full max-w-2xl">
-                    <input
-                        type="text"
-                        value={typeof window !== 'undefined' ? window.location.href : ''}
-                        readOnly
-                        className="flex-1 px-4 py-3 bg-slate-700/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:border-emerald-500 transition"
-                    />
-                    <button
-                        onClick={handleCopyClick}
-                        disabled={isCopied} // Briefly disable button to prevent spamming
-                        className={`px-6 py-3 font-bold rounded-xl transition-all duration-300 shadow-lg ${isCopied
-                            ? 'bg-green-600 text-white' // Success state
-                            : 'bg-emerald-500 hover:bg-emerald-400 text-white hover:scale-105 shadow-lg hover:shadow-emerald-500/50' // Default state
-                            }`}
-                    >
-                        {isCopied ? 'Copied! ✓' : 'Copy Link'}
-                    </button>
+                        {/* Share link */}
+                        <div className="gw-card" style={{ marginBottom: 'var(--s3)', padding: 'var(--s6)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Share Link</span>
+                            <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+                                <input
+                                    type="text"
+                                    value={typeof window !== 'undefined' ? window.location.href : ''}
+                                    readOnly
+                                    className="gw-input"
+                                    style={{ flex: 1 }}
+                                />
+                                <button
+                                    className={isCopied ? 'gw-btn-ghost' : 'gw-btn-primary'}
+                                    style={{ height: 36, minWidth: 96, flexShrink: 0 }}
+                                    onClick={handleCopyClick}
+                                    disabled={isCopied}
+                                >
+                                    {isCopied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', margin: 'var(--s6) 0' }}>
+                            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                            <span className="gw-label">or join with code</span>
+                            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                        </div>
+
+                        {/* Join code */}
+                        <div className="gw-card" style={{ textAlign: 'center', padding: 'var(--s8)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s4)' }}>Room Code</span>
+                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 56, letterSpacing: '0.12em', color: 'var(--text-900)', lineHeight: 1 }}>
+                                {lobby?.code}
+                            </p>
+                        </div>
+                    </div>
                 </div>
-
-                {/* Separator */}
-                <div className="text-gray-400 text-lg mt-4">or</div>
-
-                {/* Join Code Section */}
-                <p className="text-gray-300 text-lg">Have your friend join with this code:</p>
-                <div className="bg-slate-700/50 border-2 border-slate-600 rounded-xl px-12 py-4">
-                    <p className="text-5xl font-bold tracking-widest text-emerald-400">
-                        {lobby?.code} {/* Displays the lobby code */}
-                    </p>
-                </div>
-            </div>
+            </>
         );
-    } else if (!(lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id))) {
+    } else if (lobby.players.length >= 2 && !(lobby.players.some(player => player.userId === user?.id || player.guestId === user?.id))) {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-4 text-white px-6">
-                <div className="text-6xl mb-4">🔒</div>
-                <h1 className="text-3xl font-bold">Game is Full</h1>
-                <p className="text-gray-300 text-lg">This game already has 2 players.</p>
-                <button
-                    onClick={() => router.push('/lobby')}
-                    className="mt-4 px-6 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-blue-500/50"
-                >
-                    Create New Game
-                </button>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                    <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
+                        <Lock size={32} color="var(--text-400)" style={{ marginBottom: 'var(--s4)' }} />
+                        <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 32, color: 'var(--text-900)', letterSpacing: '-0.02em', marginBottom: 'var(--s3)' }}>Game is full</h1>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>This game already has 2 players.</p>
+                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/lobby')}>Browse Games</button>
+                    </div>
+                </div>
+            </>
         );
     }
 
-    console.log("gameSTAte  ", gameState)
+    /* ── CHARACTER SELECTION ───────────────────────────────────────────── */
     if (gameState?.secretCharacter === undefined) {
+        console.log("reloading");
 
-        console.log("reloading")
+        const IMAGE_SIZE = '160px';
 
-        const IMAGE_SIZE = '120px';
-
-        const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
+        const Item = styled(Paper)(({ theme, isSelected }) => ({
             ...theme.typography.body2,
-            padding: theme.spacing(2),
+            padding: theme.spacing(1),
             textAlign: 'center',
-            backgroundColor: 'rgba(71, 85, 105, 0.5)',
-            color: '#fff',
+            backgroundColor: 'var(--surface-0)',
+            color: 'var(--text-900)',
             cursor: 'pointer',
-            transition: 'all 0.3s',
+            transition: 'all 0.15s',
             position: 'relative',
-            border: '2px solid rgba(100, 116, 139, 0.3)',
-            borderRadius: '12px',
-
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--r)',
+            boxShadow: 'none',
             '&:hover': {
-                transform: 'scale(1.05)',
-                backgroundColor: 'rgba(71, 85, 105, 0.7)',
-                borderColor: '#10b981',
-                boxShadow: '0 0 20px rgba(16, 185, 129, 0.4)',
+                transform: 'translateY(-2px)',
+                backgroundColor: 'var(--surface-1)',
+                borderColor: 'var(--accent)',
             },
-
             '& img': {
-                width: IMAGE_SIZE,
+                width: '100%',
                 height: IMAGE_SIZE,
                 objectFit: 'cover',
-                borderRadius: '8px',
+                borderRadius: 'calc(var(--r) - 2px)',
+                imageRendering: 'auto',
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
+                WebkitBackfaceVisibility: 'hidden',
             },
-
             ...(isSelected && {
                 '&::after': {
                     content: '""',
                     position: 'absolute',
-                    top: theme.spacing(2),
-                    left: theme.spacing(2),
-                    width: IMAGE_SIZE,
+                    top: theme.spacing(1),
+                    left: theme.spacing(1),
+                    right: theme.spacing(1),
                     height: IMAGE_SIZE,
-                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                    backgroundColor: 'rgba(0,0,0,0.15)',
                     pointerEvents: 'none',
-                    borderRadius: '8px',
+                    borderRadius: 'calc(var(--r) - 2px)',
                 }
             }),
-
         }));
 
         const selectSecretCharacter = async (charid) => {
             setError(null);
-
             try {
                 const res = await fetch(`http://localhost:8080/lobby/setSecretChar`, {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "X-User-ID": user?.id,
-                    },
-                    body: JSON.stringify({
-                        lobbyCode: lobby?.id,
-                        secretCharacter: charid
-                    }),
+                    headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                    body: JSON.stringify({ lobbyCode: lobby?.id, secretCharacter: charid }),
                 });
-
                 const data = await res.json();
-
-                if (!res.ok) {
-                    setError(data.error || "Something went wrong");
-                    return;
-                }
+                if (!res.ok) { setError(data.error || "Something went wrong"); return; }
                 console.log("Fetched gamestate:", data);
                 setGameState(data);
             } catch (err) {
@@ -562,135 +579,198 @@ export default function LobbyPage() {
 
         const characters = gameState?.lobby.characterSet.characters || [];
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center gap-6 text-white px-6 py-12">
-                <div className="text-6xl mb-4">🎭</div>
-                <h1 className="text-4xl font-bold">Choose Your Secret Character</h1>
-                <p className="text-gray-300 text-lg mb-4">Select wisely - your opponent will try to guess!</p>
-                <Grid container spacing={3} justifyContent="center" sx={{ maxWidth: '1200px' }}>
-                    {characters.map((char) => {
-                        return (
-                            <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
-                                <Item
-                                    onClick={() => {
-                                        selectSecretCharacter(char.id);
-                                    }}
-                                    className="h-full"
-                                >
-                                    <div className="flex flex-col items-center justify-between h-full">
-                                        <img
-                                            src={`http://localhost:8080` + char.image}
-                                            alt={char.name}
-                                        />
-                                        <span className="text-sm font-semibold mt-2">{char.name}</span>
-                                    </div>
-                                </Item>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            </div>
+            <>
+                <StyleInjector />
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 'var(--s12) var(--s6)' }}>
+                    <div style={{ maxWidth: 960, margin: '0 auto' }}>
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--s10)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Character Selection</span>
+                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 40, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s3)' }}>
+                                Choose your secret character
+                            </h1>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>
+                                Your opponent will try to guess who you picked.
+                            </p>
+                        </div>
+                        <Grid container spacing={2} justifyContent="center">
+                            {characters.map((char) => (
+                                <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
+                                    <Item onClick={() => selectSecretCharacter(char.id)} className="h-full">
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <img src={`http://localhost:8080` + char.image} alt={char.name} style={{ imageRendering: 'auto' }} />
+                                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--text-600)', marginTop: 8 }}>
+                                                {char.name}
+                                            </span>
+                                        </div>
+                                    </Item>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    </div>
+                </div>
+            </>
         );
     }
 
+    /* ── MAIN GAME SCREEN ──────────────────────────────────────────────── */
+
     const Item = styled(Paper)(({ theme }) => ({
-        backgroundColor: 'rgba(71, 85, 105, 0.5)',
+        backgroundColor: 'var(--surface-1)',
         ...theme.typography.body2,
         padding: theme.spacing(1),
         textAlign: 'center',
-        color: '#fff',
+        color: 'var(--text-900)',
+        boxShadow: 'none',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--r)',
     }));
 
     return (
-        <div className="flex min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-            {/* Question Log Sidebar */}
-            {lobby.chatFeature && (
-                <div className="w-64 bg-slate-800/50 border-r border-slate-700 p-4 overflow-y-auto backdrop-blur-sm">
-                    <h2 className="text-lg font-bold mb-4 text-white">Question Log</h2>
-                    {questionLog.length > 0 ? (
-                        <div className="space-y-2">
-                            {questionLog.map((msg, index) => (
-                                <div key={index} className="bg-slate-700/50 p-3 rounded-lg shadow-sm border border-slate-600">
-                                    <p className="text-xs text-gray-400 mb-1">{msg.username}</p>
-                                    <p className="text-sm text-white">{msg.content}</p>
-                                    <p className="text-xs text-gray-500 mt-1">{msg.time}</p>
-                                </div>
-                            ))}
+        <>
+            <StyleInjector />
+            <Navbar />
+            <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
+
+                {/* Left sidebar — question log (chat mode) */}
+                {lobby.chatFeature && (
+                    <div style={{
+                        width: 256,
+                        flexShrink: 0,
+                        background: 'var(--surface-0)',
+                        borderRight: '1px solid var(--border)',
+                        padding: 'var(--s4)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflowY: 'auto',
+                    }}>
+                        {/* Secret character */}
+                        {gameState && gameState.secretCharacter && (
+                            <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)' }}>
+                                <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your Character</span>
+                                <img
+                                    src={`http://localhost:8080` + gameState.secretCharacter.image}
+                                    alt={gameState.secretCharacter.name}
+                                    style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', imageRendering: 'auto' }}
+                                />
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s2)', textAlign: 'center' }}>
+                                    {gameState.secretCharacter.name}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Question log */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s4)' }}>
+                            <MessageSquare size={13} color="var(--text-400)" />
+                            <span className="gw-label">Question Log</span>
                         </div>
-                    ) : (
-                        <p className="text-sm text-gray-400">No questions yet...</p>
-                    )}
-                </div>)};
-
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col p-6 text-white">
-
-                <div className="flex w-full mb-6">
-
-                    {/* 1. GameSend Component (9/12 width) */}
-                    <div className="w-9/12 pr-4">
-                        {user && user.email && lobbyID && lobby.chatFeature && (
-                            <GameSend
-                                lobbyId={lobbyID}
-                                username={user.email}
-                                wsRef={wsRef}
-                                setIsConnected={setIsConnected}
-                                messages={messagesGame}
-                                setMessages={setMessagesGame}
-                                turn={turn}
-                                setSentMessage={setSentMessage}
-                                receivedMessage={receivedMessage}
-                                waitingReponse={waitingReponse}
-                                setWaitingReponse={setWaitingReponse}
-                                setIsGuessMode={setIsGuessMode}
-                                isGuessMode={isGuessMode}
-                            />
+                        {questionLog.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                {questionLog.map((msg, index) => (
+                                    <div key={index} style={{
+                                        padding: 'var(--s3) 0',
+                                        borderBottom: index < questionLog.length - 1 ? '1px solid var(--border)' : 'none',
+                                    }}>
+                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)', color: 'var(--accent)' }}>
+                                            {msg.username}
+                                        </span>
+                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', margin: 0, lineHeight: 1.5 }}>
+                                            {msg.content}
+                                        </p>
+                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>
+                                            {msg.time}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-400)', textAlign: 'center', paddingTop: 'var(--s8)' }}>
+                                No questions yet
+                            </p>
                         )}
                     </div>
-                    {!lobby.chatFeature && (
-                        <button
-                            onClick={() => setIsGuessMode(!isGuessMode)}
-                            // Use emerald for "positive" action and red for "negative/cancel"
-                            className={`w-full sm:w-1/3 px-4 py-2 rounded-xl font-bold transition-colors ${isGuessMode
-                                ? 'bg-red-600 hover:bg-red-500 text-white'     // Stop Making Guess
-                                : 'bg-emerald-500 hover:bg-emerald-400 text-white' // Make a Guess
-                                }`}
-                        >
-                            {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
-                        </button>
-                    )};
+                )}
 
-                    {/* 2. Secret Character Info (3/12 width) */}
-                    <div className="w-3/12 pl-4 border-l border-slate-700">
-                        {gameState && gameState.secretCharacter && (
-                            <>
-                                <h2 className="text-white text-base font-semibold mb-3">
-                                    Your Secret Character:
-                                </h2>
-                                <div className="flex items-center justify-start">
-                                    <div className="flex flex-col items-center border-2 border-emerald-500 bg-slate-700/50 p-3 rounded-xl w-full shadow-lg shadow-emerald-500/20">
+                {/* Main content */}
+                <div style={{ flex: 1, padding: 'var(--s6)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+
+                    {/* Non-chat mode */}
+                    {!lobby.chatFeature && (
+                        <div style={{ display: 'flex', gap: 'var(--s6)', width: '100%', marginBottom: 'var(--s6)', alignItems: 'flex-start' }}>
+                            <div style={{ width: 200, flexShrink: 0 }}>
+                                {gameState && gameState.secretCharacter && (
+                                    <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s3)' }}>
+                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your Character</span>
                                         <img
                                             src={`http://localhost:8080` + gameState.secretCharacter.image}
                                             alt={gameState.secretCharacter.name}
-                                            className="w-20 h-20 object-cover rounded-lg"
+                                            style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', imageRendering: 'auto' }}
                                         />
-                                        <span className="font-bold text-sm mt-2 text-white">{gameState.secretCharacter.name}</span>
+                                        <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s2)', textAlign: 'center' }}>
+                                            {gameState.secretCharacter.name}
+                                        </p>
                                     </div>
-                                </div>
-                            </>
-                        )}
-                    </div>
+                                )}
+                                <button
+                                    className={isGuessMode ? 'gw-btn-danger' : 'gw-btn-primary'}
+                                    style={{ width: '100%', justifyContent: 'center' }}
+                                    onClick={() => setIsGuessMode(!isGuessMode)}
+                                >
+                                    {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
+                                </button>
+                            </div>
+
+                            <div style={{ flex: 1 }}>
+                                <GameState
+                                    user={user}
+                                    setError={setError}
+                                    lobby={lobby}
+                                    setLobby={setLobby}
+                                    gameState={gameState}
+                                    setGameState={setGameState}
+                                    isGuessMode={isGuessMode}
+                                    getGameState={getGameState}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Chat mode */}
+                    {lobby.chatFeature && (
+                        <>
+                            <div style={{ marginBottom: 'var(--s4)' }}>
+                                {user && user.email && lobbyID && (
+                                    <GameSend
+                                        lobbyId={lobbyID}
+                                        username={user.email}
+                                        wsRef={wsRef}
+                                        setIsConnected={setIsConnected}
+                                        messages={messagesGame}
+                                        setMessages={setMessagesGame}
+                                        turn={turn}
+                                        setSentMessage={setSentMessage}
+                                        receivedMessage={receivedMessage}
+                                        waitingReponse={waitingReponse}
+                                        setWaitingReponse={setWaitingReponse}
+                                        setIsGuessMode={setIsGuessMode}
+                                        isGuessMode={isGuessMode}
+                                    />
+                                )}
+                            </div>
+
+                            <GameState
+                                user={user}
+                                setError={setError}
+                                lobby={lobby}
+                                setLobby={setLobby}
+                                gameState={gameState}
+                                setGameState={setGameState}
+                                isGuessMode={isGuessMode}
+                                getGameState={getGameState}
+                            />
+                        </>
+                    )}
                 </div>
-                <GameState
-                    user={user}
-                    setError={setError}
-                    lobby={lobby}
-                    setLobby={setLobby}
-                    gameState={gameState}
-                    setGameState={setGameState}
-                    isGuessMode={isGuessMode}
-                    getGameState={getGameState}
-                />
             </div>
-        </div>
+        </>
     );
 }

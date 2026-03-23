@@ -5,8 +5,9 @@ import { useParams } from "next/navigation";
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
+import { Loader2 } from "lucide-react";
 
-const IMAGE_SIZE = '160px';
+const IMAGE_SIZE = '140px';
 
 export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode, getGameState }) {
     const params = useParams();
@@ -27,7 +28,6 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
 
     const makeGuess = async (charId) => {
         setError(null);
-
         try {
             console.log("Making guess for character ID:", user?.id);
             const res = await fetch(`http://localhost:8080/lobby/guess`, {
@@ -36,18 +36,10 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                     "Content-Type": "application/json",
                     "X-User-ID": user?.id,
                 },
-                body: JSON.stringify({
-                    lobbyId: lobbyID,
-                    characterId: charId
-                }),
+                body: JSON.stringify({ lobbyId: lobbyID, characterId: charId }),
             });
-
             const data = await res.json();
-
-            if (!res.ok) {
-                setError(data.error || "Something went wrong");
-                return;
-            }
+            if (!res.ok) { setError(data.error || "Something went wrong"); return; }
             console.log("Fetched gamestate:", data);
             setGameState(data);
         } catch (err) {
@@ -57,80 +49,81 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     };
 
     useEffect(() => {
-        if (user?.id) {
-            getGameState();
-        }
+        if (user?.id) getGameState();
     }, [user?.id]);
 
     if (!gameState || !gameState.lobby || !gameState.lobby.characterSet) {
         return (
-            <div className="flex items-center justify-center p-8 text-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-emerald-500 mr-4"></div>
-                Loading game data...
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
+                <Loader2 size={20} color="var(--text-400)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-400)' }}>
+                    Loading game data…
+                </span>
             </div>
         );
     }
 
     const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
         ...theme.typography.body2,
-        padding: theme.spacing(1),
+        padding: theme.spacing(0.5),
         textAlign: 'center',
-        backgroundColor: 'rgba(71, 85, 105, 0.5)',
-        color: '#fff',
+        backgroundColor: 'var(--surface-0)',
+        color: 'var(--text-900)',
         cursor: 'pointer',
-        transition: 'all 0.2s',
+        transition: 'all 0.15s',
         position: 'relative',
         height: 'auto',
-        minHeight: '240px',
-        width: '190px',
         display: 'flex',
         flexDirection: 'column',
-        border: '2px solid rgba(100, 116, 139, 0.3)',
-        borderRadius: '12px',
+        border: isGuessMode ? '2px solid var(--accent)' : '1px solid var(--border)',
+        borderRadius: 'var(--r)',
+        boxShadow: 'none',
 
         '&:hover': {
-            transform: 'scale(1.05)',
-            backgroundColor: 'rgba(71, 85, 105, 0.7)',
-            borderColor: isGuessMode ? '#8b5cf6' : '#10b981',
-            boxShadow: isGuessMode
-                ? '0 0 20px rgba(139, 92, 246, 0.4)'
-                : '0 0 20px rgba(16, 185, 129, 0.4)',
+            transform: 'translateY(-2px)',
+            backgroundColor: 'var(--surface-1)',
+            borderColor: isGuessMode ? 'var(--accent-dim)' : 'var(--border-strong)',
         },
 
-        ...(isGuessMode && {
-            border: '2px solid #8b5cf6',
-            boxShadow: '0 0 10px rgba(139, 92, 246, 0.3)',
-        }),
-
         '& img': {
-            width: IMAGE_SIZE,
+            width: '100%',
             height: IMAGE_SIZE,
             objectFit: 'cover',
-            borderRadius: '8px',
+            borderRadius: 'calc(var(--r) - 2px)',
             flexShrink: 0,
+            imageRendering: 'auto',
+            transform: 'translateZ(0)',
+            backfaceVisibility: 'hidden',
+            WebkitBackfaceVisibility: 'hidden',
         },
 
         '& .character-name': {
             marginTop: theme.spacing(1),
-            fontSize: '0.875rem',
+            fontSize: '0.75rem',
             fontWeight: 600,
+            fontFamily: "'DM Sans', sans-serif",
             lineHeight: '1.25rem',
-            padding: '0 4px 8px 4px',
+            padding: '0 4px 4px 4px',
             wordBreak: 'break-word',
+            minHeight: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--text-900)',
         },
 
         ...(isSelected && {
+            borderColor: 'var(--border)',
             '&::after': {
                 content: '""',
                 position: 'absolute',
-                top: theme.spacing(1),
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: IMAGE_SIZE,
+                top: theme.spacing(0.5),
+                left: theme.spacing(0.5),
+                right: theme.spacing(0.5),
                 height: IMAGE_SIZE,
-                backgroundColor: 'rgba(15, 23, 42, 1)',
+                backgroundColor: 'rgba(26, 21, 16, 0.55)',
                 pointerEvents: 'none',
-                borderRadius: '8px',
+                borderRadius: 'calc(var(--r) - 2px)',
             }
         }),
     }));
@@ -139,18 +132,27 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
 
     return (
         <div>
+            {/* Guess mode banner */}
             {isGuessMode && (
-                <div className="mb-6 p-4 bg-purple-500/20 border-2 border-purple-500 rounded-xl text-center">
-                    <p className="text-white font-bold text-lg">🎯 Guess Mode Active</p>
-                    <p className="text-purple-200 text-sm mt-1">Click on a character to make your final guess!</p>
+                <div style={{
+                    marginBottom: 'var(--s5)',
+                    padding: 'var(--s3) var(--s4)',
+                    background: 'var(--accent-light)',
+                    border: '1px solid var(--accent)',
+                    borderRadius: 'var(--r)',
+                    textAlign: 'center',
+                }}>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--accent-dim)', margin: 0 }}>
+                        Guess mode — click a character to make your final guess
+                    </p>
                 </div>
             )}
 
-            <Grid container spacing={2} justifyContent="center">
+            <Grid container spacing={1.5} justifyContent="center">
                 {characters.map((char) => {
                     const isSelected = selectedCharacters.has(char.id);
                     return (
-                        <Grid item key={char.id}>
+                        <Grid item key={char.id} sx={{ width: IMAGE_SIZE }}>
                             <Item
                                 isSelected={isSelected}
                                 isGuessMode={isGuessMode}
@@ -162,11 +164,8 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                                     }
                                 }}
                             >
-                                <div className="flex flex-col items-center">
-                                    <img
-                                        src={`http://localhost:8080` + char.image}
-                                        alt={char.name}
-                                    />
+                                <div className="flex flex-col items-center w-full">
+                                    <img src={`http://localhost:8080` + char.image} alt={char.name} />
                                     <span className="character-name">{char.name}</span>
                                 </div>
                             </Item>

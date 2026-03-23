@@ -350,7 +350,7 @@ func (s *LobbyService) GetLobbyStatus(lobbyId string) (*LobbyStatus, error) {
 func (s *LobbyService) SetSecretChar(user *models.User, lobbyID uuid.UUID, characterID uuid.UUID) (*models.GameState, error) {
     // Find the player
     var player models.Player
-    if err := s.DB.Where("user_id = ? OR guest_id = ? AND lobby_id = ?", user.ID, user.ID, lobbyID).First(&player).Error; err != nil {
+    if err := s.DB.Where("(user_id = ? OR guest_id = ?) AND lobby_id = ?", user.ID, user.ID, lobbyID).First(&player).Error; err != nil {
         return nil, err
     }
     
