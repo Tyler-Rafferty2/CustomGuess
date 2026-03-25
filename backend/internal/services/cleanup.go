@@ -10,7 +10,7 @@ const staleLobbyThreshold = 30 * time.Minute
 const staleGameOverThreshold = 5 * time.Minute
 
 func StartLobbyCleanup(db *gorm.DB) {
-    ticker := time.NewTicker(1 * time.Minute)
+    ticker := time.NewTicker(3 * time.Minute)
     go func() {
         for range ticker.C {
             cleanupStaleLobbies(db)
@@ -20,7 +20,7 @@ func StartLobbyCleanup(db *gorm.DB) {
 
 func cleanupStaleLobbies(db *gorm.DB) {
     cutoffInactive := time.Now().Add(-staleLobbyThreshold)
-    cutoffGameOver := time.Now().Add(-staleLobbyThreshold)
+    cutoffGameOver := time.Now().Add(-staleGameOverThreshold)
 
     result := db.
         Where("(game_over = ? AND game_over_at < ?) OR last_active < ?", true, cutoffGameOver, cutoffInactive).

@@ -276,9 +276,12 @@ func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
         Where("user_id = ?", user.ID)
     
     err := s.DB.
+        Preload("User").
+        Preload("CharacterSet").
         Where("user_id != ?", user.ID).
         Where("id IN (?)", lobbiesWithOnePlayer).
         Where("id NOT IN (?)", userLobbies).
+        Where("private = ?", false).
         Find(&lobbies).Error
     
     if err != nil {
@@ -437,8 +440,9 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
     }
 
     var otherPlayer models.Player
-    if err := s.DB.Where("lobby_id = ? AND id != ?", lobbyID, player.ID).First(&otherPlayer).Error; err != nil {
-        return nil, err
+    otherErr := s.DB.Where("lobby_id = ? AND id != ?", lobbyID, player.ID).First(&otherPlayer).Error
+    if otherErr != nil && !errors.Is(otherErr, gorm.ErrRecordNotFound) {
+        return nil, otherErr
     }
 
     var lobby models.Lobby
@@ -449,7 +453,11 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
     now := time.Now()
     lobby.GameOver = true
     lobby.GameOverAt = &now
-    lobby.Winner = &otherPlayer.ID
+
+    if otherErr == nil {
+        lobby.Winner = &otherPlayer.ID
+    }
+
     if err := s.DB.Save(&lobby).Error; err != nil {
         return nil, err
     }

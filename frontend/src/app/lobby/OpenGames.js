@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 export default function Players({ user, setError, lobbies, setLobbies, joinLobby }) {
 
-    const router = useRouter();
-
     const getLobbies = async () => {
         setError(null);
-
         try {
             const res = await fetch(`http://localhost:8080/lobby/find`, {
                 method: "GET",
@@ -18,14 +14,11 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
                     "X-User-ID": user?.id,
                 },
             });
-
             const data = await res.json();
-
             if (!res.ok) {
                 setError(data.error || "Something went wrong");
                 return;
             }
-            console.log("Fetched lobbies:", data);
             setLobbies(data);
         } catch (err) {
             console.error(err);
@@ -34,32 +27,112 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
     };
 
     useEffect(() => {
-        if (user?.id) {
-            getLobbies();
-        }
+        if (user?.id) getLobbies();
     }, [user?.id]);
 
     return (
-        <div className="text-green-700 font-medium">
-            <span className="text-gray-700">Lobbies you can join:</span>
-            <ul className="mt-2">
-                {lobbies && lobbies.length > 0 ? (
-                    lobbies.map((l) => (
-                        <li key={l.id} className="flex items-center gap-2">
-                            ID: {l.id}, Code: {l.code}
-                            <button
-                                className="ml-2 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                onClick={() => joinLobby(l.code, l.id)}
-                            >
-                                Join Lobby
-                            </button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--s3)" }}>
+            <h2 style={{
+                fontFamily: "Fraunces, serif",
+                fontSize: "var(--text-lg)",
+                fontWeight: 700,
+                color: "var(--text-900)",
+                letterSpacing: "-0.02em",
+                margin: 0,
+            }}>
+                Open Games
+            </h2>
+
+            {lobbies && lobbies.length > 0 ? (
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "var(--s2)" }}>
+                    {lobbies.map((l) => (
+                        <li key={l.id} style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "var(--s3) var(--s4)",
+                            background: "var(--surface-0)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--r)",
+                            transition: "border-color 150ms, background 150ms",
+                        }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.background = "var(--surface-1)";
+                                e.currentTarget.style.borderColor = "var(--border-strong)";
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.background = "var(--surface-0)";
+                                e.currentTarget.style.borderColor = "var(--border)";
+                            }}
+                        >
+                            <div style={{ display: "flex", flexDirection: "column", gap: "var(--s1)" }}>
+                                <span style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                    fontSize: "var(--text-md)",
+                                    fontWeight: 600,
+                                    color: "var(--text-900)",
+                                }}>
+                                    {l.characterSet?.name ?? "Classic"}
+                                </span>
+                                <span style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                    fontSize: "var(--text-sm)",
+                                    fontWeight: 500,
+                                    color: "var(--text-400)",
+                                }}>
+                                    hosted by {l.user?.email}
+                                </span>
+                            </div>
+
+                            <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
+                                <span style={{
+                                    fontFamily: "DM Sans, sans-serif",
+                                    fontSize: "var(--text-xs)",
+                                    fontWeight: 600,
+                                    letterSpacing: "0.08em",
+                                    textTransform: "uppercase",
+                                    color: "var(--state-live)",
+                                    padding: "2px var(--s2)",
+                                    border: "1px solid var(--state-live)",
+                                    borderRadius: "var(--r)",
+                                }}>
+                                    Waiting
+                                </span>
+                                <button
+                                    onClick={() => joinLobby(l.code, l.id)}
+                                    style={{
+                                        height: "32px",
+                                        padding: "0 var(--s4)",
+                                        background: "var(--accent)",
+                                        color: "#fff",
+                                        border: "none",
+                                        borderRadius: "var(--r)",
+                                        fontFamily: "DM Sans, sans-serif",
+                                        fontSize: "var(--text-sm)",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        transition: "background 150ms",
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = "var(--accent-dim)"}
+                                    onMouseLeave={e => e.currentTarget.style.background = "var(--accent)"}
+                                >
+                                    Join
+                                </button>
+                            </div>
                         </li>
-                    ))
-                ) : (
-                    <li>No players found</li>
-                )}
-            </ul>
+                    ))}
+                </ul>
+            ) : (
+                <p style={{
+                    fontFamily: "DM Sans, sans-serif",
+                    fontSize: "var(--text-base)",
+                    color: "var(--text-400)",
+                    margin: 0,
+                    padding: "var(--s4) 0",
+                }}>
+                    No open games right now.
+                </p>
+            )}
         </div>
     );
-
 }

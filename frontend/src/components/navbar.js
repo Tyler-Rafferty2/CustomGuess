@@ -207,12 +207,6 @@ export default function Navbar() {
                                 </div>
 
                                 <div style={{ padding: 8 }}>
-                                    <MenuRow
-                                        Icon={soundEnabled ? Volume2 : VolumeX}
-                                        label="Sound Effects"
-                                        sub={soundEnabled ? "Enabled" : "Disabled"}
-                                        onClick={() => setSoundEnabled(!soundEnabled)}
-                                    />
                                     <MenuRow Icon={HelpCircle} label="How to Play" sub="View game rules" onClick={() => { }} />
                                     <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
                                     <MenuRow
@@ -270,7 +264,7 @@ export default function Navbar() {
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         {user && user.email !== "guest" ? (
                             <>
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                {/* <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                     <div style={{
                                         width: 32, height: 32, borderRadius: "6px",
                                         background: T.surface1,
@@ -284,7 +278,7 @@ export default function Navbar() {
                                     <span style={{ fontSize: 14, fontWeight: 500, color: T.text600 }}>
                                         {user.name}
                                     </span>
-                                </div>
+                                </div> */}
                                 <GhostButton onClick={handleLogout} Icon={LogOut} label="Log out" />
                             </>
                         ) : (
