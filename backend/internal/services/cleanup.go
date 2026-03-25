@@ -7,6 +7,7 @@ import (
 	"github.com/tyler-rafferty2/GuessWho/internal/models")
 
 const staleLobbyThreshold = 30 * time.Minute
+const staleGameOverThreshold = 5 * time.Minute
 
 func StartLobbyCleanup(db *gorm.DB) {
     ticker := time.NewTicker(1 * time.Minute)
@@ -18,10 +19,11 @@ func StartLobbyCleanup(db *gorm.DB) {
 }
 
 func cleanupStaleLobbies(db *gorm.DB) {
-    cutoff := time.Now().Add(-staleLobbyThreshold)
+    cutoffInactive := time.Now().Add(-staleLobbyThreshold)
+    cutoffGameOver := time.Now().Add(-staleLobbyThreshold)
 
     result := db.
-        Where("game_over = ? OR last_active < ?", true, cutoff).
+        Where("(game_over = ? AND game_over_at < ?) OR last_active < ?", true, cutoffGameOver, cutoffInactive).
         Delete(&models.Lobby{})
 
     if result.Error != nil {

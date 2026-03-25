@@ -347,8 +347,11 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
         return nil, err
     }
 
+    now := time.Now()
+
     if gameState.SecretCharacter.ID.String() == characterID {
         lobby.GameOver = true
+        lobby.GameOverAt = &now
         winnerID := player.ID
         lobby.Winner = &winnerID
         if err := s.DB.Save(&lobby).Error; err != nil {
@@ -363,6 +366,7 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
         }
         
         lobby.GameOver = true
+        lobby.GameOverAt = &now
         lobby.Winner = &otherPlayer.ID
         if err := s.DB.Save(&lobby).Error; err != nil {
             return nil, err
@@ -442,7 +446,9 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
         return nil, err
     }
 
+    now := time.Now()
     lobby.GameOver = true
+    lobby.GameOverAt = &now
     lobby.Winner = &otherPlayer.ID
     if err := s.DB.Save(&lobby).Error; err != nil {
         return nil, err

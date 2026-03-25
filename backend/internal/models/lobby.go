@@ -24,6 +24,7 @@ type Lobby struct {
     CharacterSet   CharacterSet  `gorm:"foreignKey:CharacterSetID" json:"characterSet"`
 
     GameOver    bool        `gorm:"default:false" json:"gameOver"`
+    GameOverAt  *time.Time   `json:"gameOverAt"`
     Winner    *uuid.UUID        `gorm:"type:uuid" json:"winner"`
 }
 
