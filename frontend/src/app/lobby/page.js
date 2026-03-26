@@ -88,18 +88,6 @@ export default function LobbyPage() {
                         borderRadius: 'var(--r)',
                         padding: 'var(--s6)',
                     }}>
-                        <span style={{
-                            fontFamily: "'DM Sans', sans-serif",
-                            fontWeight: 600,
-                            fontSize: 11,
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                            color: 'var(--text-400)',
-                            display: 'block',
-                            marginBottom: 'var(--s4)',
-                        }}>
-                            Open Games
-                        </span>
 
                         {/* Scrollable container */}
                         <div style={{

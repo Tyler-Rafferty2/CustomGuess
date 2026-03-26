@@ -613,6 +613,24 @@ export default function LobbyPage() {
                                 {lobby?.code}
                             </p>
                         </div>
+                        <button
+                            className="gw-btn-danger"
+                            style={{ width: '100%', marginTop: 'var(--s3)', justifyContent: 'center' }}
+                            onClick={async () => {
+                                try {
+                                    await fetch(`http://localhost:8080/lobby/forfeit`, {
+                                        method: "POST",
+                                        headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                                        body: JSON.stringify({ lobbyId: lobbyID }),
+                                    });
+                                } catch (err) {
+                                    console.error(err);
+                                }
+                                router.push('/');
+                            }}
+                        >
+                            Cancel & Exit
+                        </button>
                     </div>
                 </div>
             </>

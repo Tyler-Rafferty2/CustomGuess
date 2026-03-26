@@ -3,7 +3,7 @@
 import { useContext, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
-import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users } from "lucide-react";
+import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /* ─────────────────────────────────────────────
@@ -96,6 +96,7 @@ export default function Navbar() {
     const [showSettings, setShowSettings] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(true);
+    const [showUserMenu, setShowUserMenu] = useState(false);
 
     const router = useRouter();
 
@@ -263,24 +264,116 @@ export default function Navbar() {
 
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         {user && user.email !== "guest" ? (
-                            <>
-                                {/* <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <div style={{ position: "relative" }}>
+                                {/* Trigger */}
+                                <motion.button
+                                    onClick={() => setShowUserMenu(v => !v)}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 8,
+                                        padding: "4px 8px 4px 4px",
+                                        background: "transparent", border: `1px solid ${T.border}`,
+                                        borderRadius: "6px", cursor: "pointer",
+                                        ...(showUserMenu && { background: T.surface1, borderColor: T.borderStrong }),
+                                    }}
+                                    whileHover={{ background: T.surface1, borderColor: T.borderStrong }}
+                                    whileTap={{ scale: 0.97 }}
+                                >
                                     <div style={{
-                                        width: 32, height: 32, borderRadius: "6px",
-                                        background: T.surface1,
-                                        border: `1px solid ${T.border}`,
+                                        width: 28, height: 28, borderRadius: 4,
+                                        background: T.surface2, border: `1px solid ${T.border}`,
                                         display: "flex", alignItems: "center", justifyContent: "center",
-                                        color: T.accent, fontSize: 13, fontWeight: 600,
-                                        fontFamily: "'DM Sans', sans-serif",
+                                        color: T.accent, fontSize: 12, fontWeight: 700,
+                                        fontFamily: "'Fraunces', serif",
                                     }}>
-                                        {user.name?.[0]?.toUpperCase() ?? "?"}
+                                        {user.email?.[0]?.toUpperCase()}
                                     </div>
-                                    <span style={{ fontSize: 14, fontWeight: 500, color: T.text600 }}>
-                                        {user.name}
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: T.text600 }}>
+                                        {user.email.split("@")[0]}
                                     </span>
-                                </div> */}
-                                <GhostButton onClick={handleLogout} Icon={LogOut} label="Log out" />
-                            </>
+                                    <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                                        <ChevronDown size={13} color={T.text400} />
+                                    </motion.div>
+                                </motion.button>
+
+                                {/* Overlay to close */}
+                                <AnimatePresence>
+                                    {showUserMenu && (
+                                        <>
+                                            <motion.div
+                                                style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                                                onClick={() => setShowUserMenu(false)}
+                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                            />
+                                            <motion.div
+                                                style={{
+                                                    position: "absolute", top: "calc(100% + 8px)", right: 0,
+                                                    width: 260, background: T.surface0,
+                                                    border: `1px solid ${T.border}`, borderRadius: "6px",
+                                                    overflow: "hidden", zIndex: 50,
+                                                    boxShadow: "0 4px 24px rgba(26,21,16,0.09)",
+                                                }}
+                                                initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.96, y: -4 }}
+                                                transition={{ duration: 0.15 }}
+                                            >
+                                                {/* Header */}
+                                                <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+                                                    <div style={{ width: 36, height: 36, borderRadius: 6, background: T.surface2, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, fontSize: 15, fontWeight: 700, fontFamily: "'Fraunces', serif" }}>
+                                                        {user.email?.[0]?.toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontSize: 14, fontWeight: 600, color: T.text900 }}>{user.email.split("@")[0]}</div>
+                                                        <div style={{ fontSize: 11, color: T.text400 }}>{user.email}</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Stats */}
+                                                <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
+                                                    {[["12", "Wins"], ["7", "Losses"], ["63%", "Win Rate"]].map(([val, label]) => (
+                                                        <div key={label} style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: label !== "Win Rate" ? `1px solid ${T.border}` : "none" }}>
+                                                            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: T.text900, letterSpacing: "-0.02em" }}>{val}</div>
+                                                            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: T.text400, marginTop: 2 }}>{label}</div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+
+                                                {/* Menu rows */}
+                                                <div style={{ padding: 6 }}>
+                                                    {[
+                                                        { icon: <User size={14} />, label: "Profile", sub: "View your stats & history" },
+                                                        { icon: <Settings size={14} />, label: "Settings", sub: "Preferences & account" },
+                                                        { icon: <HelpCircle size={14} />, label: "How to Play", sub: "Game rules & tips" },
+                                                    ].map(({ icon, label, sub }) => (
+                                                        <motion.button key={label} onClick={() => { console.log(label + " clicked"); setShowUserMenu(false); }}
+                                                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
+                                                            whileHover={{ background: T.surface1 }}
+                                                        >
+                                                            <div style={{ width: 28, height: 28, borderRadius: 4, background: T.surface1, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, flexShrink: 0 }}>{icon}</div>
+                                                            <div>
+                                                                <div style={{ fontSize: 13, fontWeight: 500, color: T.text900 }}>{label}</div>
+                                                                <div style={{ fontSize: 11, color: T.text400, marginTop: 1 }}>{sub}</div>
+                                                            </div>
+                                                        </motion.button>
+                                                    ))}
+
+                                                    <div style={{ height: 1, background: T.border, margin: "4px 6px" }} />
+
+                                                    <motion.button onClick={() => { handleLogout(); setShowUserMenu(false); }}
+                                                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
+                                                        whileHover={{ background: "#FEF0EE" }}
+                                                    >
+                                                        <div style={{ width: 28, height: 28, borderRadius: 4, background: "#FEF0EE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                            <LogOut size={14} color={T.stateOut} />
+                                                        </div>
+                                                        <div style={{ fontSize: 13, fontWeight: 500, color: T.stateOut }}>Log out</div>
+                                                    </motion.button>
+                                                </div>
+                                            </motion.div>
+                                        </>
+                                    )}
+                                </AnimatePresence>
+                            </div>
                         ) : (
                             <div style={{ display: "flex", gap: 8 }}>
                                 <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
@@ -317,18 +410,7 @@ function Logo({ onClick }) {
                 letterSpacing: "-0.03em",
                 lineHeight: 1,
             }}>
-                Guess Who
-            </span>
-            <span style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: 11, fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: T.accent,
-                lineHeight: 1,
-                paddingBottom: 1,
-            }}>
-                Multiplayer
+                Custom Guess
             </span>
         </motion.div>
     );

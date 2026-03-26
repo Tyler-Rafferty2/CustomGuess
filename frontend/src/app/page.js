@@ -235,62 +235,15 @@ export default function Home() {
         padding: "48px 24px",
       }}>
         <div style={{
-          maxWidth: 1080, width: "100%", margin: "0 auto",
-          display: "flex", alignItems: "center", gap: 80,
+          width: "100%", margin: "0 auto",
+          display: "flex", justifyContent: "center",
         }}>
-
-          {/* LEFT — Board preview */}
-          <motion.div
-            className="board-col"
-            style={{ flexShrink: 0, width: 340 }}
-            initial={{ opacity: 0, x: -24 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
-          >
-            <div style={{
-              background: T.surface0,
-              border: `1px solid ${T.border}`,
-              borderRadius: "6px",
-              padding: 16,
-            }}>
-              {/* Board header */}
-              <div style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                marginBottom: 12,
-              }}>
-                <span style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
-                  textTransform: "uppercase", color: T.text400,
-                }}>
-                  Classic Deck · 24 Characters
-                </span>
-                <span style={{
-                  fontFamily: "'DM Sans', sans-serif",
-                  fontSize: 11, fontWeight: 600, letterSpacing: "0.08em",
-                  textTransform: "uppercase", color: T.stateLive,
-                  background: "#EBF6F1",
-                  border: `1px solid ${T.stateLive}44`,
-                  borderRadius: "6px", padding: "2px 8px",
-                }}>
-                  Live
-                </span>
-              </div>
-
-              {/* 4×3 grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-                {CHARACTERS.map((char, i) => (
-                  <CharacterCard key={char.id} char={char} index={i} />
-                ))}
-              </div>
-            </div>
-          </motion.div>
 
           {/* RIGHT — Actions */}
           <motion.div
             className="content-col"
-            style={{ flex: 1, maxWidth: 440, display: "flex", flexDirection: "column", gap: 28 }}
-            initial={{ opacity: 0, x: 24 }}
+            style={{ width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 28 }}
+            initial={{ opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.4, ease: [0, 0, 0.2, 1], delay: 0.08 }}
           >
@@ -309,7 +262,7 @@ export default function Home() {
                 fontSize: 52, fontWeight: 900, lineHeight: 1.0,
                 color: T.text900, letterSpacing: "-0.03em",
               }}>
-                Guess Who?
+                Custom Guess
               </h1>
               <p style={{
                 fontFamily: "'DM Sans', sans-serif",

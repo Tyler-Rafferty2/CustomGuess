@@ -1,11 +1,11 @@
-# GUESS WHO — Web App Design Schema v3.0
+#Custom Guess — Web App Design Schema v3.0
 Master Plan · UI/UX · Component Architecture · Design Tokens
 
 ---
 
 ## 1. Vision & Design Philosophy
 
-Guess Who is a social multiplayer deduction game. The interface must feel warm and inviting — like opening a well-made board game box — while being sharp, consistent, and production-quality at every level of zoom and every interaction state.
+Custom Guess is a social multiplayer deduction game. The interface must feel warm and inviting — like opening a well-made board game box — while being sharp, consistent, and production-quality at every level of zoom and every interaction state.
 
 **The key test: it must hold up everywhere.** Not just on a first screenshot. Every hover state is designed. Every disabled state is designed. Every component looks the same quality as every other component.
 
@@ -347,4 +347,4 @@ kebab-case      →  CSS files, class names: character-card.module.css
 
 ---
 
-*Guess Who — Design Schema v3.0 · Feed this document back to maintain consistency across the entire build.*
+*Custom Guess — Design Schema v3.0 · Feed this document back to maintain consistency across the entire build.*

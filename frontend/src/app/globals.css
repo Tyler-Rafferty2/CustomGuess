@@ -1,19 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  /* Colors */
+  --bg: #F7F3EE;
+  --surface-0: #FFFFFF;
+  --surface-1: #F2EDE7;
+  --surface-2: #E8E0D8;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --accent: #D9572B;
+  --accent-light: #F2C5B4;
+  --accent-dim: #B84422;
+
+  --text-900: #1A1510;
+  --text-600: #5C5047;
+  --text-400: #A0937F;
+
+  --border: #DDD5CA;
+  --border-strong: #C4B8A8;
+
+  --state-out: #C0392B;
+  --state-live: #2A7A56;
+
+  /* Spacing */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+  --s10: 80px;
+
+  /* Typography */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 22px;
+  --text-xl: 32px;
+
+  /* Border radius */
+  --r: 6px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-900);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -19,6 +19,7 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
                 setError(data.error || "Something went wrong");
                 return;
             }
+            console.log(data)
             setLobbies(data);
         } catch (err) {
             console.error(err);
@@ -68,7 +69,7 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
                             <div style={{ display: "flex", flexDirection: "column", gap: "var(--s1)" }}>
                                 <span style={{
                                     fontFamily: "DM Sans, sans-serif",
-                                    fontSize: "var(--text-md)",
+                                    fontSize: "var(--text-lg)",
                                     fontWeight: 600,
                                     color: "var(--text-900)",
                                 }}>
@@ -84,20 +85,12 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
                                 </span>
                             </div>
 
+                            {/* Middle info */}
+                            <div style={{ display: "flex", gap: "var(--s5)", color: "var(--text-400)", fontFamily: "DM Sans, sans-serif", fontSize: "13px" }}>
+                                <span> {l.characterSet?.characters?.length ?? "?"} characters</span>
+                            </div>
+
                             <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>
-                                <span style={{
-                                    fontFamily: "DM Sans, sans-serif",
-                                    fontSize: "var(--text-xs)",
-                                    fontWeight: 600,
-                                    letterSpacing: "0.08em",
-                                    textTransform: "uppercase",
-                                    color: "var(--state-live)",
-                                    padding: "2px var(--s2)",
-                                    border: "1px solid var(--state-live)",
-                                    borderRadius: "var(--r)",
-                                }}>
-                                    Waiting
-                                </span>
                                 <button
                                     onClick={() => joinLobby(l.code, l.id)}
                                     style={{
@@ -108,7 +101,7 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
                                         border: "none",
                                         borderRadius: "var(--r)",
                                         fontFamily: "DM Sans, sans-serif",
-                                        fontSize: "var(--text-sm)",
+                                        fontSize: "var(--text-base)",
                                         fontWeight: 600,
                                         cursor: "pointer",
                                         transition: "background 150ms",
