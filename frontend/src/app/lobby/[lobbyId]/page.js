@@ -9,6 +9,7 @@ import ChatApp from '@/components/chatapp';
 import Navbar from "@/components/navbar";
 import GameSend from '@/components/gameSend';
 import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare } from "lucide-react";
+import { motion } from "framer-motion";
 
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
@@ -150,6 +151,56 @@ const GLOBAL_CSS = `
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
 `;
+
+function Confetti() {
+    const canvasRef = useRef(null);
+    useEffect(() => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const colors = ['#D9572B', '#F2C5B4', '#2A7A56', '#F7C948', '#5C5047', '#B84422'];
+        const particles = Array.from({ length: 100 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * -canvas.height * 0.5,
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * 3 + 1.5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            w: Math.random() * 10 + 4,
+            h: Math.random() * 5 + 2,
+            rot: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.12,
+        }));
+        let animId;
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let alive = false;
+            particles.forEach(p => {
+                if (p.y < canvas.height + 20) {
+                    alive = true;
+                    p.x += p.vx; p.y += p.vy; p.rot += p.rotSpeed; p.vy += 0.04;
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                    ctx.restore();
+                }
+            });
+            if (alive) animId = requestAnimationFrame(draw);
+        }
+        draw();
+        return () => { if (animId) cancelAnimationFrame(animId); };
+    }, []);
+    return (
+        <canvas ref={canvasRef} style={{
+            position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+            pointerEvents: 'none', zIndex: 10,
+        }} />
+    );
+}
 
 function StyleInjector() {
     useEffect(() => {
@@ -327,7 +378,7 @@ export default function LobbyPage() {
                     return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString() }];
                 });
                 if (message.SenderId === playerId) {
-                    setQuestionLog(prev => [...prev, { ...message, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }]);
+                    setQuestionLog(prev => [...prev, { ...message, question: message.content, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }]);
                 } else {
                     setReceivedMessage(message.content);
                 }
@@ -347,6 +398,12 @@ export default function LobbyPage() {
                     setReceivedMessage("");
                     setWaitingReponse(false);
                 }
+            } else if (message.channel === "pending_question") {
+                // Reconnected as the answerer — show Yes/No UI
+                setReceivedMessage(message.content);
+            } else if (message.channel === "pending_waiting") {
+                // Reconnected as the asker — restore waiting state
+                setWaitingReponse(true);
             } else {
                 setMessagesChat(prev => {
                     const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
@@ -371,6 +428,29 @@ export default function LobbyPage() {
     useEffect(() => { checkLobbyStatus(); }, [lobbyID]);
 
     useEffect(() => {
+        if (!lobbyID || !playerId) return;
+        fetch(`http://localhost:8080/lobby/${lobbyID}/messages`)
+            .then(r => r.json())
+            .then(msgs => {
+                if (!Array.isArray(msgs) || msgs.length === 0) return;
+                const log = [];
+                msgs.forEach(msg => {
+                    if (msg.Channel === 'game' && msg.SenderID === playerId) {
+                        log.push({ question: msg.Content, content: msg.Content, answer: null, username: msg.Username, time: new Date(msg.CreatedAt).toLocaleTimeString() });
+                    } else if (msg.Channel === 'response') {
+                        if (log.length > 0) {
+                            const last = log[log.length - 1];
+                            log[log.length - 1] = { ...last, content: `${last.content} - ${msg.Content}`, answer: msg.Content };
+                        }
+                    }
+                });
+                setQuestionLog(log);
+            })
+            .catch(() => {});
+    }, [lobbyID, playerId]);
+
+
+    useEffect(() => {
         if (
             lobby &&
             lobby.players?.length < 2 &&
@@ -386,6 +466,11 @@ export default function LobbyPage() {
     useEffect(() => {
         if (lobbyID && user?.id && lobby?.players?.length && !gameState) { getGameState(); }
     }, [lobbyID, user?.id, lobby?.players?.length, gameState]);
+
+    // Fetch game state when game ends so we get the opponent's revealed character
+    useEffect(() => {
+        if (lobby?.gameOver) { getGameState(); }
+    }, [lobby?.gameOver]);
 
     const conflictModal = conflictLobbyId && (
         <>
@@ -480,25 +565,125 @@ export default function LobbyPage() {
 
     /* ── GAME OVER ── */
     if (lobby?.gameOver) {
-        const currentPlayer = lobby.players.find(p => p.userId === user.id || p.guestId === user.id);
+        const currentPlayer = lobby.players.find(p => p.userId === user?.id || p.guestId === user?.id);
         const isWinner = currentPlayer?.id === lobby.winner;
+        const myChar = gameState?.secretCharacter;
+        const opponentChar = gameState?.opponentCharacter;
+
+        let timePlayed = null;
+        if (lobby.createdAt && lobby.gameOverAt) {
+            const ms = new Date(lobby.gameOverAt) - new Date(lobby.createdAt);
+            const totalSec = Math.floor(ms / 1000);
+            const mins = Math.floor(totalSec / 60);
+            const secs = totalSec % 60;
+            timePlayed = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        }
+
         return (
             <>
                 <StyleInjector />
-                {conflictModal}
-                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
-                    <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center', padding: 'var(--s12)' }}>
-                        <div style={{ width: 48, height: 4, background: isWinner ? 'var(--state-live)' : 'var(--state-out)', borderRadius: 2, margin: '0 auto var(--s6)' }} />
-                        <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 40, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s3)' }}>
-                            {isWinner ? "Victory!" : "Game Over"}
-                        </h1>
-                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>
-                            {isWinner ? "You guessed correctly!" : "Better luck next time!"}
-                        </p>
-                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>
-                            Back to Home
-                        </button>
-                    </div>
+                {isWinner && <Confetti />}
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)', position: 'relative' }}>
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
+                        style={{ maxWidth: 560, width: '100%', position: 'relative', zIndex: 20 }}
+                    >
+                        {/* Header */}
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--s8)' }}>
+                            <div style={{ width: 48, height: 4, background: isWinner ? 'var(--state-live)' : 'var(--state-out)', borderRadius: 2, margin: '0 auto var(--s5)' }} />
+                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 42, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s2)', lineHeight: 1 }}>
+                                {isWinner ? "Victory!" : "Defeat"}
+                            </h1>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>
+                                {isWinner ? "You guessed your opponent's character." : "Your opponent guessed your character."}
+                            </p>
+                        </div>
+
+                        {/* Character Reveal */}
+                        <div className="gw-card" style={{ padding: 'var(--s6)', marginBottom: 'var(--s4)' }}>
+                            <span className="gw-label" style={{ display: 'block', textAlign: 'center', marginBottom: 'var(--s5)' }}>Character Reveal</span>
+                            <div style={{ display: 'flex', gap: 'var(--s6)', justifyContent: 'center' }}>
+                                {/* Your character */}
+                                <div style={{ flex: 1, textAlign: 'center', maxWidth: 200 }}>
+                                    <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)', color: 'var(--accent)' }}>You</span>
+                                    {myChar ? (
+                                        <>
+                                            <img
+                                                src={`http://localhost:8080` + myChar.image}
+                                                alt={myChar.name}
+                                                style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--border)' }}
+                                            />
+                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15, color: 'var(--text-900)', marginTop: 'var(--s2)' }}>
+                                                {myChar.name}
+                                            </p>
+                                        </>
+                                    ) : (
+                                        <div style={{ width: '100%', height: 180, background: 'var(--surface-1)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Loader2 size={20} color="var(--text-400)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Divider */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s2)' }}>
+                                    <div style={{ width: 1, flex: 1, background: 'var(--border)' }} />
+                                    <span className="gw-label">vs</span>
+                                    <div style={{ width: 1, flex: 1, background: 'var(--border)' }} />
+                                </div>
+
+                                {/* Opponent character */}
+                                <div style={{ flex: 1, textAlign: 'center', maxWidth: 200 }}>
+                                    <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)', color: 'var(--text-600)' }}>Opponent</span>
+                                    {opponentChar ? (
+                                        <motion.div
+                                            initial={{ rotateY: 90, opacity: 0 }}
+                                            animate={{ rotateY: 0, opacity: 1 }}
+                                            transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
+                                            style={{ transformStyle: 'preserve-3d' }}
+                                        >
+                                            <img
+                                                src={`http://localhost:8080` + opponentChar.image}
+                                                alt={opponentChar.name}
+                                                style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: `2px solid ${isWinner ? 'var(--state-live)' : 'var(--state-out)'}` }}
+                                            />
+                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15, color: 'var(--text-900)', marginTop: 'var(--s2)' }}>
+                                                {opponentChar.name}
+                                            </p>
+                                        </motion.div>
+                                    ) : (
+                                        <div style={{ width: '100%', height: 180, background: 'var(--surface-1)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Loader2 size={20} color="var(--text-400)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stats */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', marginBottom: 'var(--s6)' }}>
+                            <div className="gw-card" style={{ padding: 'var(--s4)', textAlign: 'center' }}>
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 28, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em' }}>
+                                    {questionLog.length}
+                                </p>
+                                <span className="gw-label" style={{ marginTop: 'var(--s1)', display: 'block' }}>Questions Asked</span>
+                            </div>
+                            <div className="gw-card" style={{ padding: 'var(--s4)', textAlign: 'center' }}>
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 28, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                                    {timePlayed ?? '—'}
+                                </p>
+                                <span className="gw-label" style={{ marginTop: 'var(--s1)', display: 'block' }}>Time Played</span>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 'var(--s3)' }}>
+                            <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} onClick={() => router.push('/')}>
+                                Back to Home
+                            </button>
+                        </div>
+                    </motion.div>
                 </div>
             </>
         );
@@ -764,6 +949,98 @@ export default function LobbyPage() {
         );
     }
 
+    /* ── READY SCREEN ── */
+    if (!lobby?.players?.every(p => p.ready)) {
+        const me = lobby?.players?.find(p => p.userId === user?.id || p.guestId === user?.id);
+        const opponent = lobby?.players?.find(p => p.userId !== user?.id && p.guestId !== user?.id);
+        const iAmReady = me?.ready ?? false;
+
+        const setReady = async () => {
+            try {
+                await fetch(`http://localhost:8080/lobby/ready`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                    body: JSON.stringify({ lobbyId: lobbyID }),
+                });
+            } catch (err) {
+                console.error("Ready error:", err);
+            }
+        };
+
+        return (
+            <>
+                <StyleInjector />
+                {conflictModal}
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                    <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
+                        style={{ maxWidth: 480, width: '100%' }}
+                    >
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--s8)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Ready Up</span>
+                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 36, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s2)' }}>
+                                Your secret character
+                            </h1>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>
+                                Remember this face. Your opponent will try to guess who you are.
+                            </p>
+                        </div>
+
+                        {/* Secret character preview */}
+                        {gameState?.secretCharacter && (
+                            <div className="gw-card" style={{ padding: 'var(--s6)', marginBottom: 'var(--s4)', textAlign: 'center' }}>
+                                <motion.img
+                                    initial={{ scale: 0.92, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
+                                    src={`http://localhost:8080` + gameState.secretCharacter.image}
+                                    alt={gameState.secretCharacter.name}
+                                    style={{ width: 160, height: 200, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--accent-light)', display: 'block', margin: '0 auto var(--s3)' }}
+                                />
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: 'var(--text-900)', margin: 0 }}>
+                                    {gameState.secretCharacter.name}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Player ready status */}
+                        <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)' }}>Players</span>
+                            {[{ label: 'You', player: me }, { label: 'Opponent', player: opponent }].map(({ label, player }) => (
+                                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s3) var(--s4)', background: 'var(--surface-1)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
+                                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, color: 'var(--text-900)' }}>
+                                        {label}
+                                    </span>
+                                    <span style={{
+                                        fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 11,
+                                        letterSpacing: '0.08em', textTransform: 'uppercase',
+                                        color: player?.ready ? 'var(--state-live)' : 'var(--text-400)',
+                                        background: player?.ready ? '#EAF6EF' : 'var(--surface-2)',
+                                        border: `1px solid ${player?.ready ? '#2A7A5640' : 'var(--border)'}`,
+                                        borderRadius: 4, padding: '2px 10px',
+                                    }}>
+                                        {player?.ready ? 'Ready' : 'Waiting…'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            className="gw-btn-primary"
+                            style={{ width: '100%', height: 44, justifyContent: 'center', opacity: iAmReady ? 0.38 : 1, cursor: iAmReady ? 'not-allowed' : 'pointer' }}
+                            onClick={setReady}
+                            disabled={iAmReady}
+                        >
+                            {iAmReady ? 'Waiting for opponent…' : 'Ready Up'}
+                        </button>
+                    </motion.div>
+                </div>
+            </>
+        );
+    }
+
     /* ── MAIN GAME SCREEN ── */
     const Item = styled(Paper)(({ theme }) => ({
         backgroundColor: 'var(--surface-1)',
@@ -791,7 +1068,10 @@ export default function LobbyPage() {
                         padding: 'var(--s4)',
                         display: 'flex',
                         flexDirection: 'column',
-                        overflowY: 'auto',
+                        overflow: 'hidden',
+                        height: 'calc(100vh - 56px)',
+                        position: 'sticky',
+                        top: 0,
                     }}>
                         {gameState && gameState.secretCharacter && (
                             <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)' }}>
@@ -806,28 +1086,80 @@ export default function LobbyPage() {
                                 </p>
                             </div>
                         )}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s4)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
                             <MessageSquare size={13} color="var(--text-400)" />
                             <span className="gw-label">Question Log</span>
+                            {questionLog.length > 0 && (
+                                <span style={{ marginLeft: 'auto', fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: 'var(--text-400)' }}>
+                                    {questionLog.length}
+                                </span>
+                            )}
                         </div>
-                        {questionLog.length > 0 ? (
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                {questionLog.map((msg, index) => (
-                                    <div key={index} style={{
-                                        padding: 'var(--s3) 0',
-                                        borderBottom: index < questionLog.length - 1 ? '1px solid var(--border)' : 'none',
-                                    }}>
-                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)', color: 'var(--accent)' }}>{msg.username}</span>
-                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', margin: 0, lineHeight: 1.5 }}>{msg.content}</p>
-                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>{msg.time}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-400)', textAlign: 'center', paddingTop: 'var(--s8)' }}>
-                                No questions yet
-                            </p>
-                        )}
+                        <div style={{
+                            flex: 1,
+                            minHeight: 0,
+                            overflowY: 'auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 'var(--s2)',
+                            paddingRight: 2,
+                        }}>
+                            {questionLog.length === 0 ? (
+                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-400)', textAlign: 'center', paddingTop: 'var(--s8)', margin: 0 }}>
+                                    No questions yet
+                                </p>
+                            ) : (
+                                [...questionLog].reverse().map((msg, index) => {
+                                    const isAnswered = msg.answer !== null && msg.answer !== undefined;
+                                    const answerText = isAnswered ? msg.answer.trim().toLowerCase() : null;
+                                    const isYes = answerText === 'yes';
+                                    const answerColor = isYes ? 'var(--state-live)' : 'var(--state-out)';
+                                    const answerBg = isYes ? '#EAF6EF' : '#FEF0EE';
+                                    return (
+                                        <div key={index} style={{
+                                            background: 'var(--surface-0)',
+                                            border: '1px solid var(--border)',
+                                            borderRadius: 'var(--r)',
+                                            padding: 'var(--s3)',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 'var(--s2)',
+                                        }}>
+                                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-900)', margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+                                                {msg.question || msg.content}
+                                            </p>
+                                            {isAnswered ? (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+                                                    <span style={{
+                                                        fontFamily: "'DM Sans', sans-serif",
+                                                        fontSize: 11, fontWeight: 700,
+                                                        letterSpacing: '0.06em',
+                                                        textTransform: 'uppercase',
+                                                        color: answerColor,
+                                                        background: answerBg,
+                                                        border: `1px solid ${answerColor}44`,
+                                                        borderRadius: 4,
+                                                        padding: '2px 8px',
+                                                    }}>
+                                                        {msg.answer}
+                                                    </span>
+                                                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>{msg.time}</span>
+                                                </div>
+                                            ) : (
+                                                <span style={{
+                                                    fontFamily: "'DM Sans', sans-serif",
+                                                    fontSize: 11, fontWeight: 600,
+                                                    color: 'var(--text-400)',
+                                                    letterSpacing: '0.04em',
+                                                }}>
+                                                    Waiting for answer…
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
                 )}
 

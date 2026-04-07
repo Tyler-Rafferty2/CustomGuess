@@ -21,7 +21,7 @@ func ConnectDB() {
     DB = db
 
     // Auto migrate your models
-    err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{},  &models.Character{}, &models.User{})
+    err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{}, &models.Character{}, &models.User{}, &models.StoredMessage{})
     if err != nil {
         log.Fatal("Failed to migrate database:", err)
     }

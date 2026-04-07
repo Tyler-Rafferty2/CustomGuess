@@ -18,6 +18,18 @@ type LobbyHandler struct {
     Service *services.LobbyService
 }
 
+// GET /lobby/{lobbyID}/messages
+func (h *LobbyHandler) GetMessageHistoryHandler(w http.ResponseWriter, r *http.Request) {
+    lobbyID := chi.URLParam(r, "lobbyID")
+    msgs, err := h.Service.GetMessageHistory(lobbyID)
+    if err != nil {
+        http.Error(w, "failed to fetch messages", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(msgs)
+}
+
 // POST /lobby/create
 func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)
@@ -140,19 +152,21 @@ func (h *LobbyHandler) GetLobbyHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // Call service with lobbyID and userID
-    lobby, secretChar, err := h.Service.GetLobbyForPlayer(lobbyID, user.ID)
+    lobby, secretChar, opponentChar, err := h.Service.GetLobbyForPlayer(lobbyID, user.ID)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
 
-    // Build response including secret character only for this user
+    // Build response including secret character only for this user, plus opponent reveal on game over
     response := struct {
-        Lobby       *models.Lobby      `json:"lobby"`
-        SecretCharacter *models.Character `json:"secretCharacter,omitempty"`
+        Lobby             *models.Lobby     `json:"lobby"`
+        SecretCharacter   *models.Character `json:"secretCharacter,omitempty"`
+        OpponentCharacter *models.Character `json:"opponentCharacter,omitempty"`
     }{
-        Lobby: lobby,
-        SecretCharacter: secretChar,
+        Lobby:             lobby,
+        SecretCharacter:   secretChar,
+        OpponentCharacter: opponentChar,
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -195,6 +209,25 @@ func (h *LobbyHandler) SetSecretCharHandler(w http.ResponseWriter, r *http.Reque
     }
 
     json.NewEncoder(w).Encode(lobby)
+}
+
+// POST /lobby/ready
+func (h *LobbyHandler) ReadyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    var req struct {
+        LobbyID uuid.UUID `json:"lobbyId"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    allReady, err := h.Service.SetPlayerReady(user, req.LobbyID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]any{"allReady": allReady})
 }
 
 // POST /lobby/forfeit

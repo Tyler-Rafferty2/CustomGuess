@@ -52,6 +52,21 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 
 	ws.BroadcastLobbyUpdate(client.LobbyID)
 
+	if pendingQ, _ := getPendingQuestion(client.LobbyID); pendingQ != nil {
+		channel := "pending_question"
+		if pendingQ.SenderID == client.PlayerId {
+			channel = "pending_waiting"
+		}
+		client.Send <- models.Message{
+			Type:     "pending",
+			Content:  pendingQ.Content,
+			Channel:  channel,
+			SenderId: pendingQ.SenderID,
+			Username: pendingQ.Username,
+			LobbyID:  client.LobbyID,
+		}
+	}
+
 	for {
 		var msg map[string]interface{}
 		err := ws.conn.ReadJSON(&msg)
@@ -98,12 +113,52 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 
 		message.LobbyTurn = (*lobby.TurnID).String()
 
+		// Persist game/response messages
+		saveMessageToDB(message)
+
 		// Broadcast valid move
 		ws.hub.BroadcastMessage(message)
 
 		// Update turn in DB to next player
 		//lobby.TurnID = getNextPlayerID(lobby)
 		//saveLobbyToDB(lobby)
+	}
+}
+
+func getPendingQuestion(lobbyID string) (*models.StoredMessage, error) {
+	var lastQuestion models.StoredMessage
+	err := config.DB.Where("lobby_id = ? AND channel = ?", lobbyID, "game").
+		Order("created_at desc").
+		First(&lastQuestion).Error
+	if err != nil {
+		return nil, nil // no questions yet
+	}
+
+	var responseCount int64
+	config.DB.Model(&models.StoredMessage{}).
+		Where("lobby_id = ? AND channel = ? AND created_at > ?", lobbyID, "response", lastQuestion.CreatedAt).
+		Count(&responseCount)
+
+	if responseCount > 0 {
+		return nil, nil // already answered
+	}
+	return &lastQuestion, nil
+}
+
+func saveMessageToDB(msg models.Message) {
+	if msg.Channel != "game" && msg.Channel != "response" {
+		return
+	}
+	stored := models.StoredMessage{
+		LobbyID:   msg.LobbyID,
+		SenderID:  msg.SenderId,
+		Username:  msg.Username,
+		Content:   msg.Content,
+		Channel:   msg.Channel,
+		LobbyTurn: msg.LobbyTurn,
+	}
+	if err := config.DB.Create(&stored).Error; err != nil {
+		log.Printf("Failed to save message to DB: %v", err)
 	}
 }
 

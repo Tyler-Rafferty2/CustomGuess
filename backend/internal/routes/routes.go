@@ -54,6 +54,7 @@ func MountRoutes(r chi.Router) {
 	r.Route("/lobby", func(r chi.Router) {
     // First, define public routes (no middleware)
     r.Get("/{lobbyId}/status", lobbyHandler.GetLobbyStatus)
+    r.Get("/{lobbyID}/messages", lobbyHandler.GetMessageHistoryHandler)
     
     // Then, create a group with middleware for protected routes
     r.Group(func(r chi.Router) {
@@ -67,6 +68,7 @@ func MountRoutes(r chi.Router) {
         r.Post("/guess", lobbyHandler.GuessLobbyHandler)
         r.Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
         r.Post("/forfeit", lobbyHandler.ForfeitHandler)
+        r.Post("/ready", lobbyHandler.ReadyHandler)
         })
     })
 

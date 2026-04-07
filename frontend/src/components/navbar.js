@@ -163,7 +163,6 @@ export default function Navbar() {
 
                         <div style={{ display: "flex", gap: 8 }}>
                             <GhostButton onClick={() => setShowSettings(!showSettings)} Icon={Settings} label="Menu" />
-                            <DangerButton onClick={() => setShowLeaveConfirm(true)} Icon={LogOut} label="Leave" />
                         </div>
                     </div>
                 </nav>
@@ -213,7 +212,7 @@ export default function Navbar() {
                                     <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
                                     <MenuRow
                                         Icon={LogOut} label="Leave Game" sub="Exit current match"
-                                        danger onClick={() => { showHowToPlay(true); }}
+                                        danger onClick={() => { setShowSettings(false); setShowLeaveConfirm(true); }}
                                     />
                                 </div>
                             </motion.div>

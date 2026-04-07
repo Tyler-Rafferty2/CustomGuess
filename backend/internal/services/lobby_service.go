@@ -27,6 +27,14 @@ func NewLobbyService(db *gorm.DB, hub *Hub) *LobbyService {
 }
 
 
+func (s *LobbyService) GetMessageHistory(lobbyID string) ([]models.StoredMessage, error) {
+    var msgs []models.StoredMessage
+    err := s.DB.Where("lobby_id = ? AND channel IN ?", lobbyID, []string{"game", "response"}).
+        Order("created_at asc").
+        Find(&msgs).Error
+    return msgs, err
+}
+
 type LobbyGetter interface {
     GetLobbyByID(lobbyID string) (*models.Lobby, error)
 }
@@ -311,7 +319,7 @@ func (s *LobbyService) MakeMove(playerID uuid.UUID, guessed string) error {
     return s.DB.Save(gs).Error
 }
 
-func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lobby, *models.Character, error) {
+func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lobby, *models.Character, *models.Character, error) {
     var lobby models.Lobby
 
     // Load lobby with character set and all characters, plus players (without secret characters)
@@ -319,7 +327,7 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
         Preload("CharacterSet.Characters").
         Preload("Players").
         First(&lobby, "id = ?", lobbyID).Error; err != nil {
-        return nil, nil, err
+        return nil, nil, nil, err
     }
 
     // Load the GameState for this user only
@@ -328,10 +336,42 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
         Joins("JOIN players ON players.id = game_states.player_id").
         Where("players.lobby_id = ? AND (players.user_id = ? OR players.guest_id = ?)", lobbyID, userID, userID).
         First(&gs).Error; err != nil {
-        return &lobby, nil, nil // return lobby even if the secret character isn't found yet
+        return &lobby, nil, nil, nil // return lobby even if the secret character isn't found yet
     }
 
-    return &lobby, gs.SecretCharacter, nil
+    // When the game is over, also reveal the opponent's secret character
+    var opponentChar *models.Character
+    if lobby.GameOver {
+        var opponentGS models.GameState
+        if err := s.DB.Preload("SecretCharacter").
+            Joins("JOIN players ON players.id = game_states.player_id").
+            Where("players.lobby_id = ? AND players.user_id != ? AND players.guest_id != ?", lobbyID, userID, userID).
+            First(&opponentGS).Error; err == nil && opponentGS.SecretCharacter != nil {
+            opponentChar = opponentGS.SecretCharacter
+        }
+    }
+
+    return &lobby, gs.SecretCharacter, opponentChar, nil
+}
+
+func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (bool, error) {
+    var player models.Player
+    if err := s.DB.Where("lobby_id = ? AND (user_id = ? OR guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {
+        return false, err
+    }
+
+    player.Ready = true
+    if err := s.DB.Save(&player).Error; err != nil {
+        return false, err
+    }
+
+    // Check if all players in the lobby are ready
+    var notReadyCount int64
+    s.DB.Model(&models.Player{}).Where("lobby_id = ? AND ready = ?", lobbyID, false).Count(&notReadyCount)
+
+    s.broadcastLobbyUpdate(lobbyID.String())
+
+    return notReadyCount == 0, nil
 }
 
 func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, characterID string) (*models.Lobby, error) {

@@ -11,6 +11,7 @@ type Player struct {
     UserID    uuid.UUID  `gorm:"type:uuid;" json:"userId"`    // No FK constraint
     GuestID   uuid.UUID  `gorm:"type:uuid" json:"guestId"`
     Name      string     `gorm:"not null" json:"name"`                // display name in this game
+    Ready     bool       `gorm:"default:false" json:"ready"`
     GameState  GameState  `gorm:"constraint:OnDelete:CASCADE;" json:"gameState"`
 }
 
