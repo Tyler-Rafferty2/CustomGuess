@@ -2,6 +2,8 @@ package services
 
 import (
     "errors"
+    "fmt"
+    "time"
 
     "github.com/google/uuid"
     "gorm.io/gorm"
@@ -10,11 +12,13 @@ import (
 )
 
 type UserService struct {
-    DB *gorm.DB
+    DB           *gorm.DB
+    EmailService *EmailService
+    AppBaseURL   string // e.g. "http://localhost:3080"
 }
 
-func NewUserService(db *gorm.DB) *UserService {
-    return &UserService{DB: db}
+func NewUserService(db *gorm.DB, emailSvc *EmailService, appBaseURL string) *UserService {
+    return &UserService{DB: db, EmailService: emailSvc, AppBaseURL: appBaseURL}
 }
 
 // SignUp creates a new user
@@ -60,4 +64,48 @@ func (s *UserService) GetUserByID(id uuid.UUID) (*models.User, error) {
         return nil, err
     }
     return &user, nil
+}
+
+// ForgotPassword generates a reset token and emails a reset link
+func (s *UserService) ForgotPassword(email string) error {
+    var user models.User
+    if err := s.DB.First(&user, "email = ?", email).Error; err != nil {
+        // Don't reveal whether the email exists
+        return nil
+    }
+
+    token := uuid.New().String()
+    expires := time.Now().Add(1 * time.Hour)
+    user.ResetToken = token
+    user.ResetTokenExpiresAt = &expires
+
+    if err := s.DB.Save(&user).Error; err != nil {
+        return err
+    }
+
+    resetLink := fmt.Sprintf("%s/password_reset?token=%s", s.AppBaseURL, token)
+    return s.EmailService.SendPasswordReset(user.Email, resetLink)
+}
+
+// ResetPassword validates the token and updates the password
+func (s *UserService) ResetPassword(token, newPassword string) error {
+    var user models.User
+    if err := s.DB.First(&user, "reset_token = ?", token).Error; err != nil {
+        return errors.New("invalid or expired token")
+    }
+
+    if user.ResetTokenExpiresAt == nil || time.Now().After(*user.ResetTokenExpiresAt) {
+        return errors.New("invalid or expired token")
+    }
+
+    hashed, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+    if err != nil {
+        return err
+    }
+
+    user.PasswordHash = string(hashed)
+    user.ResetToken = ""
+    user.ResetTokenExpiresAt = nil
+
+    return s.DB.Save(&user).Error
 }

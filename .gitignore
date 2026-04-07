@@ -1,0 +1,21 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Go
+backend/backend
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Next.js
+frontend/.next/
+frontend/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+scripts.txt
+designScehma.txt
+CLAUDE.md

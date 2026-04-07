@@ -28,6 +28,8 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=example
       - DB_NAME=mydb
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3080}
     depends_on:
       - db
 

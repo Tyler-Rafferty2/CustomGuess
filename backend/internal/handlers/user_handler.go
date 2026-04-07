@@ -48,6 +48,36 @@ func (h *UserHandler) SignInHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(user) // could return JWT token here
 }
 
+// POST /users/forgot-password
+func (h *UserHandler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        Email string `json:"email"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    // Always return 200 to avoid leaking whether an email exists
+    h.Service.ForgotPassword(req.Email)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"message": "If that email exists, a reset link has been sent."})
+}
+
+// POST /users/reset-password
+func (h *UserHandler) ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        Token    string `json:"token"`
+        Password string `json:"password"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    if err := h.Service.ResetPassword(req.Token, req.Password); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"message": "Password updated successfully."})
+}
+
 // GET /user/:id
 func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
     // Assume `id` comes from URL params, e.g., using gorilla/mux

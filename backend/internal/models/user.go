@@ -13,6 +13,8 @@ type User struct {
     IsGuest bool `gorm:"default:false" json:"isGuest"`
     CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
     Players []Player `gorm:"foreignKey:UserID" json:"players,omitempty"`
+    ResetToken          string     `gorm:"index" json:"-"`
+    ResetTokenExpiresAt *time.Time `json:"-"`
 }
 
 // BeforeCreate generates a UUID before inserting a new User

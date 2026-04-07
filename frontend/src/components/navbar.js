@@ -97,6 +97,7 @@ export default function Navbar() {
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [showUserMenu, setShowUserMenu] = useState(false);
+    const [showHowToPlay, setShowHowToPlay] = useState(false);
 
     const router = useRouter();
 
@@ -212,7 +213,7 @@ export default function Navbar() {
                                     <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
                                     <MenuRow
                                         Icon={LogOut} label="Leave Game" sub="Exit current match"
-                                        danger onClick={() => { setShowSettings(false); setShowLeaveConfirm(true); }}
+                                        danger onClick={() => { showHowToPlay(true); }}
                                     />
                                 </div>
                             </motion.div>
@@ -271,9 +272,9 @@ export default function Navbar() {
                                     style={{
                                         display: "flex", alignItems: "center", gap: 8,
                                         padding: "4px 8px 4px 4px",
-                                        background: "transparent", border: `1px solid ${T.border}`,
+                                        background: showUserMenu ? T.surface1 : "transparent",
+                                        border: `1px solid ${showUserMenu ? T.borderStrong : T.border}`,
                                         borderRadius: "6px", cursor: "pointer",
-                                        ...(showUserMenu && { background: T.surface1, borderColor: T.borderStrong }),
                                     }}
                                     whileHover={{ background: T.surface1, borderColor: T.borderStrong }}
                                     whileTap={{ scale: 0.97 }}
@@ -342,10 +343,17 @@ export default function Navbar() {
                                                 <div style={{ padding: 6 }}>
                                                     {[
                                                         { icon: <User size={14} />, label: "Profile", sub: "View your stats & history" },
-                                                        { icon: <Settings size={14} />, label: "Settings", sub: "Preferences & account" },
+                                                        // { icon: <Settings size={14} />, label: "Settings", sub: "Preferences & account" },
                                                         { icon: <HelpCircle size={14} />, label: "How to Play", sub: "Game rules & tips" },
                                                     ].map(({ icon, label, sub }) => (
-                                                        <motion.button key={label} onClick={() => { console.log(label + " clicked"); setShowUserMenu(false); }}
+                                                        <motion.button
+                                                            key={label}
+                                                            onClick={() => {
+                                                                if (label === "How to Play") { setShowHowToPlay(true); }
+                                                                else if (label === "Profile") { router.push("/profile") }
+                                                                else console.log(label + " clicked");
+                                                                setShowUserMenu(false);
+                                                            }}
                                                             style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
                                                             whileHover={{ background: T.surface1 }}
                                                         >
@@ -359,7 +367,8 @@ export default function Navbar() {
 
                                                     <div style={{ height: 1, background: T.border, margin: "4px 6px" }} />
 
-                                                    <motion.button onClick={() => { handleLogout(); setShowUserMenu(false); }}
+                                                    <motion.button
+                                                        onClick={() => { handleLogout(); setShowUserMenu(false); }}
                                                         style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
                                                         whileHover={{ background: "#FEF0EE" }}
                                                     >
@@ -383,7 +392,11 @@ export default function Navbar() {
                     </div>
 
                 </div>
-            </nav>
+                <HowToPlayModal
+                    open={showHowToPlay}
+                    onClose={() => setShowHowToPlay(false)}
+                />
+            </nav >
         </>
     );
 }
@@ -556,6 +569,89 @@ function LeaveModal({ open, onCancel, onConfirm }) {
                         <div style={{ display: "flex", gap: 8 }}>
                             <GhostButton onClick={onCancel} label="Stay" />
                             <DangerButton onClick={onConfirm} Icon={LogOut} label="Leave" />
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+}
+
+function HowToPlayModal({ open, onClose }) {
+    return (
+        <AnimatePresence>
+            {open && (
+                <motion.div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 50,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "rgba(26,21,16,0.6)", // Warm, dark backdrop
+                        padding: 16,
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }} // --dur-slow + --ease-out
+                >
+                    <motion.div
+                        style={{
+                            width: "100%",
+                            maxWidth: 480, // Updated to 480px per Modal specs
+                            background: T.surface0,
+                            border: `1px solid ${T.border}`,
+                            borderRadius: "6px", // Strict --r: 6px
+                            padding: 32,
+                            fontFamily: "'DM Sans', sans-serif",
+                            boxShadow: "0 4px 24px rgba(26,21,16,0.08)", // Optional: soft shadow for physical box feel, remove if sticking strictly to surface layers
+                        }}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 16 }}
+                        transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }} // --dur-slow
+                    >
+                        {/* Header Section */}
+                        <h2 style={{
+                            fontFamily: "'Fraunces', serif",
+                            fontSize: 26, // --text-xl
+                            fontWeight: 700,
+                            color: T.text900,
+                            margin: "0 0 24px",
+                            lineHeight: 1.1,
+                            letterSpacing: "-0.02em",
+                        }}>
+                            How to play
+                        </h2>
+
+                        {/* Body Section: 3-step how-to (label + one-line text, no icons/emoji) */}
+                        <div style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 16, // --s4
+                            margin: "0 0 32px", // --s8
+                        }}>
+                            <p style={{ fontSize: 14, color: T.text600, margin: 0, lineHeight: 1.6 }}>
+                                <strong style={{ color: T.text900, fontWeight: 600 }}>1. Ask questions. </strong>
+                                Take turns asking yes or no questions about your opponent's mystery character.
+                            </p>
+
+                            <p style={{ fontSize: 14, color: T.text600, margin: 0, lineHeight: 1.6 }}>
+                                <strong style={{ color: T.text900, fontWeight: 600 }}>2. Eliminate suspects. </strong>
+                                Flip cards face down based on the answers you receive to narrow the field.
+                            </p>
+
+                            <p style={{ fontSize: 14, color: T.text600, margin: 0, lineHeight: 1.6 }}>
+                                <strong style={{ color: T.text900, fontWeight: 600 }}>3. Guess to win. </strong>
+                                Confidently identify your opponent's secret character before they guess yours.
+                            </p>
+                        </div>
+
+                        {/* Footer Section: Right-aligned CTA */}
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                            <PrimaryButton onClick={onClose} label="Got it" />
                         </div>
                     </motion.div>
                 </motion.div>

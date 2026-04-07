@@ -2,6 +2,7 @@ package routes
 
 import (
     "net/http"
+    "os"
 
     "github.com/go-chi/chi/v5"
     "github.com/tyler-rafferty2/GuessWho/internal/handlers"
@@ -19,7 +20,12 @@ func MountRoutes(r chi.Router) {
     wsHandler := handlers.NewWebSocketHandler(chatHub)
 
 	// Create services
-    userService := services.NewUserService(config.DB)
+    emailService := services.NewEmailService(os.Getenv("RESEND_API_KEY"))
+    appBaseURL := os.Getenv("APP_BASE_URL")
+    if appBaseURL == "" {
+        appBaseURL = "http://localhost:3080"
+    }
+    userService := services.NewUserService(config.DB, emailService, appBaseURL)
     lobbyService := services.NewLobbyService(config.DB, chatHub)
     playerService := services.NewPlayerService(config.DB)
     gameStateService := services.NewGameStateService(config.DB)
@@ -40,6 +46,8 @@ func MountRoutes(r chi.Router) {
         r.Post("/signup", userHandler.SignUpHandler)
         r.Post("/signin", userHandler.SignInHandler)
         r.Get("/{id}", userHandler.GetUserHandler)
+        r.Post("/forgot-password", userHandler.ForgotPasswordHandler)
+        r.Post("/reset-password", userHandler.ResetPasswordHandler)
 	})
 
 
