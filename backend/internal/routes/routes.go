@@ -69,6 +69,9 @@ func MountRoutes(r chi.Router) {
         r.Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
         r.Post("/forfeit", lobbyHandler.ForfeitHandler)
         r.Post("/ready", lobbyHandler.ReadyHandler)
+        r.Post("/{lobbyID}/rematch", lobbyHandler.RequestRematchHandler)
+        r.Post("/{lobbyID}/rematch/accept", lobbyHandler.AcceptRematchHandler)
+        r.Post("/{lobbyID}/rematch/decline", lobbyHandler.DeclineRematchHandler)
         })
     })
 
@@ -87,6 +90,8 @@ func MountRoutes(r chi.Router) {
             r.Get("/", playerHandler.GetPlayersHandler)
             r.Post("/set/create", playerHandler.CreateSetHandler)
             r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
+            r.Put("/set/{setId}", playerHandler.UpdateSetHandler)
+            r.Delete("/set/{setId}", playerHandler.DeleteSetHandler)
         })
     })
 

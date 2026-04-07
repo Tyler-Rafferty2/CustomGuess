@@ -238,11 +238,23 @@ export default function LobbyPage() {
     const wsRef = useRef(null);
     const [isMinimized, setIsMinimized] = useState(false);
     const isMinimizedRef = useRef(isMinimized);
+    const playerIdRef = useRef(playerId);
     const [isGuessMode, setIsGuessMode] = useState(false);
     const [lobbyStatus, setLobbyStatus] = useState(null);
     const [isCopied, setIsCopied] = useState(false);
     const [conflictLobbyId, setConflictLobbyId] = useState(null);
     const conflictLobbyIdRef = useRef(null);
+
+    // Rematch state
+    const [rematchModalOpen, setRematchModalOpen] = useState(false);
+    const [rematchWaiting, setRematchWaiting] = useState(false);
+    const [incomingRematch, setIncomingRematch] = useState(null); // { characterSetName }
+    const [selectedRematchSet, setSelectedRematchSet] = useState(null);
+    const [rematchPublicSets, setRematchPublicSets] = useState([]);
+    const [rematchMySets, setRematchMySets] = useState([]);
+    const [rematchSetView, setRematchSetView] = useState("public");
+    const [rematchDeclinedToast, setRematchDeclinedToast] = useState(false);
+    const [sentRematchSetName, setSentRematchSetName] = useState(null);
 
     const params = useParams();
     const lobbyID = params.lobbyId;
@@ -274,6 +286,59 @@ export default function LobbyPage() {
         } catch (err) {
             console.error("Forfeit error:", err);
             setError("Network error");
+        }
+    };
+
+    const sendRematchRequest = async () => {
+        if (!selectedRematchSet) return;
+        try {
+            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                body: JSON.stringify({ characterSetId: selectedRematchSet.id }),
+            });
+            setRematchModalOpen(false);
+            setRematchWaiting(true);
+            setSentRematchSetName(selectedRematchSet?.name ?? null);
+        } catch (err) {
+            console.error("Rematch request error:", err);
+        }
+    };
+
+    const acceptRematch = async () => {
+        try {
+            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch/accept`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+            });
+            setIncomingRematch(null);
+        } catch (err) {
+            console.error("Accept rematch error:", err);
+        }
+    };
+
+    const declineRematch = async () => {
+        try {
+            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch/decline`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+            });
+            setIncomingRematch(null);
+        } catch (err) {
+            console.error("Decline rematch error:", err);
+        }
+    };
+
+    const cancelRematch = async () => {
+        try {
+            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch/decline`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+            });
+            setRematchWaiting(false);
+            setSentRematchSetName(null);
+        } catch (err) {
+            console.error("Cancel rematch error:", err);
         }
     };
 
@@ -350,6 +415,7 @@ export default function LobbyPage() {
         if (lobby?.players && user) {
             const id = lobby.players.find(p => p.userId === user.id || p.guestId === user.id)?.id;
             setPlayerId(id);
+            playerIdRef.current = id;
         }
     }, [lobby, user]);
 
@@ -385,6 +451,18 @@ export default function LobbyPage() {
                 if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
             } else if (message.channel === "lobby_update") {
                 setLobby(message.lobby);
+            } else if (message.channel === "rematch_request") {
+                if (message.SenderId !== playerIdRef.current) {
+                    setIncomingRematch({ characterSetName: message.content });
+                }
+            } else if (message.channel === "rematch_ready") {
+                router.push(`/lobby/${message.content}`);
+            } else if (message.channel === "rematch_declined") {
+                if (message.SenderId !== playerIdRef.current) {
+                    setRematchWaiting(false);
+                    setRematchDeclinedToast(true);
+                    setTimeout(() => setRematchDeclinedToast(false), 3000);
+                }
             } else if (message.channel === "response") {
                 if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
                 if (message.SenderId != playerId) {
@@ -464,12 +542,32 @@ export default function LobbyPage() {
     }, [lobby?.id, lobby?.players?.length]);
 
     useEffect(() => {
-        if (lobbyID && user?.id && lobby?.players?.length && !gameState) { getGameState(); }
+        if (lobbyID && user?.id && lobby?.players?.length && !gameState) {
+            const alreadyInLobby = lobby.players.some(p => p.userId === user.id || p.guestId === user.id);
+            if (alreadyInLobby) { getGameState(); }
+        }
     }, [lobbyID, user?.id, lobby?.players?.length, gameState]);
 
     // Fetch game state when game ends so we get the opponent's revealed character
     useEffect(() => {
         if (lobby?.gameOver) { getGameState(); }
+    }, [lobby?.gameOver]);
+
+    // Fetch character sets for rematch when game ends
+    useEffect(() => {
+        if (!lobby?.gameOver) return;
+        fetch("http://localhost:8080/player/set/public")
+            .then(r => r.json())
+            .then(data => setRematchPublicSets(Array.isArray(data) ? data : []))
+            .catch(() => {});
+        if (user && !user.isGuest) {
+            fetch("http://localhost:8080/player/set/player", {
+                headers: { "X-User-ID": user.id }
+            })
+                .then(r => r.json())
+                .then(data => setRematchMySets(Array.isArray(data) ? data : []))
+                .catch(() => {});
+        }
     }, [lobby?.gameOver]);
 
     const conflictModal = conflictLobbyId && (
@@ -678,11 +776,88 @@ export default function LobbyPage() {
                         </div>
 
                         {/* Actions */}
+                        {rematchDeclinedToast && (
+                            <div style={{ borderLeft: '3px solid var(--state-out)', background: 'var(--surface-1)', borderRadius: 'var(--r)', padding: 'var(--s3) var(--s4)', marginBottom: 'var(--s3)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)' }}>
+                                Opponent declined the rematch.
+                            </div>
+                        )}
+
+                        {rematchWaiting && (
+                            <div style={{ background: 'var(--surface-1)', border: '1px solid var(--border-strong)', borderRadius: 'var(--r)', padding: 'var(--s4) var(--s5)', marginBottom: 'var(--s4)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--s4)' }}>
+                                    <div>
+                                        <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15, color: 'var(--text-900)', margin: 0, marginBottom: 'var(--s1)' }}>
+                                            Rematch request sent
+                                        </p>
+                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', margin: 0 }}>
+                                            {sentRematchSetName ? <>Playing <strong>{sentRematchSetName}</strong> — </> : ''}Waiting for opponent to accept…
+                                        </p>
+                                    </div>
+                                    <button className="gw-btn-ghost" style={{ height: 36, padding: '0 var(--s4)', whiteSpace: 'nowrap', flexShrink: 0, fontSize: 13 }} onClick={cancelRematch}>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         <div style={{ display: 'flex', gap: 'var(--s3)' }}>
+                            {!rematchWaiting && (
+                                <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} onClick={() => setRematchModalOpen(true)}>
+                                    Rematch
+                                </button>
+                            )}
                             <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} onClick={() => router.push('/')}>
                                 Back to Home
                             </button>
                         </div>
+
+                        {/* Rematch set picker modal */}
+                        {rematchModalOpen && (
+                            <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                                <div className="gw-card" style={{ width: '100%', maxWidth: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: 'var(--s6)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s5)' }}>
+                                        <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)', margin: 0 }}>Choose Character Set</h2>
+                                        <button onClick={() => setRematchModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-400)', fontSize: 20, lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
+                                    </div>
+                                    {/* Tabs */}
+                                    <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--s2)' }}>
+                                        {['public', 'mine'].map(tab => (
+                                            <button key={tab} onClick={() => setRematchSetView(tab)} style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, padding: 'var(--s1) var(--s3)', borderRadius: 'var(--r)', border: 'none', cursor: 'pointer', background: rematchSetView === tab ? 'var(--accent)' : 'transparent', color: rematchSetView === tab ? '#fff' : 'var(--text-600)' }}>
+                                                {tab === 'public' ? 'Public' : 'My Sets'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {/* Set grid */}
+                                    <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
+                                        {(rematchSetView === 'public' ? rematchPublicSets : rematchMySets).map(set => (
+                                            <div key={set.id} onClick={() => setSelectedRematchSet(set)} style={{ background: 'var(--surface-0)', border: `2px solid ${selectedRematchSet?.id === set.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: 'var(--s3)', cursor: 'pointer', transition: 'border-color 150ms' }}>
+                                                <img src={`http://localhost:8080${set.coverImageName}`} alt={set.name} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 4, marginBottom: 'var(--s2)' }} />
+                                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 13, color: 'var(--text-900)', margin: 0 }}>{set.name}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <button className="gw-btn-primary" style={{ marginTop: 'var(--s5)', height: 44 }} disabled={!selectedRematchSet} onClick={sendRematchRequest}>
+                                        Send Rematch Request
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Incoming rematch modal */}
+                        {incomingRematch && (
+                            <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                                <div className="gw-card" style={{ width: '100%', maxWidth: 380, padding: 'var(--s8)', textAlign: 'center' }}>
+                                    <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)', marginBottom: 'var(--s3)' }}>Rematch?</h2>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s6)' }}>
+                                        Your opponent wants a rematch with <strong>{incomingRematch.characterSetName}</strong>.
+                                    </p>
+                                    <div style={{ display: 'flex', gap: 'var(--s3)' }}>
+                                        <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} onClick={declineRematch}>Decline</button>
+                                        <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} onClick={acceptRematch}>Accept</button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 </div>
             </>

@@ -230,6 +230,60 @@ func (h *LobbyHandler) ReadyHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(map[string]any{"allReady": allReady})
 }
 
+// POST /lobby/{id}/rematch
+func (h *LobbyHandler) RequestRematchHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    lobbyID, err := uuid.Parse(chi.URLParam(r, "lobbyID"))
+    if err != nil {
+        http.Error(w, "invalid lobbyID", http.StatusBadRequest)
+        return
+    }
+    var req struct {
+        CharacterSetID uuid.UUID `json:"characterSetId"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    if err := h.Service.RequestRematch(user, lobbyID, req.CharacterSetID); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    w.WriteHeader(http.StatusOK)
+}
+
+// POST /lobby/{id}/rematch/accept
+func (h *LobbyHandler) AcceptRematchHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    lobbyID, err := uuid.Parse(chi.URLParam(r, "lobbyID"))
+    if err != nil {
+        http.Error(w, "invalid lobbyID", http.StatusBadRequest)
+        return
+    }
+
+    newLobby, err := h.Service.AcceptRematch(user, lobbyID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(newLobby)
+}
+
+// POST /lobby/{id}/rematch/decline
+func (h *LobbyHandler) DeclineRematchHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    lobbyID, err := uuid.Parse(chi.URLParam(r, "lobbyID"))
+    if err != nil {
+        http.Error(w, "invalid lobbyID", http.StatusBadRequest)
+        return
+    }
+
+    if err := h.Service.DeclineRematch(user, lobbyID); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    w.WriteHeader(http.StatusOK)
+}
+
 // POST /lobby/forfeit
 func (h *LobbyHandler) ForfeitHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)

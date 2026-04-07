@@ -473,6 +473,173 @@ func (s *LobbyService) SetSecretChar(user *models.User, lobbyID uuid.UUID, chara
     return &gameState, nil
 }
 
+func (s *LobbyService) RequestRematch(user *models.User, lobbyID uuid.UUID, characterSetID uuid.UUID) error {
+    var lobby models.Lobby
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return err
+    }
+    if !lobby.GameOver {
+        return errors.New("game is not over")
+    }
+
+    var player models.Player
+    found := false
+    for _, p := range lobby.Players {
+        if p.UserID == user.ID || p.GuestID == user.ID {
+            player = p
+            found = true
+            break
+        }
+    }
+    if !found {
+        return errors.New("player not found in lobby")
+    }
+
+    var charSet models.CharacterSet
+    if err := s.DB.Where("id = ?", characterSetID).First(&charSet).Error; err != nil {
+        return fmt.Errorf("character set not found: %w", err)
+    }
+
+    lobby.RematchRequestedBy = &player.ID
+    lobby.RematchCharacterSetID = &characterSetID
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        return err
+    }
+
+    s.Hub.BroadcastMessage(models.Message{
+        Type:     "rematch_request",
+        LobbyID:  lobbyID.String(),
+        Channel:  "rematch_request",
+        Content:  charSet.Name,
+        SenderId: player.ID.String(),
+    })
+    return nil
+}
+
+func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*models.Lobby, error) {
+    var oldLobby models.Lobby
+    if err := s.DB.Preload("Players").First(&oldLobby, "id = ?", lobbyID).Error; err != nil {
+        return nil, err
+    }
+    if !oldLobby.GameOver {
+        return nil, errors.New("game is not over")
+    }
+    if oldLobby.RematchRequestedBy == nil || oldLobby.RematchCharacterSetID == nil {
+        return nil, errors.New("no rematch requested")
+    }
+
+    var requestingPlayer, acceptingPlayer *models.Player
+    for i := range oldLobby.Players {
+        p := &oldLobby.Players[i]
+        if p.ID == *oldLobby.RematchRequestedBy {
+            requestingPlayer = p
+        }
+        if p.UserID == user.ID || p.GuestID == user.ID {
+            acceptingPlayer = p
+        }
+    }
+    if acceptingPlayer == nil {
+        return nil, errors.New("player not found in lobby")
+    }
+    if requestingPlayer == nil {
+        return nil, errors.New("requesting player not found")
+    }
+    if requestingPlayer.ID == acceptingPlayer.ID {
+        return nil, errors.New("cannot accept your own rematch request")
+    }
+
+    var charSet models.CharacterSet
+    if err := s.DB.Where("id = ?", *oldLobby.RematchCharacterSetID).First(&charSet).Error; err != nil {
+        return nil, fmt.Errorf("character set not found: %w", err)
+    }
+    var characters []models.Character
+    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&characters).Error; err != nil || len(characters) == 0 {
+        return nil, fmt.Errorf("no characters found for this set")
+    }
+
+    newLobby := &models.Lobby{
+        Code:           generateLobbyCode(),
+        CharacterSetID: charSet.ID,
+        Private:        oldLobby.Private,
+        RandomSecret:   oldLobby.RandomSecret,
+        ChatFeature:    oldLobby.ChatFeature,
+        UserID:         requestingPlayer.UserID,
+        GuestID:        requestingPlayer.GuestID,
+    }
+    if err := s.DB.Create(newLobby).Error; err != nil {
+        return nil, err
+    }
+
+    rand.Seed(time.Now().UnixNano())
+
+    makePlayer := func(old *models.Player) *models.Player {
+        p := &models.Player{
+            LobbyID: newLobby.ID,
+            UserID:  old.UserID,
+            GuestID: old.GuestID,
+            GameState: models.GameState{LobbyID: newLobby.ID},
+        }
+        if newLobby.RandomSecret && len(characters) > 0 {
+            c := characters[rand.Intn(len(characters))]
+            p.GameState.SecretCharacter = &c
+            p.GameState.SecretCharacterID = &c.ID
+        }
+        return p
+    }
+
+    p1 := makePlayer(requestingPlayer)
+    if err := s.DB.Create(p1).Error; err != nil {
+        return nil, err
+    }
+    newLobby.TurnID = &p1.ID
+    s.DB.Save(newLobby)
+
+    p2 := makePlayer(acceptingPlayer)
+    if err := s.DB.Create(p2).Error; err != nil {
+        return nil, err
+    }
+
+    s.Hub.BroadcastMessage(models.Message{
+        Type:    "rematch_ready",
+        LobbyID: oldLobby.ID.String(),
+        Channel: "rematch_ready",
+        Content: newLobby.ID.String(),
+    })
+    return newLobby, nil
+}
+
+func (s *LobbyService) DeclineRematch(user *models.User, lobbyID uuid.UUID) error {
+    var lobby models.Lobby
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return err
+    }
+    if !lobby.GameOver || lobby.RematchRequestedBy == nil {
+        return errors.New("no rematch to decline")
+    }
+
+    var decliningPlayerID string
+    for _, p := range lobby.Players {
+        if p.UserID == user.ID || p.GuestID == user.ID {
+            decliningPlayerID = p.ID.String()
+            break
+        }
+    }
+
+    lobby.RematchRequestedBy = nil
+    lobby.RematchCharacterSetID = nil
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        return err
+    }
+
+    s.Hub.BroadcastMessage(models.Message{
+        Type:     "rematch_declined",
+        LobbyID:  lobbyID.String(),
+        Channel:  "rematch_declined",
+        SenderId: decliningPlayerID,
+    })
+    return nil
+}
+
 func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*models.Lobby, error) {
     var player models.Player
     if err := s.DB.Where("lobby_id = ? AND (user_id = ? OR guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {

@@ -67,6 +67,60 @@ func (s *PlayerService) GetSets(user *models.User) ([]models.CharacterSet, error
     return sets, nil
 }
 
+func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character) (*models.CharacterSet, error) {
+    var set models.CharacterSet
+    if err := s.DB.Where("id = ? AND user_id = ?", setID, user.ID).First(&set).Error; err != nil {
+        return nil, fmt.Errorf("set not found or not owned by user: %w", err)
+    }
+
+    set.Name = name
+    set.Description = description
+    set.Public = public
+    if coverImage != "" {
+        set.CoverImage = coverImage
+    }
+    if err := s.DB.Save(&set).Error; err != nil {
+        return nil, err
+    }
+
+    // Delete characters not in the keep list
+    if len(keepCharacterIDs) > 0 {
+        if err := s.DB.Where("set_id = ? AND id NOT IN ?", setID, keepCharacterIDs).Delete(&models.Character{}).Error; err != nil {
+            return nil, err
+        }
+    } else {
+        if err := s.DB.Where("set_id = ?", setID).Delete(&models.Character{}).Error; err != nil {
+            return nil, err
+        }
+    }
+
+    // Add new characters
+    for i := range newCharacters {
+        newCharacters[i].SetID = setID
+    }
+    if len(newCharacters) > 0 {
+        if err := s.DB.Create(&newCharacters).Error; err != nil {
+            return nil, err
+        }
+    }
+
+    if err := s.DB.Preload("Characters").First(&set, "id = ?", setID).Error; err != nil {
+        return nil, err
+    }
+    return &set, nil
+}
+
+func (s *PlayerService) DeleteSet(user *models.User, setID uuid.UUID) error {
+    result := s.DB.Where("id = ? AND user_id = ?", setID, user.ID).Delete(&models.CharacterSet{})
+    if result.Error != nil {
+        return result.Error
+    }
+    if result.RowsAffected == 0 {
+        return fmt.Errorf("set not found or not owned by user")
+    }
+    return nil
+}
+
 func (s *PlayerService) GetPublicSets() ([]models.CharacterSet, error) {
     var sets []models.CharacterSet
     

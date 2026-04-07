@@ -4,3 +4,5 @@ psql postgresql://postgres:example@localhost:5432/mydb
 docker exec -it guesswho-backend-1 sh
 
 sudo service docker start
+
+claude --resume "rematch-feature-implementation"

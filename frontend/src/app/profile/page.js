@@ -1,11 +1,11 @@
 "use client";
 
 import Navbar from "@/components/navbar";
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, Clock, Hash, Star } from "lucide-react";
+import { ArrowLeft, Trophy, Clock, Hash, Star, Users, Lock, Globe, Pencil, Trash2 } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    Design tokens — v3.0 schema
@@ -80,6 +80,32 @@ function StatCard({ stat, index }) {
 export default function Profile() {
     const { user } = useContext(UserContext);
     const router = useRouter();
+    const [mySets, setMySets] = useState([]);
+    const [setsLoading, setSetsLoading] = useState(true);
+    const [deletingId, setDeletingId] = useState(null);
+
+    useEffect(() => {
+        if (!user?.id || user?.isGuest) { setSetsLoading(false); return; }
+        fetch("http://localhost:8080/player/set/player", {
+            headers: { "X-User-ID": user.id },
+        })
+            .then(r => r.json())
+            .then(data => { setMySets(Array.isArray(data) ? data : []); setSetsLoading(false); })
+            .catch(() => setSetsLoading(false));
+    }, [user?.id]);
+
+    const handleDeleteSet = async (setId) => {
+        if (!confirm("Delete this set? This cannot be undone.")) return;
+        setDeletingId(setId);
+        try {
+            await fetch(`http://localhost:8080/player/set/${setId}`, {
+                method: "DELETE",
+                headers: { "X-User-ID": user.id },
+            });
+            setMySets(prev => prev.filter(s => s.id !== setId));
+        } catch { /* silently fail */ }
+        setDeletingId(null);
+    };
 
     return (
         <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
@@ -103,10 +129,15 @@ export default function Profile() {
         }
         .history-row:hover { background: ${T.surface1}; }
 
+        .set-card-actions { opacity: 0; transition: opacity 150ms; }
+        .set-card-actions:focus-within { opacity: 1; }
+        *:hover > .set-card-actions { opacity: 1; }
+
         @media (max-width: 640px) {
           .stats-grid { grid-template-columns: 1fr 1fr !important; }
           .history-row { grid-template-columns: 1fr 1.5fr 1fr; padding: 12px 16px; }
           .history-turns { display: none; }
+          .set-card-actions { opacity: 1; }
         }
       `}</style>
 
@@ -149,6 +180,103 @@ export default function Profile() {
                             <StatCard key={stat.label} stat={stat} index={i} />
                         ))}
                     </div>
+
+                    {/* My Sets Section */}
+                    {!user?.isGuest && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, color: T.text900, margin: 0 }}>
+                                    My Sets
+                                </h2>
+                                <button
+                                    onClick={() => router.push("/create")}
+                                    style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, padding: "6px 16px", borderRadius: "6px", border: `1px solid ${T.border}`, background: "transparent", color: T.text600, cursor: "pointer", transition: "all 150ms" }}
+                                    onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderStrong; e.currentTarget.style.background = T.surface1; e.currentTarget.style.color = T.text900; }}
+                                    onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.text600; }}
+                                >
+                                    + New Set
+                                </button>
+                            </div>
+
+                            {setsLoading ? (
+                                <div style={{ padding: "32px", textAlign: "center", color: T.text400, fontFamily: "'DM Sans', sans-serif", fontSize: 14 }}>
+                                    Loading sets…
+                                </div>
+                            ) : mySets.length === 0 ? (
+                                <div style={{ background: T.surface0, border: `1px solid ${T.border}`, borderRadius: "6px", padding: "40px 24px", textAlign: "center" }}>
+                                    <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, color: T.text900, marginBottom: 8 }}>No sets yet</p>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: T.text400, marginBottom: 20 }}>Create your first character set to use in games.</p>
+                                    <button
+                                        onClick={() => router.push("/create")}
+                                        style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, padding: "10px 24px", borderRadius: "6px", border: "none", background: T.accent, color: "#fff", cursor: "pointer" }}
+                                    >
+                                        Create a Set
+                                    </button>
+                                </div>
+                            ) : (
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+                                    {mySets.map((set, i) => (
+                                        <motion.div
+                                            key={set.id}
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: 0.4 + i * 0.05, duration: 0.3, ease: [0, 0, 0.2, 1] }}
+                                            style={{ background: T.surface0, border: `1px solid ${T.border}`, borderRadius: "6px", overflow: "hidden", position: "relative" }}
+                                        >
+                                            {/* Action buttons — shown on hover via CSS */}
+                                            <div className="set-card-actions" style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 4, zIndex: 2 }}>
+                                                <button
+                                                    onClick={() => router.push(`/edit/${set.id}`)}
+                                                    title="Edit set"
+                                                    style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.92)", border: `1px solid ${T.border}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                                >
+                                                    <Pencil size={12} color={T.text600} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteSet(set.id)}
+                                                    title="Delete set"
+                                                    disabled={deletingId === set.id}
+                                                    style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.92)", border: `1px solid ${T.border}`, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                                >
+                                                    <Trash2 size={12} color={T.stateOut} />
+                                                </button>
+                                            </div>
+
+                                            {set.coverImageName ? (
+                                                <img
+                                                    src={`http://localhost:8080${set.coverImageName}`}
+                                                    alt={set.name}
+                                                    style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }}
+                                                />
+                                            ) : (
+                                                <div style={{ width: "100%", height: 120, background: T.accentLight, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    <Users size={32} color={T.accentDim} />
+                                                </div>
+                                            )}
+                                            <div style={{ padding: "12px 14px" }}>
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
+                                                    <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: T.text900, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                        {set.name}
+                                                    </p>
+                                                    {set.public
+                                                        ? <Globe size={12} color={T.text400} style={{ flexShrink: 0 }} />
+                                                        : <Lock size={12} color={T.text400} style={{ flexShrink: 0 }} />
+                                                    }
+                                                </div>
+                                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
+                                                    {set.characters?.length ?? 0} character{set.characters?.length !== 1 ? "s" : ""}
+                                                </p>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
 
                     {/* History Section */}
                     <motion.div

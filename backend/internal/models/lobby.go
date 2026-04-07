@@ -26,6 +26,9 @@ type Lobby struct {
     GameOver    bool        `gorm:"default:false" json:"gameOver"`
     GameOverAt  *time.Time   `json:"gameOverAt"`
     Winner    *uuid.UUID        `gorm:"type:uuid" json:"winner"`
+
+    RematchRequestedBy    *uuid.UUID `gorm:"type:uuid" json:"rematchRequestedBy"`
+    RematchCharacterSetID *uuid.UUID `gorm:"type:uuid" json:"rematchCharacterSetID"`
 }
 
 func (l *Lobby) BeforeCreate(tx *gorm.DB) (err error) {

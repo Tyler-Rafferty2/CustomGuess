@@ -9,6 +9,7 @@ import (
     "os"
     "io"
     "strconv"
+    "github.com/go-chi/chi/v5"
     "github.com/google/uuid"
     "path/filepath"
     "strings"
@@ -167,6 +168,91 @@ func saveFile(file multipart.File, originalFilename string) (string, error) {
     return "/uploads/" + filename, nil
 }
 
+
+// PUT /set/{setId}
+func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    setID, err := uuid.Parse(chi.URLParam(r, "setId"))
+    if err != nil {
+        http.Error(w, "invalid setId", http.StatusBadRequest)
+        return
+    }
+
+    if err := r.ParseMultipartForm(10 << 20); err != nil {
+        http.Error(w, "Failed to parse form", http.StatusBadRequest)
+        return
+    }
+
+    name := r.FormValue("name")
+    description := r.FormValue("description")
+    publicStr := r.FormValue("public")
+    public, _ := strconv.ParseBool(publicStr)
+
+    var coverImageURL string
+    coverFile, coverHeader, err := r.FormFile("coverImage")
+    if err == nil {
+        defer coverFile.Close()
+        coverImageURL, err = saveFile(coverFile, coverHeader.Filename)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusBadRequest)
+            return
+        }
+    }
+
+    // Parse keep IDs
+    var keepIDs []uuid.UUID
+    for _, idStr := range r.Form["keepCharacterIds[]"] {
+        if id, err := uuid.Parse(idStr); err == nil {
+            keepIDs = append(keepIDs, id)
+        }
+    }
+
+    // Parse new characters
+    var newCharacters []models.Character
+    for i := 0; ; i++ {
+        charName := r.FormValue(fmt.Sprintf("newCharacters[%d][name]", i))
+        if charName == "" {
+            break
+        }
+        charImageKey := fmt.Sprintf("newCharacters[%d][image]", i)
+        file, header, err := r.FormFile(charImageKey)
+        var imageURL string
+        if err == nil {
+            defer file.Close()
+            imageURL, _ = saveFile(file, header.Filename)
+        } else {
+            imageURL = r.FormValue(charImageKey)
+        }
+        newCharacters = append(newCharacters, models.Character{Name: charName, Image: imageURL})
+    }
+
+    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(set)
+}
+
+// DELETE /set/{setId}
+func (h *PlayerHandler) DeleteSetHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    setID, err := uuid.Parse(chi.URLParam(r, "setId"))
+    if err != nil {
+        http.Error(w, "invalid setId", http.StatusBadRequest)
+        return
+    }
+
+    if err := h.Service.DeleteSet(user, setID); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    w.WriteHeader(http.StatusNoContent)
+}
 
 // GET /set/player
 func (h *PlayerHandler) GetSetFromPlayerHandler(w http.ResponseWriter, r *http.Request) {

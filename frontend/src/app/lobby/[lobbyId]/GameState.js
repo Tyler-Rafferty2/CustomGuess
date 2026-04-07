@@ -38,10 +38,12 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                 },
                 body: JSON.stringify({ lobbyId: lobbyID, characterId: charId }),
             });
-            const data = await res.json();
-            if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-            console.log("Fetched gamestate:", data);
-            setGameState(data);
+            if (!res.ok) {
+                const data = await res.json();
+                setError(data.error || "Something went wrong");
+                return;
+            }
+            getGameState();
         } catch (err) {
             console.error(err);
             setError("Network error");
