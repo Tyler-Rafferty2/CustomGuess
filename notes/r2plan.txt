@@ -1,0 +1,72 @@
+Current setup:
+  - saveFile() writes to disk at uploads/filename
+  - DB stores /uploads/filename (a relative path)
+  - Backend serves the uploads/ directory as static files
+  - Frontend prepends http://localhost:8080 to every image path — hardcoded in 8 places
+
+  ---
+  Two approaches
+
+  Option A: Server-side upload (simpler)
+
+  Frontend sends the file to your backend exactly as it does now. Backend uses the AWS SDK (R2 is S3-compatible) to
+  stream it to R2 instead of disk. Stores the full public R2 URL in the DB.
+
+  Pros: Almost no frontend change, backend stays in control
+  Cons: Every uploaded image passes through your Go server first — wasted bandwidth and memory
+
+  Option B: Presigned URLs (direct upload)
+
+  Backend generates a short-lived presigned URL and returns it to the frontend. Frontend uploads the file directly to R2
+   using that URL. Sends the resulting key back to backend to store.
+
+  Pros: No image traffic through your server at all — cheaper, faster, scales better
+  Cons: Requires a new endpoint, more frontend logic
+
+  ---
+  Recommendation: Option A now, with the right structure for Option B later
+
+  For a project at this stage, Option A is the right call. The upload flow is already working and the files aren't huge.
+   The key thing to get right from the start is how you store and serve the URL, since that decision affects both
+  options equally.
+
+  Specifically:
+  - Store the full URL in the DB (e.g. https://pub-xxx.r2.dev/abc123.jpg) rather than a relative path
+  - Remove the http://localhost:8080 prefix from every <img src> in the frontend — the URL from the DB should be used
+  directly
+
+  That means when you eventually switch to Option B you're just changing how the URL gets generated, not how it's stored
+   or rendered.
+
+  ---
+  Want me to implement Option A? It would mean:
+  1. Replacing saveFile() with an R2 upload using the AWS SDK
+  2. Storing full R2 URLs in the DB
+  3. Fixing the http://localhost:8080 prefix issue across the frontend (needed either way for production)
+
+  You'd need to provide your R2 account ID, bucket name, and API credentials (or tell me where you want them
+  configured).
+
+✻ Brewed for 42s
+
+❯ how would that handle deleteion with the new method for saving characters that was jsut designed
+
+● Good catch. The current UpdateSet deletes characters from the DB that aren't in keepCharacterIDs, but with R2 the
+  actual image files would still be sitting in the bucket — orphaned and costing money.
+
+  The tricky part is the snapshot design we just built. When a lobby is created, LobbyCharacter rows are copied from the
+   set's Character rows, but they share the same image URL. So before you can delete an image from R2 you need to check:
+   is this URL still referenced by any LobbyCharacter row in an active game?
+
+  The safe deletion flow would be:
+
+  1. When UpdateSet removes a Character, check if its image URL appears in any LobbyCharacter row belonging to a
+  non-game-over lobby
+  2. If yes — skip the R2 delete (the file is still in use)
+  3. If no — delete from R2
+
+  Same logic applies to DeleteSet (which cascade-deletes all its Character rows) and to the lobby cleanup service when
+  it deletes finished lobbies — that's actually the right time to clean up LobbyCharacter image files, since you know
+  the game is done.
+
+  The simplest place to hook this in would be the cleanup service. Want me to look at that before we go further with R2?

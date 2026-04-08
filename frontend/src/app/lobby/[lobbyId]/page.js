@@ -454,12 +454,16 @@ export default function LobbyPage() {
                         if (isDuplicate) return prev;
                         return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString() }];
                     });
-                    if (message.SenderId === playerId) {
-                        setQuestionLog(prev => [...prev, { ...message, question: message.content, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }]);
+                    if (message.SenderId === playerIdRef.current) {
+                        setQuestionLog(prev => {
+                            const isDuplicate = prev.some(m => m.content === message.content && m.time === message.time);
+                            if (isDuplicate) return prev;
+                            return [...prev, { ...message, question: message.content, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }];
+                        });
                     } else {
                         setReceivedMessage(message.content);
                     }
-                    if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
+                    if (message.lobbyTurn === playerIdRef.current) { setTurn(true); } else { setTurn(false); }
                 } else if (message.channel === "lobby_update") {
                     setLobby(message.lobby);
                 } else if (message.channel === "rematch_request") {
@@ -475,8 +479,8 @@ export default function LobbyPage() {
                         setTimeout(() => setRematchDeclinedToast(false), 3000);
                     }
                 } else if (message.channel === "response") {
-                    if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
-                    if (message.SenderId != playerId) {
+                    if (message.lobbyTurn === playerIdRef.current) { setTurn(true); } else { setTurn(false); }
+                    if (message.SenderId != playerIdRef.current) {
                         setQuestionLog(prev => {
                             if (prev.length === 0) return prev;
                             const updated = [...prev];

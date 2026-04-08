@@ -1,0 +1,48 @@
+Here's what I found after exploring the codebase:
+
+  What's Working Well
+
+  The core game loop is solid — lobby creation, character selection, Q&A turns, elimination, final guessing, win/loss,
+  forfeit, rematch, stats, profile, and custom character sets all appear implemented.
+
+  ---
+  Missing / Incomplete Features
+
+  Game-Critical Gaps
+
+  - Turn timer — No time limit per turn, so a player can stall indefinitely
+  - Question counter — No display of how many questions have been asked; classic Guess Who has a strategic element
+  around this
+  - Guess mode trigger — The UI has isGuessMode state but it's unclear what automatically enables it; players should be
+  able to guess at any time (not just after a fixed event)
+  - Character set minimum enforcement — The UI requires 6 characters, but it's unclear if the backend enforces this at
+  game start
+
+  UX / Polish
+
+  - Turn indicator clarity — No clear visual cue for whose turn it is in the game room (beyond whatever exists in the
+  header)
+  - Mobile layout — The character grid likely breaks on small screens; no responsive optimization is evident
+  - Error recovery — If a WebSocket drops mid-game, there's no reconnection/resume logic visible
+  - Loading/skeleton states — Inconsistent across pages
+
+  Social / Discovery
+
+  - Leaderboard — No global rankings; stats are only visible on your own profile
+  - Friend system / invites — No way to invite a specific player; you share a lobby code manually
+  - Public character set discovery — Public sets exist but there's no browse/search/tagging for them
+
+  Infrastructure
+
+  - Guest accounts are half-done — The model has IsGuest flag, but guest creation flow may not be fully wired up
+  - Image storage is local — Works for dev, won't scale; no cloud storage integration
+  - No rate limiting — Chat and game actions have no throttling
+
+  Notably Absent for a Guess Who Clone
+
+  - Spectator mode — Watch ongoing games
+  - Win by process of elimination — Some variants end when a player has narrowed it to 1 character; no such logic exists
+
+  ---
+  Biggest practical gaps for shipping: turn timer, mobile layout, WebSocket reconnection, and leaderboard/discovery. The
+   guest account issue could also block a significant portion of users who don't want to register.
