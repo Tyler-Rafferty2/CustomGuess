@@ -37,6 +37,7 @@ func MountRoutes(r chi.Router) {
     gameStateHandler := &handlers.GameStateHandler{Service: gameStateService}
 
     r.Use(middleware.CORSMiddleware)
+    r.Use(middleware.RateLimitMiddleware)
 
     r.Get("/", func(w http.ResponseWriter, r *http.Request) {
         w.Write([]byte("Hello from API"))
@@ -68,15 +69,17 @@ func MountRoutes(r chi.Router) {
         r.Post("/create", lobbyHandler.CreateLobbyHandler)
         r.Get("/find", lobbyHandler.FindLobbyHandler)
         r.Post("/join", lobbyHandler.JoinLobbyHandler)
-        r.Post("/move", lobbyHandler.MakeMoveHandler)
         r.Get("/{lobbyID}", lobbyHandler.GetLobbyHandler)
-        r.Post("/guess", lobbyHandler.GuessLobbyHandler)
-        r.Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
-        r.Post("/forfeit", lobbyHandler.ForfeitHandler)
-        r.Post("/ready", lobbyHandler.ReadyHandler)
         r.Post("/{lobbyID}/rematch", lobbyHandler.RequestRematchHandler)
         r.Post("/{lobbyID}/rematch/accept", lobbyHandler.AcceptRematchHandler)
         r.Post("/{lobbyID}/rematch/decline", lobbyHandler.DeclineRematchHandler)
+
+        // Strict rate limit on in-game write actions
+        r.With(middleware.StrictRateLimitMiddleware).Post("/move", lobbyHandler.MakeMoveHandler)
+        r.With(middleware.StrictRateLimitMiddleware).Post("/guess", lobbyHandler.GuessLobbyHandler)
+        r.With(middleware.StrictRateLimitMiddleware).Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
+        r.With(middleware.StrictRateLimitMiddleware).Post("/forfeit", lobbyHandler.ForfeitHandler)
+        r.With(middleware.StrictRateLimitMiddleware).Post("/ready", lobbyHandler.ReadyHandler)
         })
     })
 

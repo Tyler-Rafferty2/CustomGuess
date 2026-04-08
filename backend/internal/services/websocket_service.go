@@ -2,11 +2,18 @@ package services
 
 import (
 	"log"
+	"time"
 	"github.com/tyler-rafferty2/GuessWho/internal/models"
 	"github.com/tyler-rafferty2/GuessWho/internal/config"
 
 	"github.com/gorilla/websocket"
 	"github.com/google/uuid"
+)
+
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = (pongWait * 9) / 10
 )
 
 type WebSocketService struct {
@@ -49,6 +56,12 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 		ws.hub.UnregisterClient(client)
 		ws.conn.Close()
 	}()
+
+	ws.conn.SetReadDeadline(time.Now().Add(pongWait))
+	ws.conn.SetPongHandler(func(string) error {
+		ws.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 
 	ws.BroadcastLobbyUpdate(client.LobbyID)
 
@@ -194,15 +207,32 @@ func lobbySwapTurn(lobby *models.Lobby) error {
 }
 
 func (ws *WebSocketService) WritePump(client *models.Client) {
-	defer ws.conn.Close()
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		ws.conn.Close()
+	}()
 
-	for message := range client.Send {
-		log.Printf("WritePump sending to client %s: Type=%s, Content=%s, LobbyID=%s", 
-			client.Username, message.Type, message.Content, message.LobbyID)
-		err := ws.conn.WriteJSON(message)
-		if err != nil {
-			log.Printf("WritePump error for client %s: %v", client.Username, err)
-			return
+	for {
+		select {
+		case message, ok := <-client.Send:
+			ws.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				ws.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+			log.Printf("WritePump sending to client %s: Type=%s, Content=%s, LobbyID=%s",
+				client.Username, message.Type, message.Content, message.LobbyID)
+			if err := ws.conn.WriteJSON(message); err != nil {
+				log.Printf("WritePump error for client %s: %v", client.Username, err)
+				return
+			}
+		case <-ticker.C:
+			ws.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := ws.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("Ping failed for client %s: %v", client.Username, err)
+				return
+			}
 		}
 	}
 }

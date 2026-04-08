@@ -237,6 +237,9 @@ export default function LobbyPage() {
     const [questionLog, setQuestionLog] = useState([]);
     const [turn, setTurn] = useState(false);
     const wsRef = useRef(null);
+    const reconnectAttemptsRef = useRef(0);
+    const reconnectTimeoutRef = useRef(null);
+    const shouldReconnectRef = useRef(true);
     const [isMinimized, setIsMinimized] = useState(false);
     const isMinimizedRef = useRef(isMinimized);
     const playerIdRef = useRef(playerId);
@@ -428,75 +431,99 @@ export default function LobbyPage() {
 
     useEffect(() => {
         if (!lobbyID || !username) return;
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-            console.log('WebSocket already connected');
-            return;
-        }
-        const websocket = new WebSocket(
-            `ws://localhost:8080/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyID)}&playerId=${encodeURIComponent(playerId || '')}`
-        );
-        websocket.onopen = () => { setIsConnected(true); console.log('Connected to chat server'); };
-        websocket.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            if (message.channel === "game") {
-                setMessagesGame(prev => {
-                    const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
-                    if (isDuplicate) return prev;
-                    return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString() }];
-                });
-                if (message.SenderId === playerId) {
-                    setQuestionLog(prev => [...prev, { ...message, question: message.content, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }]);
-                } else {
-                    setReceivedMessage(message.content);
-                }
-                if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
-            } else if (message.channel === "lobby_update") {
-                setLobby(message.lobby);
-            } else if (message.channel === "rematch_request") {
-                if (message.SenderId !== playerIdRef.current) {
-                    setIncomingRematch({ characterSetName: message.content });
-                }
-            } else if (message.channel === "rematch_ready") {
-                router.push(`/lobby/${message.content}`);
-            } else if (message.channel === "rematch_declined") {
-                if (message.SenderId !== playerIdRef.current) {
-                    setRematchWaiting(false);
-                    setRematchDeclinedToast(true);
-                    setTimeout(() => setRematchDeclinedToast(false), 3000);
-                }
-            } else if (message.channel === "response") {
-                if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
-                if (message.SenderId != playerId) {
-                    setQuestionLog(prev => {
-                        if (prev.length === 0) return prev;
-                        const updated = [...prev];
-                        const lastIndex = updated.length - 1;
-                        updated[lastIndex] = { ...updated[lastIndex], content: `${updated[lastIndex].content} - ${message.content}`, answer: message.content };
-                        return updated;
+        shouldReconnectRef.current = true;
+
+        const connect = () => {
+            if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
+
+            const websocket = new WebSocket(
+                `ws://localhost:8080/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyID)}&playerId=${encodeURIComponent(playerId || '')}`
+            );
+
+            websocket.onopen = () => {
+                setIsConnected(true);
+                reconnectAttemptsRef.current = 0;
+                console.log('Connected to WebSocket');
+            };
+
+            websocket.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.channel === "game") {
+                    setMessagesGame(prev => {
+                        const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
+                        if (isDuplicate) return prev;
+                        return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString() }];
                     });
-                    setReceivedMessage("");
-                    setWaitingReponse(false);
+                    if (message.SenderId === playerId) {
+                        setQuestionLog(prev => [...prev, { ...message, question: message.content, content: message.content, answer: null, time: message.time || new Date().toLocaleTimeString() }]);
+                    } else {
+                        setReceivedMessage(message.content);
+                    }
+                    if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
+                } else if (message.channel === "lobby_update") {
+                    setLobby(message.lobby);
+                } else if (message.channel === "rematch_request") {
+                    if (message.SenderId !== playerIdRef.current) {
+                        setIncomingRematch({ characterSetName: message.content });
+                    }
+                } else if (message.channel === "rematch_ready") {
+                    router.push(`/lobby/${message.content}`);
+                } else if (message.channel === "rematch_declined") {
+                    if (message.SenderId !== playerIdRef.current) {
+                        setRematchWaiting(false);
+                        setRematchDeclinedToast(true);
+                        setTimeout(() => setRematchDeclinedToast(false), 3000);
+                    }
+                } else if (message.channel === "response") {
+                    if (message.lobbyTurn === playerId) { setTurn(true); } else { setTurn(false); }
+                    if (message.SenderId != playerId) {
+                        setQuestionLog(prev => {
+                            if (prev.length === 0) return prev;
+                            const updated = [...prev];
+                            const lastIndex = updated.length - 1;
+                            updated[lastIndex] = { ...updated[lastIndex], content: `${updated[lastIndex].content} - ${message.content}`, answer: message.content };
+                            return updated;
+                        });
+                        setReceivedMessage("");
+                        setWaitingReponse(false);
+                    }
+                } else if (message.channel === "pending_question") {
+                    setReceivedMessage(message.content);
+                } else if (message.channel === "pending_waiting") {
+                    setWaitingReponse(true);
+                } else {
+                    setMessagesChat(prev => {
+                        const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
+                        if (isDuplicate) return prev;
+                        return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString(), read: !isMinimizedRef.current }];
+                    });
                 }
-            } else if (message.channel === "pending_question") {
-                // Reconnected as the answerer — show Yes/No UI
-                setReceivedMessage(message.content);
-            } else if (message.channel === "pending_waiting") {
-                // Reconnected as the asker — restore waiting state
-                setWaitingReponse(true);
-            } else {
-                setMessagesChat(prev => {
-                    const isDuplicate = prev.some(m => m.content === message.content && m.username === message.username && m.time === message.time);
-                    if (isDuplicate) return prev;
-                    return [...prev, { ...message, time: message.time || new Date().toLocaleTimeString(), read: !isMinimizedRef.current }];
-                });
-            }
+            };
+
+            websocket.onerror = (error) => { console.error('WebSocket error:', error); };
+
+            websocket.onclose = () => {
+                setIsConnected(false);
+                wsRef.current = null;
+                if (!shouldReconnectRef.current) return;
+                const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
+                reconnectAttemptsRef.current++;
+                console.log(`WebSocket closed. Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
+                reconnectTimeoutRef.current = setTimeout(connect, delay);
+            };
+
+            wsRef.current = websocket;
         };
-        websocket.onerror = (error) => { console.error('WebSocket error:', error); };
-        websocket.onclose = () => { setIsConnected(false); console.log('Disconnected from chat server'); };
-        wsRef.current = websocket;
+
+        connect();
+
         return () => {
-            if (websocket.readyState === WebSocket.OPEN || websocket.readyState === WebSocket.CONNECTING) { websocket.close(); }
-            wsRef.current = null;
+            shouldReconnectRef.current = false;
+            clearTimeout(reconnectTimeoutRef.current);
+            if (wsRef.current) {
+                wsRef.current.close();
+                wsRef.current = null;
+            }
         };
     }, [lobbyID, username, playerId]);
 
@@ -1234,6 +1261,20 @@ export default function LobbyPage() {
             <StyleInjector />
             {conflictModal}
             <Navbar />
+            {!isConnected && (
+                <div style={{
+                    background: '#7A5C1E',
+                    color: '#fff',
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    padding: '6px var(--s4)',
+                    letterSpacing: '0.02em',
+                }}>
+                    Reconnecting…
+                </div>
+            )}
             <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
                 {lobby.chatFeature && (
                     <div style={{
