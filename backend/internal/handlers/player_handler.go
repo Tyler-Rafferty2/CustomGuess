@@ -23,6 +23,27 @@ type PlayerHandler struct {
     Service *services.PlayerService
 }
 
+// GET /stats
+func (h *PlayerHandler) GetStatsHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    w.Header().Set("Content-Type", "application/json")
+
+    if user == nil || user.IsGuest {
+        json.NewEncoder(w).Encode(services.StatsResponse{
+            GamesPlayed: 0, Wins: 0, Losses: 0, WinRate: 0,
+            RecentGames: []services.RecentGame{},
+        })
+        return
+    }
+
+    stats, err := h.Service.GetStats(user)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    json.NewEncoder(w).Encode(stats)
+}
+
 // GET /
 func (h *PlayerHandler) GetPlayersHandler(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUserFromContext(r)

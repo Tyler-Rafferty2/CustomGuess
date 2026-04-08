@@ -5,6 +5,7 @@ import (
     "net/http"
 
     "github.com/google/uuid"
+    "github.com/tyler-rafferty2/GuessWho/internal/middleware"
     "github.com/tyler-rafferty2/GuessWho/internal/services"
 )
 
@@ -17,16 +18,45 @@ func (h *UserHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
     var req struct {
         Email    string `json:"email"`
         Password string `json:"password"`
+        Username string `json:"username"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
-    user, err := h.Service.SignUp(req.Email, req.Password)
+    user, err := h.Service.SignUp(req.Email, req.Password, req.Username)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
         return
     }
 
+    w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(user)
+}
+
+// PUT /users/username
+func (h *UserHandler) UpdateUsernameHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    if user == nil || user.IsGuest {
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    var req struct {
+        Username string `json:"username"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    updated, err := h.Service.UpdateUsername(user, req.Username)
+    if err != nil {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(updated)
 }
 
 // POST /login

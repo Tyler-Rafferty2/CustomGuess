@@ -87,7 +87,7 @@ export default function Players({ user, setError, lobbies, setLobbies, joinLobby
 
                             {/* Middle info */}
                             <div style={{ display: "flex", gap: "var(--s5)", color: "var(--text-400)", fontFamily: "DM Sans, sans-serif", fontSize: "13px" }}>
-                                <span> {l.characterSet?.characters?.length ?? "?"} characters</span>
+                                <span> {l.lobbyCharacters?.length ?? "?"} characters</span>
                             </div>
 
                             <div style={{ display: "flex", alignItems: "center", gap: "var(--s3)" }}>

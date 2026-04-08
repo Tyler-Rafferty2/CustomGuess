@@ -3,7 +3,8 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
-import { ArrowLeft, X, Plus, Loader2, Globe, Lock } from "lucide-react";
+import { ArrowLeft, X, Plus, Loader2, Globe, Lock, Crop } from "lucide-react";
+import ImageCropperIntegration from "@/app/create/ImageCropperIntegration";
 
 const T = {
     bg: "#F7F3EE", surface0: "#FFFFFF", surface1: "#F2EDE7", surface2: "#E8E0D8",
@@ -12,6 +13,8 @@ const T = {
     border: "#DDD5CA", borderStrong: "#C4B8A8",
     stateOut: "#C0392B",
 };
+
+const MIN_CHARACTERS = 6;
 
 export default function EditSetPage() {
     const { user } = useContext(UserContext);
@@ -24,18 +27,23 @@ export default function EditSetPage() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
-    // Form fields
+    // Metadata
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [isPublic, setIsPublic] = useState(false);
     const [coverPreview, setCoverPreview] = useState(null);
     const [coverFile, setCoverFile] = useState(null);
 
-    // Characters: existing ones have { id, name, image } — new ones have { _new: true, name, file, preview }
-    const [characters, setCharacters] = useState([]);
+    // Existing characters from the server (kept or removed)
+    const [existingChars, setExistingChars] = useState([]);
+    // New characters added via the cropper
+    const [newImages, setNewImages] = useState([]);
+    // Signals the cropper to auto-open crop modal (incremented each time to re-trigger)
+    const [cropTrigger, setCropTrigger] = useState(null);
 
     const coverInputRef = useRef(null);
-    const charInputRef = useRef(null);
+
+    const totalCount = existingChars.length + newImages.length;
 
     useEffect(() => {
         if (!setId || !user?.id) return;
@@ -51,7 +59,7 @@ export default function EditSetPage() {
                 setDescription(found.description ?? "");
                 setIsPublic(found.public ?? false);
                 setCoverPreview(found.coverImageName ? `http://localhost:8080${found.coverImageName}` : null);
-                setCharacters((found.characters ?? []).map(c => ({ id: c.id, name: c.name, image: c.image })));
+                setExistingChars((found.characters ?? []).map(c => ({ id: c.id, name: c.name, image: c.image })));
                 setLoading(false);
             })
             .catch(() => { setError("Failed to load set."); setLoading(false); });
@@ -64,28 +72,37 @@ export default function EditSetPage() {
         setCoverPreview(URL.createObjectURL(file));
     };
 
-    const handleAddCharacters = (e) => {
-        const files = Array.from(e.target.files ?? []);
-        const newChars = files.map(file => ({
-            _new: true,
-            name: file.name.replace(/\.[^.]+$/, ""),
-            file,
-            preview: URL.createObjectURL(file),
-        }));
-        setCharacters(prev => [...prev, ...newChars]);
-        e.target.value = "";
-    };
+    const removeExisting = (id) => setExistingChars(prev => prev.filter(c => c.id !== id));
 
-    const removeCharacter = (index) => {
-        setCharacters(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const updateCharName = (index, value) => {
-        setCharacters(prev => prev.map((c, i) => i === index ? { ...c, name: value } : c));
+    const cropExisting = async (char) => {
+        try {
+            const res = await fetch(`http://localhost:8080${char.image}`);
+            const blob = await res.blob();
+            const objectURL = URL.createObjectURL(blob);
+            const file = new File([blob], `${char.name}.jpg`, { type: blob.type });
+            const newEntry = {
+                id: Date.now() + Math.random(),
+                name: char.name,
+                originalName: `${char.name}.jpg`,
+                file,
+                original: objectURL,
+                cropped: objectURL,
+                croppedFile: file,
+            };
+            setExistingChars(prev => prev.filter(c => c.id !== char.id));
+            setNewImages(prev => {
+                const updated = [...prev, newEntry];
+                setCropTrigger(updated.length - 1);
+                return updated;
+            });
+        } catch {
+            setError("Could not load image for cropping.");
+        }
     };
 
     const handleSave = async () => {
         if (!name.trim()) { setError("Set name is required."); return; }
+        if (totalCount < MIN_CHARACTERS) { setError(`A set must have at least ${MIN_CHARACTERS} characters.`); return; }
         setSaving(true);
         setError(null);
 
@@ -95,17 +112,11 @@ export default function EditSetPage() {
         formData.append("public", isPublic);
         if (coverFile) formData.append("coverImage", coverFile);
 
-        // Existing characters to keep
-        characters.filter(c => !c._new).forEach(c => {
-            formData.append("keepCharacterIds[]", c.id);
-        });
+        existingChars.forEach(c => formData.append("keepCharacterIds[]", c.id));
 
-        // New characters
-        let newIdx = 0;
-        characters.filter(c => c._new).forEach(c => {
-            formData.append(`newCharacters[${newIdx}][name]`, c.name);
-            formData.append(`newCharacters[${newIdx}][image]`, c.file);
-            newIdx++;
+        newImages.forEach((img, i) => {
+            formData.append(`newCharacters[${i}][name]`, img.name);
+            formData.append(`newCharacters[${i}][image]`, img.croppedFile || img.file);
         });
 
         try {
@@ -150,7 +161,6 @@ export default function EditSetPage() {
                 @keyframes spin { to { transform: rotate(360deg); } }
             `}</style>
 
-            {/* Header */}
             <header style={{ background: T.surface0, borderBottom: `1px solid ${T.border}`, padding: "16px 24px", position: "sticky", top: 0, zIndex: 50 }}>
                 <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
@@ -171,15 +181,13 @@ export default function EditSetPage() {
                     </div>
                 )}
 
-                {/* Metadata card */}
+                {/* Details */}
                 <section style={card}>
                     <h2 style={sectionHeading}>Details</h2>
-
                     <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                        {/* Cover image */}
                         <div
                             onClick={() => coverInputRef.current?.click()}
-                            style={{ width: 120, height: 120, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, cursor: "pointer", flexShrink: 0, position: "relative", background: T.surface1 }}
+                            style={{ width: 120, height: 120, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, cursor: "pointer", flexShrink: 0, background: T.surface1 }}
                         >
                             {coverPreview
                                 ? <img src={coverPreview} alt="cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -191,31 +199,18 @@ export default function EditSetPage() {
                         </div>
                         <input ref={coverInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
 
-                        {/* Name + description */}
                         <div style={{ flex: 1, minWidth: 200, display: "flex", flexDirection: "column", gap: 12 }}>
                             <div>
                                 <label style={label}>Set Name</label>
-                                <input
-                                    value={name}
-                                    onChange={e => setName(e.target.value)}
-                                    placeholder="Enter set name"
-                                    style={input}
-                                />
+                                <input value={name} onChange={e => setName(e.target.value)} placeholder="Enter set name" style={input} />
                             </div>
                             <div>
                                 <label style={label}>Description</label>
-                                <textarea
-                                    value={description}
-                                    onChange={e => setDescription(e.target.value)}
-                                    placeholder="Optional description"
-                                    rows={2}
-                                    style={{ ...input, height: "auto", resize: "vertical" }}
-                                />
+                                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" rows={2} style={{ ...input, height: "auto", resize: "vertical" }} />
                             </div>
                         </div>
                     </div>
 
-                    {/* Public toggle */}
                     <div
                         onClick={() => setIsPublic(v => !v)}
                         style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: T.surface1, borderRadius: 6, cursor: "pointer", border: `1px solid ${T.border}` }}
@@ -237,59 +232,66 @@ export default function EditSetPage() {
                     </div>
                 </section>
 
-                {/* Characters card */}
+                {/* Characters */}
                 <section style={card}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                        <div>
-                            <h2 style={{ ...sectionHeading, margin: 0 }}>Characters</h2>
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: "2px 0 0" }}>
-                                {characters.length} character{characters.length !== 1 ? "s" : ""}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => charInputRef.current?.click()}
-                            style={{ ...ghostBtn, gap: 6 }}
-                        >
-                            <Plus size={14} /> Add Images
-                        </button>
-                        <input ref={charInputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleAddCharacters} />
+                    <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
+                        <h2 style={{ ...sectionHeading, margin: 0 }}>Characters</h2>
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: totalCount < MIN_CHARACTERS ? T.stateOut : T.text400 }}>
+                            {totalCount} / {MIN_CHARACTERS} minimum
+                        </span>
                     </div>
 
-                    {characters.length === 0 ? (
-                        <div style={{ padding: "32px", textAlign: "center", color: T.text400, fontFamily: "'DM Sans', sans-serif", fontSize: 14, border: `1px dashed ${T.border}`, borderRadius: 6 }}>
-                            No characters yet — add some images above.
-                        </div>
-                    ) : (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 12 }}>
-                            {characters.map((char, i) => (
-                                <div key={char.id ?? `new-${i}`} style={{ position: "relative", background: T.surface1, border: `1px solid ${char._new ? T.accent : T.border}`, borderRadius: 6, overflow: "hidden" }}>
-                                    <img
-                                        src={char._new ? char.preview : `http://localhost:8080${char.image}`}
-                                        alt={char.name}
-                                        style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }}
-                                    />
-                                    <div style={{ padding: "6px 8px" }}>
-                                        <input
-                                            value={char.name}
-                                            onChange={e => updateCharName(i, e.target.value)}
-                                            style={{ width: "100%", border: "none", background: "transparent", fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: T.text900, outline: "none", padding: 0 }}
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={() => removeCharacter(i)}
-                                        style={{ position: "absolute", top: 4, right: 4, width: 20, height: 20, borderRadius: "50%", background: "rgba(26,21,16,0.6)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-                                    >
-                                        <X size={11} color="#fff" />
-                                    </button>
-                                    {char._new && (
-                                        <div style={{ position: "absolute", top: 4, left: 4, background: T.accent, borderRadius: 3, padding: "1px 5px", fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 700, color: "#fff", letterSpacing: "0.05em" }}>
-                                            NEW
+                    {/* Existing */}
+                    {existingChars.length > 0 && (
+                        <div style={{ marginBottom: 20 }}>
+                            <p style={{ ...label, marginBottom: 10 }}>Existing</p>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10 }}>
+                                {existingChars.map(char => (
+                                    <div key={char.id} style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                                        <img src={`http://localhost:8080${char.image}`} alt={char.name} style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }} />
+
+                                        {/* Hover overlay */}
+                                        <div style={{
+                                            position: "absolute", inset: 0, height: 90,
+                                            background: "rgba(26,21,16,0.45)",
+                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                            opacity: 0, transition: "opacity 150ms",
+                                        }}
+                                            onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                                            onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                                        >
+                                            <button
+                                                onClick={() => cropExisting(char)}
+                                                title="Crop"
+                                                style={{ width: 30, height: 30, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                            >
+                                                <Crop size={14} color={T.text900} />
+                                            </button>
+                                            <button
+                                                onClick={() => removeExisting(char.id)}
+                                                title="Remove"
+                                                style={{ width: 30, height: 30, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                            >
+                                                <X size={14} color={T.stateOut} />
+                                            </button>
                                         </div>
-                                    )}
-                                </div>
-                            ))}
+
+                                        <div style={{ padding: "5px 7px" }}>
+                                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: T.text900 }}>{char.name}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
+
+                    {/* Cropper for new characters */}
+                    <div>
+                        {existingChars.length > 0 && (
+                            <p style={{ ...label, marginBottom: 10 }}>Add New</p>
+                        )}
+                        <ImageCropperIntegration images={newImages} setImages={setNewImages} triggerEdit={cropTrigger} />
+                    </div>
                 </section>
 
                 {/* Actions */}
@@ -299,45 +301,21 @@ export default function EditSetPage() {
                     </button>
                     <button
                         onClick={handleSave}
-                        disabled={saving || !name.trim()}
-                        style={{ ...primaryBtn, opacity: saving || !name.trim() ? 0.5 : 1, cursor: saving || !name.trim() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                        disabled={saving || !name.trim() || totalCount < MIN_CHARACTERS}
+                        style={{ ...primaryBtn, opacity: saving || !name.trim() || totalCount < MIN_CHARACTERS ? 0.5 : 1, cursor: saving || !name.trim() || totalCount < MIN_CHARACTERS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
                     >
                         {saving && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
                         {saving ? "Saving…" : "Save Changes"}
                     </button>
                 </div>
-
             </main>
         </div>
     );
 }
 
-// Shared inline styles
-const card = {
-    background: "#FFFFFF", border: "1px solid #DDD5CA", borderRadius: 6, padding: "24px",
-};
-const sectionHeading = {
-    fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 700, color: "#1A1510",
-    letterSpacing: "-0.01em", marginBottom: 16,
-};
-const label = {
-    display: "block", fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600,
-    color: "#A0937F", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6,
-};
-const input = {
-    width: "100%", height: 40, padding: "0 12px", background: "#FFFFFF",
-    border: "1px solid #DDD5CA", borderRadius: 6, fontFamily: "'DM Sans', sans-serif",
-    fontSize: 14, color: "#1A1510", outline: "none", boxSizing: "border-box",
-};
-const ghostBtn = {
-    display: "inline-flex", alignItems: "center", gap: 6, height: 36, padding: "0 16px",
-    background: "transparent", border: "1px solid #DDD5CA", borderRadius: 6,
-    fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "#5C5047",
-    cursor: "pointer",
-};
-const primaryBtn = {
-    display: "inline-flex", alignItems: "center", height: 40, padding: "0 20px",
-    background: "#D9572B", border: "none", borderRadius: 6,
-    fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: "#fff",
-    cursor: "pointer",
-};
+const card = { background: "#FFFFFF", border: "1px solid #DDD5CA", borderRadius: 6, padding: "24px" };
+const sectionHeading = { fontFamily: "'Fraunces', serif", fontSize: 16, fontWeight: 700, color: "#1A1510", letterSpacing: "-0.01em", marginBottom: 16 };
+const label = { display: "block", fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: "#A0937F", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 };
+const input = { width: "100%", height: 40, padding: "0 12px", background: "#FFFFFF", border: "1px solid #DDD5CA", borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#1A1510", outline: "none", boxSizing: "border-box" };
+const ghostBtn = { display: "inline-flex", alignItems: "center", gap: 6, height: 36, padding: "0 16px", background: "transparent", border: "1px solid #DDD5CA", borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "#5C5047", cursor: "pointer" };
+const primaryBtn = { display: "inline-flex", alignItems: "center", height: 40, padding: "0 20px", background: "#D9572B", border: "none", borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: "#fff", cursor: "pointer" };

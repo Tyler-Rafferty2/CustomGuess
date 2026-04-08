@@ -20,12 +20,14 @@ type Lobby struct {
     TurnID  *uuid.UUID `gorm:"type:uuid" json:"turn"`
     Players []Player `gorm:"foreignKey:LobbyID;constraint:OnDelete:CASCADE;" json:"players"`
 
-    CharacterSetID uuid.UUID     `gorm:"type:uuid;not null" json:"characterSetId"` 
-    CharacterSet   CharacterSet  `gorm:"foreignKey:CharacterSetID" json:"characterSet"`
+    CharacterSetID  uuid.UUID        `gorm:"type:uuid;not null" json:"characterSetId"`
+    CharacterSet    CharacterSet     `gorm:"foreignKey:CharacterSetID" json:"characterSet"`
+    LobbyCharacters []LobbyCharacter `gorm:"foreignKey:LobbyID;constraint:OnDelete:CASCADE;" json:"lobbyCharacters"`
 
-    GameOver    bool        `gorm:"default:false" json:"gameOver"`
-    GameOverAt  *time.Time   `json:"gameOverAt"`
-    Winner    *uuid.UUID        `gorm:"type:uuid" json:"winner"`
+    GameOver      bool        `gorm:"default:false" json:"gameOver"`
+    GameOverAt    *time.Time  `json:"gameOverAt"`
+    Winner        *uuid.UUID  `gorm:"type:uuid" json:"winner"`
+    GameStartedAt *time.Time  `json:"gameStartedAt"`
 
     RematchRequestedBy    *uuid.UUID `gorm:"type:uuid" json:"rematchRequestedBy"`
     RematchCharacterSetID *uuid.UUID `gorm:"type:uuid" json:"rematchCharacterSetID"`

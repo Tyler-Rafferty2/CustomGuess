@@ -4,6 +4,7 @@ import (
     "encoding/json"
     "errors"
     "math/rand"
+    "strings"
     "time"
     "fmt"
     "log"
@@ -78,11 +79,12 @@ func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
     }
     
     if err := s.DB.Preload("Players").
-        Preload("CharacterSet.Characters").
+        Preload("CharacterSet").
+        Preload("LobbyCharacters").
         First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
         return nil, err
     }
-    
+
     return &lobby, nil
 }
 
@@ -134,24 +136,22 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         return nil, fmt.Errorf("no character sets available: %w", err)
     }
 
-    var characters []models.Character
-    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&characters).Error; err != nil {
+    var setCharacters []models.Character
+    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&setCharacters).Error; err != nil {
         return nil, fmt.Errorf("failed to load characters: %w", err)
     }
-    if len(characters) == 0 {
+    if len(setCharacters) == 0 {
         return nil, fmt.Errorf("no characters found for this set")
     }
 
     log.Printf("Is it chatFeature: %t", chatFeature)
 
-
-    
     lobby := &models.Lobby{
-        Code: generateLobbyCode(),
+        Code:         generateLobbyCode(),
         CharacterSetID: charSet.ID,
-        Private: private,
+        Private:      private,
         RandomSecret: randomizeChar,
-        ChatFeature: chatFeature,
+        ChatFeature:  chatFeature,
     }
 
     if user.IsGuest {
@@ -160,17 +160,29 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         lobby.UserID = user.ID
     }
 
-
     if err := s.DB.Create(lobby).Error; err != nil {
         return nil, err
     }
 
+    // Snapshot the set's characters into the lobby so edits don't affect this game
+    lobbyChars := make([]models.LobbyCharacter, len(setCharacters))
+    for i, c := range setCharacters {
+        lobbyChars[i] = models.LobbyCharacter{
+            LobbyID: lobby.ID,
+            Name:    c.Name,
+            Image:   c.Image,
+        }
+    }
+    if err := s.DB.Create(&lobbyChars).Error; err != nil {
+        return nil, err
+    }
+
     rand.Seed(time.Now().UnixNano())
-    
-    var secretChar *models.Character
+
+    var secretChar *models.LobbyCharacter
 
     if randomizeChar {
-        c := characters[rand.Intn(len(characters))]
+        c := lobbyChars[rand.Intn(len(lobbyChars))]
         secretChar = &c
     }
 
@@ -178,12 +190,11 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         LobbyID: lobby.ID,
         UserID:  user.ID,
         GameState: models.GameState{
-            LobbyID:         lobby.ID,
-            SecretCharacter: secretChar,       // ✅ pointer now
-            SecretCharacterID: nil,            // optional if no random
+            LobbyID:          lobby.ID,
+            SecretCharacter:  secretChar,
+            SecretCharacterID: nil,
         },
     }
-
 
     if secretChar != nil {
         player.GameState.SecretCharacter = secretChar
@@ -216,7 +227,7 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
     var lobby models.Lobby
     if err := s.DB.
         Preload("Players").
-        Preload("CharacterSet.Characters").
+        Preload("CharacterSet").
         First(&lobby, "code = ?", code).Error; err != nil {
         return nil, err
     }
@@ -225,26 +236,29 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
         return nil, errors.New("lobby is full")
     }
 
-    // Pick a random character from the lobby's set
-    characters := lobby.CharacterSet.Characters
-    if len(characters) == 0 {
-        return nil, errors.New("character set has no characters")
+    // Load the lobby's character snapshot
+    var lobbyChars []models.LobbyCharacter
+    if err := s.DB.Where("lobby_id = ?", lobby.ID).Find(&lobbyChars).Error; err != nil {
+        return nil, err
+    }
+    if len(lobbyChars) == 0 {
+        return nil, errors.New("lobby has no character snapshot")
     }
     rand.Seed(time.Now().UnixNano())
 
-    var secretChar *models.Character
+    var secretChar *models.LobbyCharacter
 
     if lobby.RandomSecret {
-        c := characters[rand.Intn(len(characters))]
+        c := lobbyChars[rand.Intn(len(lobbyChars))]
         secretChar = &c
     }
 
     player := &models.Player{
         LobbyID: lobby.ID,
-        Name:    "Guest", // Set default name
+        Name:    "Guest",
         GameState: models.GameState{
-            LobbyID:           lobby.ID,
-            SecretCharacter:   secretChar,
+            LobbyID:          lobby.ID,
+            SecretCharacter:  secretChar,
             SecretCharacterID: nil,
         },
     }
@@ -285,7 +299,8 @@ func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
     
     err := s.DB.
         Preload("User").
-        Preload("CharacterSet.Characters").
+        Preload("CharacterSet").
+        Preload("LobbyCharacters").
         Where("user_id != ?", user.ID).
         Where("id IN (?)", lobbiesWithOnePlayer).
         Where("id NOT IN (?)", userLobbies).
@@ -299,35 +314,50 @@ func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
     return lobbies, nil
 }
 
-// make a move for a player (update eliminated characters)
-func (s *LobbyService) MakeMove(playerID uuid.UUID, guessed string) error {
+// MakeMove toggles a character in/out of the player's eliminated list
+func (s *LobbyService) MakeMove(user *models.User, lobbyID uuid.UUID, characterID string) error {
     var player models.Player
-    if err := s.DB.Preload("GameState").First(&player, "id = ?", playerID).Error; err != nil {
+    if err := s.DB.Where("(user_id = ? OR guest_id = ?) AND lobby_id = ?", user.ID, user.ID, lobbyID).First(&player).Error; err != nil {
         return err
     }
 
-    gs := &player.GameState
+    var gs models.GameState
+    if err := s.DB.Where("player_id = ? AND lobby_id = ?", player.ID, lobbyID).First(&gs).Error; err != nil {
+        return err
+    }
 
     var eliminated []string
     if gs.EliminatedCharacters != nil {
         _ = json.Unmarshal(gs.EliminatedCharacters, &eliminated)
     }
 
-    eliminated = append(eliminated, guessed)
-    gs.EliminatedCharacters, _ = json.Marshal(eliminated)
+    // Toggle: remove if present, add if not
+    found := false
+    updated := make([]string, 0, len(eliminated))
+    for _, id := range eliminated {
+        if id == characterID {
+            found = true
+        } else {
+            updated = append(updated, id)
+        }
+    }
+    if !found {
+        updated = append(updated, characterID)
+    }
 
-    return s.DB.Save(gs).Error
+    gs.EliminatedCharacters, _ = json.Marshal(updated)
+    return s.DB.Save(&gs).Error
 }
 
-func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lobby, *models.Character, *models.Character, error) {
+func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lobby, *models.LobbyCharacter, *models.LobbyCharacter, []string, error) {
     var lobby models.Lobby
 
-    // Load lobby with character set and all characters, plus players (without secret characters)
     if err := s.DB.
-        Preload("CharacterSet.Characters").
+        Preload("CharacterSet").
+        Preload("LobbyCharacters").
         Preload("Players").
         First(&lobby, "id = ?", lobbyID).Error; err != nil {
-        return nil, nil, nil, err
+        return nil, nil, nil, nil, err
     }
 
     // Load the GameState for this user only
@@ -336,11 +366,19 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
         Joins("JOIN players ON players.id = game_states.player_id").
         Where("players.lobby_id = ? AND (players.user_id = ? OR players.guest_id = ?)", lobbyID, userID, userID).
         First(&gs).Error; err != nil {
-        return &lobby, nil, nil, nil // return lobby even if the secret character isn't found yet
+        return &lobby, nil, nil, nil, nil
+    }
+
+    var eliminated []string
+    if gs.EliminatedCharacters != nil {
+        _ = json.Unmarshal(gs.EliminatedCharacters, &eliminated)
+    }
+    if eliminated == nil {
+        eliminated = []string{}
     }
 
     // When the game is over, also reveal the opponent's secret character
-    var opponentChar *models.Character
+    var opponentChar *models.LobbyCharacter
     if lobby.GameOver {
         var opponentGS models.GameState
         if err := s.DB.Preload("SecretCharacter").
@@ -351,7 +389,7 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
         }
     }
 
-    return &lobby, gs.SecretCharacter, opponentChar, nil
+    return &lobby, gs.SecretCharacter, opponentChar, eliminated, nil
 }
 
 func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (bool, error) {
@@ -369,9 +407,19 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
     var notReadyCount int64
     s.DB.Model(&models.Player{}).Where("lobby_id = ? AND ready = ?", lobbyID, false).Count(&notReadyCount)
 
+    allReady := notReadyCount == 0
+    if allReady {
+        now := time.Now()
+        if err := s.DB.Model(&models.Lobby{}).
+            Where("id = ? AND game_started_at IS NULL", lobbyID).
+            Update("game_started_at", now).Error; err != nil {
+            log.Printf("warn: could not set GameStartedAt: %v", err)
+        }
+    }
+
     s.broadcastLobbyUpdate(lobbyID.String())
 
-    return notReadyCount == 0, nil
+    return allReady, nil
 }
 
 func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, characterID string) (*models.Lobby, error) {
@@ -392,6 +440,9 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
 
     now := time.Now()
 
+    var allPlayers []models.Player
+    s.DB.Where("lobby_id = ?", lobbyID).Find(&allPlayers)
+
     if gameState.SecretCharacter.ID.String() == characterID {
         lobby.GameOver = true
         lobby.GameOverAt = &now
@@ -400,20 +451,22 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
         if err := s.DB.Save(&lobby).Error; err != nil {
             return nil, err
         }
+        s.writeGameRecords(&lobby, allPlayers, player.ID, false)
         s.broadcastLobbyUpdate(lobbyID.String())
         return &lobby, nil
     } else {
         var otherPlayer models.Player
-        if err := s.DB.Where("lobby_id = ? AND user_id != ?", lobbyID, user.ID).First(&otherPlayer).Error; err != nil {
+        if err := s.DB.Where("lobby_id = ? AND id != ?", lobbyID, player.ID).First(&otherPlayer).Error; err != nil {
             return nil, err
         }
-        
+
         lobby.GameOver = true
         lobby.GameOverAt = &now
         lobby.Winner = &otherPlayer.ID
         if err := s.DB.Save(&lobby).Error; err != nil {
             return nil, err
         }
+        s.writeGameRecords(&lobby, allPlayers, otherPlayer.ID, false)
         s.broadcastLobbyUpdate(lobbyID.String())
         return &lobby, nil
     }
@@ -552,8 +605,8 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
     if err := s.DB.Where("id = ?", *oldLobby.RematchCharacterSetID).First(&charSet).Error; err != nil {
         return nil, fmt.Errorf("character set not found: %w", err)
     }
-    var characters []models.Character
-    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&characters).Error; err != nil || len(characters) == 0 {
+    var setCharacters []models.Character
+    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&setCharacters).Error; err != nil || len(setCharacters) == 0 {
         return nil, fmt.Errorf("no characters found for this set")
     }
 
@@ -570,6 +623,19 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
         return nil, err
     }
 
+    // Snapshot characters for the new lobby
+    lobbyChars := make([]models.LobbyCharacter, len(setCharacters))
+    for i, c := range setCharacters {
+        lobbyChars[i] = models.LobbyCharacter{
+            LobbyID: newLobby.ID,
+            Name:    c.Name,
+            Image:   c.Image,
+        }
+    }
+    if err := s.DB.Create(&lobbyChars).Error; err != nil {
+        return nil, err
+    }
+
     rand.Seed(time.Now().UnixNano())
 
     makePlayer := func(old *models.Player) *models.Player {
@@ -579,8 +645,8 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
             GuestID: old.GuestID,
             GameState: models.GameState{LobbyID: newLobby.ID},
         }
-        if newLobby.RandomSecret && len(characters) > 0 {
-            c := characters[rand.Intn(len(characters))]
+        if newLobby.RandomSecret && len(lobbyChars) > 0 {
+            c := lobbyChars[rand.Intn(len(lobbyChars))]
             p.GameState.SecretCharacter = &c
             p.GameState.SecretCharacterID = &c.ID
         }
@@ -669,6 +735,82 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
         return nil, err
     }
 
+    if otherErr == nil {
+        s.writeGameRecords(&lobby, []models.Player{player, otherPlayer}, otherPlayer.ID, true)
+    }
+
     s.broadcastLobbyUpdate(lobbyID.String())
     return &lobby, nil
+}
+
+// writeGameRecords writes one GameRecord per registered (non-guest) player at game-over.
+// Errors are non-fatal — a stats write failure must never break the game-over response.
+func (s *LobbyService) writeGameRecords(lobby *models.Lobby, players []models.Player, winnerPlayerID uuid.UUID, isForfeit bool) {
+    if len(players) != 2 || lobby.GameOverAt == nil {
+        return
+    }
+
+    now := *lobby.GameOverAt
+
+    var durationSeconds *int
+    if lobby.GameStartedAt != nil {
+        d := int(now.Sub(*lobby.GameStartedAt).Seconds())
+        durationSeconds = &d
+    }
+
+    var charSet models.CharacterSet
+    if err := s.DB.First(&charSet, "id = ?", lobby.CharacterSetID).Error; err != nil {
+        log.Printf("warn: writeGameRecords could not load CharacterSet %s: %v", lobby.CharacterSetID, err)
+        return
+    }
+
+    displayName := func(p models.Player) string {
+        if p.UserID == uuid.Nil {
+            return "Guest"
+        }
+        var u models.User
+        if err := s.DB.First(&u, "id = ?", p.UserID).Error; err != nil {
+            return "Player"
+        }
+        if u.Username != "" {
+            return u.Username
+        }
+        parts := strings.SplitN(u.Email, "@", 2)
+        return parts[0]
+    }
+
+    for i, p := range players {
+        if p.UserID == uuid.Nil {
+            continue
+        }
+
+        opponent := players[1-i]
+        isWinner := p.ID == winnerPlayerID
+
+        var result models.GameResultType
+        switch {
+        case isForfeit && isWinner:
+            result = models.ResultForfeitWin
+        case isForfeit && !isWinner:
+            result = models.ResultForfeitLoss
+        case isWinner:
+            result = models.ResultWin
+        default:
+            result = models.ResultLoss
+        }
+
+        record := models.GameRecord{
+            UserID:           p.UserID,
+            LobbyID:          lobby.ID,
+            OpponentName:     displayName(opponent),
+            Result:           result,
+            CharacterSetID:   charSet.ID,
+            CharacterSetName: charSet.Name,
+            DurationSeconds:  durationSeconds,
+            FinishedAt:       now,
+        }
+        if err := s.DB.Create(&record).Error; err != nil {
+            log.Printf("warn: failed to write GameRecord for user %s: %v", p.UserID, err)
+        }
+    }
 }

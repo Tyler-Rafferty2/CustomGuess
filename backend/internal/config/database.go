@@ -20,8 +20,12 @@ func ConnectDB() {
     // Store global reference
     DB = db
 
+    // Add username column (without unique constraint) and backfill before AutoMigrate enforces uniqueness
+    db.Exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT NOT NULL DEFAULT ''")
+    db.Exec("UPDATE users SET username = split_part(email, '@', 1) || '_' || SUBSTR(REPLACE(id::text, '-', ''), 1, 4) WHERE username = ''")
+
     // Auto migrate your models
-    err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{}, &models.Character{}, &models.User{}, &models.StoredMessage{})
+    err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{}, &models.Character{}, &models.LobbyCharacter{}, &models.User{}, &models.StoredMessage{}, &models.GameRecord{})
     if err != nil {
         log.Fatal("Failed to migrate database:", err)
     }

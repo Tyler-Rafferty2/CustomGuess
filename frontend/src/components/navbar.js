@@ -28,8 +28,8 @@ const T = {
 
 const NAV_ITEMS = [
     { label: "Home", href: "/", Icon: Home },
-    { label: "Create", href: "/create", Icon: PlusSquare },
-    { label: "Lobby", href: "/lobby", Icon: Users },
+    { label: "Create Lobby", href: "/create", Icon: PlusSquare },
+    { label: "Lobbies", href: "/lobby", Icon: Users },
 ];
 
 /* ─────────────────────────────────────────────
@@ -285,10 +285,10 @@ export default function Navbar() {
                                         color: T.accent, fontSize: 12, fontWeight: 700,
                                         fontFamily: "'Fraunces', serif",
                                     }}>
-                                        {user.email?.[0]?.toUpperCase()}
+                                        {(user.username || user.email)?.[0]?.toUpperCase()}
                                     </div>
                                     <span style={{ fontSize: 13, fontWeight: 600, color: T.text600 }}>
-                                        {user.email.split("@")[0]}
+                                        {user.username || user.email.split("@")[0]}
                                     </span>
                                     <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }} transition={{ duration: 0.2 }}>
                                         <ChevronDown size={13} color={T.text400} />
@@ -320,22 +320,12 @@ export default function Navbar() {
                                                 {/* Header */}
                                                 <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}>
                                                     <div style={{ width: 36, height: 36, borderRadius: 6, background: T.surface2, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, fontSize: 15, fontWeight: 700, fontFamily: "'Fraunces', serif" }}>
-                                                        {user.email?.[0]?.toUpperCase()}
+                                                        {(user.username || user.email)?.[0]?.toUpperCase()}
                                                     </div>
                                                     <div>
-                                                        <div style={{ fontSize: 14, fontWeight: 600, color: T.text900 }}>{user.email.split("@")[0]}</div>
+                                                        <div style={{ fontSize: 14, fontWeight: 600, color: T.text900 }}>{user.username || user.email.split("@")[0]}</div>
                                                         <div style={{ fontSize: 11, color: T.text400 }}>{user.email}</div>
                                                     </div>
-                                                </div>
-
-                                                {/* Stats */}
-                                                <div style={{ display: "flex", borderBottom: `1px solid ${T.border}` }}>
-                                                    {[["12", "Wins"], ["7", "Losses"], ["63%", "Win Rate"]].map(([val, label]) => (
-                                                        <div key={label} style={{ flex: 1, padding: "10px 0", textAlign: "center", borderRight: label !== "Win Rate" ? `1px solid ${T.border}` : "none" }}>
-                                                            <div style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 900, color: T.text900, letterSpacing: "-0.02em" }}>{val}</div>
-                                                            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: T.text400, marginTop: 2 }}>{label}</div>
-                                                        </div>
-                                                    ))}
                                                 </div>
 
                                                 {/* Menu rows */}

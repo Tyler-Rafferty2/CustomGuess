@@ -14,16 +14,32 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
 
-    const toggleCharacter = (charId) => {
+    // Seed eliminated characters from server on load / refresh
+    useEffect(() => {
+        const ids = gameState?.eliminatedCharacters;
+        if (Array.isArray(ids)) {
+            setSelectedCharacters(new Set(ids));
+        }
+    }, [gameState?.eliminatedCharacters?.join?.(",")]);
+
+    const toggleCharacter = async (charId) => {
+        // Optimistic update
         setSelectedCharacters(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(charId)) {
-                newSet.delete(charId);
-            } else {
-                newSet.add(charId);
-            }
-            return newSet;
+            const next = new Set(prev);
+            if (next.has(charId)) next.delete(charId);
+            else next.add(charId);
+            return next;
         });
+
+        try {
+            await fetch("http://localhost:8080/lobby/move", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                body: JSON.stringify({ lobbyId: lobbyID, characterId: charId }),
+            });
+        } catch {
+            // Persisting failed — state will re-sync on next getGameState call
+        }
     };
 
     const makeGuess = async (charId) => {
@@ -130,7 +146,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
         }),
     }));
 
-    const characters = gameState.lobby.characterSet.characters || [];
+    const characters = gameState.lobby.lobbyCharacters || [];
 
     return (
         <div>

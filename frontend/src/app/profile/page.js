@@ -1,11 +1,12 @@
 "use client";
 
 import Navbar from "@/components/navbar";
+import SetCover from "@/components/SetCover";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, Clock, Hash, Star, Users, Lock, Globe, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Trophy, Hash, Star, Lock, Globe, Pencil, Trash2, Layers } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    Design tokens — v3.0 schema
@@ -27,20 +28,20 @@ const T = {
     stateLive: "#2A7A56",
 };
 
-/* Placeholder data for profile v1.5 */
-const MOCK_STATS = [
-    { label: "Games Played", value: "142", Icon: Hash },
-    { label: "Win Rate", value: "68%", Icon: Trophy },
-    { label: "Fastest Win", value: "1m 12s", Icon: Clock },
-    { label: "Top Character", value: "Anita", Icon: Star },
-];
+function formatDuration(seconds) {
+    if (seconds == null) return "—";
+    return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+}
 
-const MOCK_HISTORY = [
-    { id: 1, date: "2 hours ago", opponent: "Guest_482", result: "Win", turns: 8 },
-    { id: 2, date: "Yesterday", opponent: "Sarah", result: "Loss", turns: 12 },
-    { id: 3, date: "Yesterday", opponent: "Sarah", result: "Win", turns: 6 },
-    { id: 4, date: "Oct 24", opponent: "DeductionKing", result: "Win", turns: 10 },
-];
+function formatResult(result) {
+    switch (result) {
+        case "win": return { label: "Win", win: true };
+        case "loss": return { label: "Loss", win: false };
+        case "forfeit_win": return { label: "Win (FF)", win: true };
+        case "forfeit_loss": return { label: "Loss (FF)", win: false };
+        default: return { label: result, win: false };
+    }
+}
 
 function StatCard({ stat, index }) {
     return (
@@ -78,11 +79,18 @@ function StatCard({ stat, index }) {
 }
 
 export default function Profile() {
-    const { user } = useContext(UserContext);
+    const { user, updateUser } = useContext(UserContext);
     const router = useRouter();
     const [mySets, setMySets] = useState([]);
     const [setsLoading, setSetsLoading] = useState(true);
     const [deletingId, setDeletingId] = useState(null);
+    const [stats, setStats] = useState(null);
+    const [statsLoading, setStatsLoading] = useState(true);
+    const [usernameModalOpen, setUsernameModalOpen] = useState(false);
+    const [usernameInput, setUsernameInput] = useState("");
+    const [usernameSaving, setUsernameSaving] = useState(false);
+    const [usernameError, setUsernameError] = useState(null);
+    const [usernameSaved, setUsernameSaved] = useState(false);
 
     useEffect(() => {
         if (!user?.id || user?.isGuest) { setSetsLoading(false); return; }
@@ -93,6 +101,42 @@ export default function Profile() {
             .then(data => { setMySets(Array.isArray(data) ? data : []); setSetsLoading(false); })
             .catch(() => setSetsLoading(false));
     }, [user?.id]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        fetch("http://localhost:8080/player/stats", {
+            headers: { "X-User-ID": user.id },
+        })
+            .then(r => r.json())
+            .then(data => { setStats(data); setStatsLoading(false); })
+            .catch(() => setStatsLoading(false));
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (user?.username) setUsernameInput(user.username);
+    }, [user?.username]);
+
+    const handleSaveUsername = async () => {
+        setUsernameError(null);
+        setUsernameSaved(false);
+        setUsernameSaving(true);
+        try {
+            const res = await fetch("http://localhost:8080/users/username", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "X-User-ID": user.id },
+                body: JSON.stringify({ username: usernameInput }),
+            });
+            const data = await res.json();
+            if (!res.ok) { setUsernameError(data.error || "Something went wrong"); return; }
+            updateUser(data);
+            setUsernameSaved(true);
+            setTimeout(() => {
+                setUsernameSaved(false);
+                setUsernameModalOpen(false);
+            }, 1200);
+        } catch { setUsernameError("Network error"); }
+        finally { setUsernameSaving(false); }
+    };
 
     const handleDeleteSet = async (setId) => {
         if (!confirm("Delete this set? This cannot be undone.")) return;
@@ -158,25 +202,145 @@ export default function Profile() {
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 fontSize: 28, fontWeight: 700, color: T.accentDim, border: `2px solid ${T.accent}`
                             }}>
-                                {user?.name?.substring(0, 2).toUpperCase() || "GU"}
+                                {(user?.username || user?.email || "G")[0].toUpperCase()}
                             </div>
                             <div>
-                                <h1 style={{
-                                    fontFamily: "'Fraunces', serif", fontSize: 42,
-                                    fontWeight: 900, color: T.text900, letterSpacing: "-0.03em"
-                                }}>
-                                    {user?.name || "Guest Player"}
-                                </h1>
-                                <p style={{ color: T.text400, fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
-                                    Member since 2024 • Professional Sleuth
+                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                    <h1 style={{
+                                        fontFamily: "'Fraunces', serif", fontSize: 42,
+                                        fontWeight: 900, color: T.text900, letterSpacing: "-0.03em",
+                                        margin: 0,
+                                    }}>
+                                        {user?.username || user?.email?.split("@")[0] || "Guest Player"}
+                                    </h1>
+                                    {!user?.isGuest && (
+                                        <button
+                                            onClick={() => {
+                                                setUsernameInput(user?.username || "");
+                                                setUsernameError(null);
+                                                setUsernameSaved(false);
+                                                setUsernameModalOpen(true);
+                                            }}
+                                            title="Edit username"
+                                            style={{
+                                                background: "transparent", border: `1px solid ${T.border}`,
+                                                borderRadius: "6px", cursor: "pointer",
+                                                width: 30, height: 30, display: "flex",
+                                                alignItems: "center", justifyContent: "center",
+                                                color: T.text400, transition: "all 150ms", flexShrink: 0,
+                                            }}
+                                            onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderStrong; e.currentTarget.style.color = T.text600; e.currentTarget.style.background = T.surface1; }}
+                                            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text400; e.currentTarget.style.background = "transparent"; }}
+                                        >
+                                            <Pencil size={13} />
+                                        </button>
+                                    )}
+                                </div>
+                                <p style={{ color: T.text400, fontSize: 14, fontFamily: "'DM Sans', sans-serif", margin: "4px 0 0" }}>
+                                    {user?.email && !user?.isGuest ? user.email : "Guest"}
                                 </p>
                             </div>
                         </div>
                     </div>
 
+                    {/* Username change modal */}
+                    {usernameModalOpen && (
+                        <div
+                            onMouseDown={() => setUsernameModalOpen(false)}
+                            style={{
+                                position: "fixed", inset: 0, zIndex: 100,
+                                background: "rgba(247,243,238,0.75)",
+                                display: "flex", alignItems: "center", justifyContent: "center",
+                            }}
+                        >
+                            <motion.div
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
+                                onMouseDown={e => e.stopPropagation()}
+                                style={{
+                                    background: T.surface0, border: `1px solid ${T.border}`,
+                                    borderRadius: "6px", padding: "28px 28px 24px",
+                                    width: "100%", maxWidth: 400,
+                                    display: "flex", flexDirection: "column", gap: 16,
+                                }}
+                            >
+                                <div>
+                                    <h2 style={{
+                                        fontFamily: "'Fraunces', serif", fontSize: 20,
+                                        fontWeight: 700, color: T.text900, margin: "0 0 4px",
+                                        letterSpacing: "-0.01em",
+                                    }}>
+                                        Change username
+                                    </h2>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text400, margin: 0 }}>
+                                        You can change your username once every 30 days.
+                                    </p>
+                                </div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <label htmlFor="username-input" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: T.text600 }}>
+                                        New username
+                                    </label>
+                                    <input
+                                        id="username-input"
+                                        autoFocus
+                                        value={usernameInput}
+                                        onChange={e => { setUsernameInput(e.target.value); setUsernameError(null); setUsernameSaved(false); }}
+                                        onKeyDown={e => e.key === "Enter" && handleSaveUsername()}
+                                        placeholder="Enter username"
+                                        style={{
+                                            height: 40, padding: "0 12px",
+                                            background: T.surface0,
+                                            border: `1px solid ${usernameError ? T.stateOut : T.border}`,
+                                            borderRadius: "6px", fontFamily: "'DM Sans', sans-serif",
+                                            fontSize: 14, color: T.text900, outline: "none",
+                                        }}
+                                    />
+                                    {usernameError && (
+                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.stateOut, margin: 0 }}>
+                                            {usernameError}
+                                        </p>
+                                    )}
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                                    <button
+                                        onClick={() => setUsernameModalOpen(false)}
+                                        style={{
+                                            height: 40, padding: "0 16px", borderRadius: "6px",
+                                            border: `1px solid ${T.border}`, background: "transparent",
+                                            color: T.text600, fontFamily: "'DM Sans', sans-serif",
+                                            fontSize: 14, fontWeight: 500, cursor: "pointer",
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveUsername}
+                                        disabled={usernameSaving || !usernameInput.trim()}
+                                        style={{
+                                            height: 40, padding: "0 20px", borderRadius: "6px", border: "none",
+                                            background: usernameSaved ? T.stateLive : T.accent,
+                                            color: "#fff", fontFamily: "'DM Sans', sans-serif",
+                                            fontSize: 14, fontWeight: 600, cursor: "pointer",
+                                            opacity: (usernameSaving || !usernameInput.trim()) ? 0.6 : 1,
+                                            transition: "background 200ms",
+                                        }}
+                                    >
+                                        {usernameSaving ? "Saving…" : usernameSaved ? "Saved!" : "Save"}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+
                     {/* Stats Grid */}
                     <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-                        {MOCK_STATS.map((stat, i) => (
+                        {[
+                            { label: "Games Played", value: statsLoading ? "…" : String(stats?.gamesPlayed ?? 0), Icon: Hash },
+                            { label: "Win Rate", value: statsLoading ? "…" : `${Math.round((stats?.winRate ?? 0) * 100)}%`, Icon: Trophy },
+                            { label: "Wins", value: statsLoading ? "…" : String(stats?.wins ?? 0), Icon: Star },
+                            { label: "Top Set", value: statsLoading ? "…" : (stats?.topSet?.name ?? "—"), Icon: Layers },
+                        ].map((stat, i) => (
                             <StatCard key={stat.label} stat={stat} index={i} />
                         ))}
                     </div>
@@ -193,7 +357,7 @@ export default function Profile() {
                                     My Sets
                                 </h2>
                                 <button
-                                    onClick={() => router.push("/create")}
+                                    onClick={() => router.push("/set/new")}
                                     style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, padding: "6px 16px", borderRadius: "6px", border: `1px solid ${T.border}`, background: "transparent", color: T.text600, cursor: "pointer", transition: "all 150ms" }}
                                     onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderStrong; e.currentTarget.style.background = T.surface1; e.currentTarget.style.color = T.text900; }}
                                     onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = T.text600; }}
@@ -211,7 +375,7 @@ export default function Profile() {
                                     <p style={{ fontFamily: "'Fraunces', serif", fontSize: 18, color: T.text900, marginBottom: 8 }}>No sets yet</p>
                                     <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: T.text400, marginBottom: 20 }}>Create your first character set to use in games.</p>
                                     <button
-                                        onClick={() => router.push("/create")}
+                                        onClick={() => router.push("/set/new")}
                                         style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, padding: "10px 24px", borderRadius: "6px", border: "none", background: T.accent, color: "#fff", cursor: "pointer" }}
                                     >
                                         Create a Set
@@ -246,17 +410,7 @@ export default function Profile() {
                                                 </button>
                                             </div>
 
-                                            {set.coverImageName ? (
-                                                <img
-                                                    src={`http://localhost:8080${set.coverImageName}`}
-                                                    alt={set.name}
-                                                    style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }}
-                                                />
-                                            ) : (
-                                                <div style={{ width: "100%", height: 120, background: T.accentLight, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                    <Users size={32} color={T.accentDim} />
-                                                </div>
-                                            )}
+                                            <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 120 }} />
                                             <div style={{ padding: "12px 14px" }}>
                                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 4 }}>
                                                     <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: T.text900, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -295,24 +449,40 @@ export default function Profile() {
                             overflow: "hidden", display: "flex", flexDirection: "column", gap: "1px",
                             background: T.border
                         }}>
-                            {MOCK_HISTORY.map((match) => (
-                                <div key={match.id} className="history-row">
-                                    <span style={{ fontSize: 12, color: T.text400, fontWeight: 500 }}>{match.date}</span>
-                                    <span style={{ fontSize: 14, color: T.text900, fontWeight: 600 }}>vs. {match.opponent}</span>
-                                    <span style={{
-                                        fontSize: 12, fontWeight: 700, textTransform: "uppercase",
-                                        letterSpacing: "0.05em", color: match.result === "Win" ? T.stateLive : T.stateOut
-                                    }}>
-                                        {match.result}
-                                    </span>
-                                    <span className="history-turns" style={{
-                                        textAlign: "right", fontSize: 14, color: T.text600,
-                                        fontVariantNumeric: "tabular-nums"
-                                    }}>
-                                        {match.turns} turns
-                                    </span>
+                            {statsLoading ? (
+                                <div style={{ padding: "32px", textAlign: "center", color: T.text400, fontFamily: "'DM Sans', sans-serif", fontSize: 14, background: T.surface0 }}>
+                                    Loading history…
                                 </div>
-                            ))}
+                            ) : !stats?.recentGames?.length ? (
+                                <div style={{ padding: "40px 24px", textAlign: "center", background: T.surface0 }}>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: T.text400, margin: 0 }}>No games yet</p>
+                                </div>
+                            ) : stats.recentGames.map((match, idx) => {
+                                const { label, win } = formatResult(match.result);
+                                return (
+                                    <div key={idx} className="history-row">
+                                        <span style={{ fontSize: 12, color: T.text400, fontWeight: 500 }}>
+                                            {new Date(match.finishedAt).toLocaleDateString()}
+                                        </span>
+                                        <span style={{ fontSize: 14, color: T.text900, fontWeight: 600 }}>vs. {match.opponentName}</span>
+                                        <span style={{
+                                            fontSize: 12, fontWeight: 700, textTransform: "uppercase",
+                                            letterSpacing: "0.05em", color: win ? T.stateLive : T.stateOut
+                                        }}>
+                                            {label}
+                                        </span>
+                                        <span className="history-turns" style={{
+                                            textAlign: "right", fontSize: 12, color: T.text600,
+                                            fontVariantNumeric: "tabular-nums"
+                                        }}>
+                                            {match.characterSetName && (
+                                                <span style={{ color: T.text400, marginRight: 8 }}>{match.characterSetName}</span>
+                                            )}
+                                            {formatDuration(match.durationSeconds)}
+                                        </span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </motion.div>
 

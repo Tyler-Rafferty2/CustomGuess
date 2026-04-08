@@ -1,77 +1,72 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { X, Check, Move } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { X, Check, Move, Upload, Crop } from 'lucide-react';
 
-export default function ImageCropperIntegration({ images, setImages }) {
+const T = {
+    bg: "#F7F3EE", surface0: "#FFFFFF", surface1: "#F2EDE7", surface2: "#E8E0D8",
+    accent: "#D9572B", accentLight: "#F2C5B4", accentDim: "#B84422",
+    text900: "#1A1510", text600: "#5C5047", text400: "#A0937F",
+    border: "#DDD5CA", borderStrong: "#C4B8A8", stateOut: "#C0392B",
+};
+
+const CONTAINER_SIZE = 400;
+const OUTPUT_SIZE = 300;
+const HANDLE_SIZE = 12;
+const MIN_CROP = 50;
+
+// triggerEdit: when set to a number, opens the crop modal for that index.
+// Parent should reset it to null after passing (use a counter so the same index re-triggers).
+export default function ImageCropperIntegration({ images, setImages, triggerEdit = null }) {
     const [editingIndex, setEditingIndex] = useState(null);
     const [cropBox, setCropBox] = useState({ x: 50, y: 50, width: 200, height: 200 });
     const [dragging, setDragging] = useState(null);
-    const containerRef = useRef(null);
+    const [dropHover, setDropHover] = useState(false);
     const fileInputRef = useRef(null);
 
-    const CONTAINER_SIZE = 400; // Size of the preview container
-    const OUTPUT_SIZE = 300; // Fixed output size for all images
-    const HANDLE_SIZE = 12;
-
-    const handleFileSelect = (e) => {
-        const files = Array.from(e.target.files);
-        files.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Auto-crop to square at fixed OUTPUT_SIZE
-                    const canvas = document.createElement('canvas');
-                    canvas.width = OUTPUT_SIZE;
-                    canvas.height = OUTPUT_SIZE;
-                    const ctx = canvas.getContext('2d');
-
-                    // Calculate center crop coordinates
-                    const size = Math.min(img.width, img.height);
-                    const sourceX = (img.width - size) / 2;
-                    const sourceY = (img.height - size) / 2;
-
-                    // Draw cropped and resized image
-                    ctx.drawImage(
-                        img,
-                        sourceX,
-                        sourceY,
-                        size,
-                        size,
-                        0,
-                        0,
-                        OUTPUT_SIZE,
-                        OUTPUT_SIZE
-                    );
-
-                    // Convert to blob and create file
-                    canvas.toBlob((blob) => {
-                        const croppedFile = new File([blob], file.name, { type: 'image/png' });
-                        const croppedDataUrl = canvas.toDataURL('image/png');
-
-                        setImages(prev => [...prev, {
-                            id: Date.now() + Math.random(),
-                            name: file.name.replace(/\.[^/.]+$/, ""),
-                            originalName: file.name,
-                            file: croppedFile,
-                            original: event.target.result,
-                            width: OUTPUT_SIZE,
-                            height: OUTPUT_SIZE,
-                            cropped: croppedDataUrl,
-                            croppedFile: croppedFile,
-                            isEditing: false
-                        }]);
-                    }, 'image/png');
-                };
-                img.src = event.target.result;
+    const processFile = (file, onDone) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = OUTPUT_SIZE;
+                canvas.height = OUTPUT_SIZE;
+                const ctx = canvas.getContext('2d');
+                const size = Math.min(img.width, img.height);
+                const sx = (img.width - size) / 2;
+                const sy = (img.height - size) / 2;
+                ctx.drawImage(img, sx, sy, size, size, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+                canvas.toBlob((blob) => {
+                    const croppedFile = new File([blob], file.name, { type: 'image/png' });
+                    onDone({
+                        id: Date.now() + Math.random(),
+                        name: file.name.replace(/\.[^/.]+$/, ''),
+                        originalName: file.name,
+                        file: croppedFile,
+                        original: e.target.result,
+                        cropped: canvas.toDataURL('image/png'),
+                        croppedFile,
+                    });
+                }, 'image/png');
             };
-            reader.readAsDataURL(file);
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleFileSelect = (files) => {
+        Array.from(files).forEach(file => {
+            processFile(file, (entry) => setImages(prev => [...prev, entry]));
         });
-        e.target.value = '';
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setDropHover(false);
+        const files = e.dataTransfer.files;
+        if (files.length) handleFileSelect(files);
     };
 
     const startEdit = (index) => {
-        console.log('Starting edit for index:', index);
-        console.log('Image data:', images[index]);
         setEditingIndex(index);
         setCropBox({ x: 50, y: 50, width: 200, height: 200 });
     };
@@ -82,128 +77,85 @@ export default function ImageCropperIntegration({ images, setImages }) {
     };
 
     const handleMouseMove = (e) => {
-        if (!dragging || !containerRef.current) return;
-
-        const deltaX = e.clientX - dragging.startX;
-        const deltaY = e.clientY - dragging.startY;
-
-        let newBox = { ...cropBox };
+        if (!dragging) return;
+        const dx = e.clientX - dragging.startX;
+        const dy = e.clientY - dragging.startY;
+        let b = { ...cropBox };
 
         if (dragging.type === 'move') {
-            newBox.x = Math.max(0, Math.min(CONTAINER_SIZE - cropBox.width, dragging.startBox.x + deltaX));
-            newBox.y = Math.max(0, Math.min(CONTAINER_SIZE - cropBox.height, dragging.startBox.y + deltaY));
-        } else if (dragging.type === 'nw') {
-            const newWidth = Math.max(50, dragging.startBox.width - deltaX);
-            const newHeight = Math.max(50, dragging.startBox.height - deltaY);
-            const size = Math.min(newWidth, newHeight);
-            newBox.width = size;
-            newBox.height = size;
-            newBox.x = dragging.startBox.x + (dragging.startBox.width - size);
-            newBox.y = dragging.startBox.y + (dragging.startBox.height - size);
-        } else if (dragging.type === 'ne') {
-            const newWidth = Math.max(50, dragging.startBox.width + deltaX);
-            const newHeight = Math.max(50, dragging.startBox.height - deltaY);
-            const size = Math.min(newWidth, newHeight);
-            newBox.width = size;
-            newBox.height = size;
-            newBox.y = dragging.startBox.y + (dragging.startBox.height - size);
-        } else if (dragging.type === 'sw') {
-            const newWidth = Math.max(50, dragging.startBox.width - deltaX);
-            const newHeight = Math.max(50, dragging.startBox.height + deltaY);
-            const size = Math.min(newWidth, newHeight);
-            newBox.width = size;
-            newBox.height = size;
-            newBox.x = dragging.startBox.x + (dragging.startBox.width - size);
-        } else if (dragging.type === 'se') {
-            const newWidth = Math.max(50, dragging.startBox.width + deltaX);
-            const newHeight = Math.max(50, dragging.startBox.height + deltaY);
-            const size = Math.min(newWidth, newHeight);
-            newBox.width = size;
-            newBox.height = size;
+            b.x = Math.max(0, Math.min(CONTAINER_SIZE - b.width, dragging.startBox.x + dx));
+            b.y = Math.max(0, Math.min(CONTAINER_SIZE - b.height, dragging.startBox.y + dy));
+        } else {
+            const sb = dragging.startBox;
+            if (dragging.type === 'nw') {
+                const size = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height - dy));
+                b.width = size; b.height = size;
+                b.x = sb.x + (sb.width - size); b.y = sb.y + (sb.height - size);
+            } else if (dragging.type === 'ne') {
+                const size = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height - dy));
+                b.width = size; b.height = size;
+                b.y = sb.y + (sb.height - size);
+            } else if (dragging.type === 'sw') {
+                const size = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height + dy));
+                b.width = size; b.height = size;
+                b.x = sb.x + (sb.width - size);
+            } else if (dragging.type === 'se') {
+                const size = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height + dy));
+                b.width = size; b.height = size;
+            }
+            b.x = Math.max(0, Math.min(CONTAINER_SIZE - b.width, b.x));
+            b.y = Math.max(0, Math.min(CONTAINER_SIZE - b.height, b.y));
         }
-
-        newBox.x = Math.max(0, Math.min(CONTAINER_SIZE - newBox.width, newBox.x));
-        newBox.y = Math.max(0, Math.min(CONTAINER_SIZE - newBox.height, newBox.y));
-
-        setCropBox(newBox);
+        setCropBox(b);
     };
 
-    const handleMouseUp = () => {
-        setDragging(null);
-    };
+    const handleMouseUp = () => setDragging(null);
 
     useEffect(() => {
-        if (dragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-            return () => {
-                window.removeEventListener('mousemove', handleMouseMove);
-                window.removeEventListener('mouseup', handleMouseUp);
-            };
-        }
+        if (!dragging) return;
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
     }, [dragging, cropBox]);
+
+    // Auto-open crop modal when parent signals a new image was added
+    useEffect(() => {
+        if (triggerEdit == null || images.length === 0) return;
+        setEditingIndex(triggerEdit);
+        setCropBox({ x: 50, y: 50, width: 200, height: 200 });
+    }, [triggerEdit]);
 
     const applyCrop = () => {
         const img = images[editingIndex];
         const image = new Image();
-
         image.onload = () => {
-            // Calculate how the image is rendered in the container
-            const imageAspect = image.width / image.height;
-            let renderedWidth, renderedHeight, offsetX, offsetY;
-
-            if (imageAspect > 1) {
-                renderedWidth = CONTAINER_SIZE;
-                renderedHeight = CONTAINER_SIZE / imageAspect;
-                offsetX = 0;
-                offsetY = (CONTAINER_SIZE - renderedHeight) / 2;
+            const aspect = image.width / image.height;
+            let rw, rh, ox, oy;
+            if (aspect > 1) {
+                rw = CONTAINER_SIZE; rh = CONTAINER_SIZE / aspect;
+                ox = 0; oy = (CONTAINER_SIZE - rh) / 2;
             } else {
-                renderedHeight = CONTAINER_SIZE;
-                renderedWidth = CONTAINER_SIZE * imageAspect;
-                offsetX = (CONTAINER_SIZE - renderedWidth) / 2;
-                offsetY = 0;
+                rh = CONTAINER_SIZE; rw = CONTAINER_SIZE * aspect;
+                ox = (CONTAINER_SIZE - rw) / 2; oy = 0;
             }
 
-            // Calculate crop coordinates relative to the rendered image
-            const cropXRelative = cropBox.x - offsetX;
-            const cropYRelative = cropBox.y - offsetY;
+            const sx = (cropBox.x - ox) * (image.width / rw);
+            const sy = (cropBox.y - oy) * (image.height / rh);
+            const sw = cropBox.width * (image.width / rw);
+            const sh = cropBox.height * (image.height / rh);
 
-            // Scale factors between rendered size and actual image size
-            const scaleX = image.width / renderedWidth;
-            const scaleY = image.height / renderedHeight;
-
-            // Calculate source coordinates in the original image
-            const sourceX = cropXRelative * scaleX;
-            const sourceY = cropYRelative * scaleY;
-            const sourceWidth = cropBox.width * scaleX;
-            const sourceHeight = cropBox.height * scaleY;
-
-            // Create canvas with fixed OUTPUT_SIZE
             const canvas = document.createElement('canvas');
-            canvas.width = OUTPUT_SIZE;
-            canvas.height = OUTPUT_SIZE;
-            const ctx = canvas.getContext('2d');
-
-            // Draw the cropped portion scaled to OUTPUT_SIZE
-            ctx.drawImage(
-                image,
-                sourceX,
-                sourceY,
-                sourceWidth,
-                sourceHeight,
-                0,
-                0,
-                OUTPUT_SIZE,
-                OUTPUT_SIZE
-            );
+            canvas.width = OUTPUT_SIZE; canvas.height = OUTPUT_SIZE;
+            canvas.getContext('2d').drawImage(image, sx, sy, sw, sh, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
 
             canvas.toBlob((blob) => {
                 const croppedFile = new File([blob], img.originalName, { type: 'image/png' });
-                const croppedDataUrl = canvas.toDataURL('image/png');
-
                 setImages(prev => prev.map((item, idx) =>
                     idx === editingIndex
-                        ? { ...item, cropped: croppedDataUrl, croppedFile }
+                        ? { ...item, cropped: canvas.toDataURL('image/png'), croppedFile }
                         : item
                 ));
                 setEditingIndex(null);
@@ -212,212 +164,218 @@ export default function ImageCropperIntegration({ images, setImages }) {
         image.src = img.original;
     };
 
-    const cancelEdit = () => {
-        setEditingIndex(null);
-    };
+    const updateName = (id, name) =>
+        setImages(prev => prev.map(img => img.id === id ? { ...img, name } : img));
 
-    const deleteImage = (index) => {
-        setImages(prev => prev.filter((_, idx) => idx !== index));
-        if (editingIndex === index) {
-            setEditingIndex(null);
-        }
-    };
-
-    const updateImageName = (id, newName) => {
-        setImages(prev => prev.map(img =>
-            img.id === id ? { ...img, name: newName } : img
-        ));
+    const remove = (index) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+        if (editingIndex === index) setEditingIndex(null);
     };
 
     return (
-        <div className="p-6 max-w-6xl mx-auto">
-            <h1 className="text-2xl font-bold mb-4 text-white">Upload Images</h1>
-
-            {/* Upload Area */}
-            <div className="border-2 border-dashed border-white/30 rounded-lg p-8 text-center hover:border-white/50 transition bg-white/5 backdrop-blur-sm">
+        <div>
+            {/* Drop zone */}
+            <div
+                onClick={() => fileInputRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={(e) => { e.preventDefault(); setDropHover(true); }}
+                onDragLeave={() => setDropHover(false)}
+                style={{
+                    border: `2px dashed ${dropHover ? T.accent : T.border}`,
+                    borderRadius: 6,
+                    padding: "28px 24px",
+                    textAlign: "center",
+                    cursor: "pointer",
+                    background: dropHover ? T.accentLight : T.surface1,
+                    transition: "all 150ms ease-out",
+                }}
+            >
                 <input
                     ref={fileInputRef}
                     type="file"
-                    id="card-upload"
                     multiple
                     accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
+                    style={{ display: "none" }}
+                    onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ''; }}
                 />
-                <label htmlFor="card-upload" className="cursor-pointer">
-                    <svg className="w-12 h-12 text-white/60 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-white/80 mb-2">Drop card images here or click to browse</p>
-                    <span className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-white/90 transition inline-block font-medium">
-                        Upload Images
-                    </span>
-                </label>
+                <Upload size={22} color={dropHover ? T.accent : T.text400} style={{ margin: "0 auto 8px" }} />
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: dropHover ? T.accent : T.text600, margin: "0 0 4px", fontWeight: 500 }}>
+                    Drop images here or click to browse
+                </p>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
+                    Each image will be auto-cropped to square — you can adjust after
+                </p>
             </div>
 
-            {/* Display uploaded images */}
+            {/* Image grid */}
             {images.length > 0 && (
-                <div className="mt-4 grid grid-cols-3 gap-3">
-                    {images.map((card, index) => (
-                        <div key={card.id} className="relative group">
-                            <div className="w-full aspect-square">
-                                <img
-                                    src={card.cropped || card.original}
-                                    alt={card.name}
-                                    className="w-full h-full object-cover rounded-lg border-2 border-white/30"
-                                />
-                            </div>
+                <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10 }}>
+                    {images.map((img, index) => (
+                        <div key={img.id} style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                            <img
+                                src={img.cropped || img.original}
+                                alt={img.name}
+                                style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }}
+                            />
 
-                            {/* Action Buttons */}
-                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                            {/* Hover actions */}
+                            <div style={{
+                                position: "absolute", inset: 0, height: 90,
+                                background: "rgba(26,21,16,0.45)",
+                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                opacity: 0, transition: "opacity 150ms",
+                            }}
+                                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                                onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                            >
                                 <button
                                     onClick={() => startEdit(index)}
-                                    className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600 shadow-lg"
-                                    title="Crop"
+                                    title="Adjust crop"
+                                    style={{ width: 30, height: 30, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 >
-                                    ✂️
+                                    <Move size={14} color={T.text900} />
                                 </button>
                                 <button
-                                    onClick={() => deleteImage(index)}
-                                    className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg"
+                                    onClick={() => remove(index)}
                                     title="Remove"
+                                    style={{ width: 30, height: 30, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 >
-                                    <X size={14} />
+                                    <X size={14} color={T.stateOut} />
                                 </button>
                             </div>
 
-                            {/* Editable Name */}
-                            {card.isEditing ? (
+                            {/* Name */}
+                            <div style={{ padding: "5px 7px" }}>
                                 <input
-                                    type="text"
-                                    value={card.name}
-                                    onChange={(e) => updateImageName(card.id, e.target.value)}
-                                    onBlur={() => setImages(prev => prev.map(c =>
-                                        c.id === card.id ? { ...c, isEditing: false } : c
-                                    ))}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            setImages(prev => prev.map(c =>
-                                                c.id === card.id ? { ...c, isEditing: false } : c
-                                            ));
-                                        }
+                                    value={img.name}
+                                    onChange={(e) => updateName(img.id, e.target.value)}
+                                    style={{
+                                        width: "100%", border: "none", background: "transparent",
+                                        fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600,
+                                        color: T.text900, outline: "none", padding: 0,
                                     }}
-                                    autoFocus
-                                    className="w-full text-xs text-gray-800 mt-1 px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 />
-                            ) : (
-                                <p
-                                    onClick={() => setImages(prev => prev.map(c =>
-                                        c.id === card.id ? { ...c, isEditing: true } : c
-                                    ))}
-                                    className="text-xs text-white/80 mt-1 truncate cursor-pointer hover:text-white hover:bg-white/10 px-1 py-0.5 rounded"
-                                    title="Click to edit"
-                                >
-                                    {card.name}
-                                </p>
-                            )}
+                            </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {images.length > 0 && (
-                <p className="text-sm text-white/70 mt-2">
-                    {images.length} card{images.length !== 1 ? 's' : ''} uploaded
-                </p>
-            )}
-
-            {/* Crop Modal */}
+            {/* Crop modal */}
             {editingIndex !== null && images[editingIndex] && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}>
-                    <div className="bg-white rounded-xl p-6 max-w-3xl w-full">
-                        <h2 className="text-xl font-bold mb-4">Crop Image - Drag corners to resize, drag center to move</h2>
+                <div style={{
+                    position: "fixed", inset: 0, zIndex: 100,
+                    background: "rgba(26,21,16,0.6)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    padding: 16,
+                }}>
+                    <div style={{
+                        background: T.surface0, borderRadius: 6, padding: 24,
+                        width: "100%", maxWidth: CONTAINER_SIZE + 220,
+                        border: `1px solid ${T.border}`,
+                    }}>
+                        <div style={{ marginBottom: 20 }}>
+                            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: T.text900, margin: "0 0 2px", letterSpacing: "-0.02em" }}>
+                                Adjust Crop
+                            </h2>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
+                                Drag the box to move · drag corners to resize
+                            </p>
+                        </div>
 
-                        <div className="flex gap-6 mb-4">
-                            <div
-                                ref={containerRef}
-                                className="relative bg-gray-100 flex-shrink-0 rounded-lg overflow-hidden"
-                                style={{ width: CONTAINER_SIZE, height: CONTAINER_SIZE }}
-                            >
+                        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                            {/* Canvas */}
+                            <div style={{
+                                position: "relative", flexShrink: 0,
+                                width: CONTAINER_SIZE, height: CONTAINER_SIZE,
+                                background: T.surface1, borderRadius: 6, overflow: "hidden",
+                                border: `1px solid ${T.border}`,
+                            }}>
                                 <img
                                     src={images[editingIndex].original}
-                                    alt="Crop preview"
-                                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                                    onError={(e) => console.error('Image failed to load', e)}
-                                    onLoad={() => console.log('Image loaded successfully')}
+                                    alt="crop preview"
+                                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }}
                                 />
 
-                                <div
-                                    className="absolute border-2 border-white shadow-lg cursor-move"
-                                    style={{
-                                        left: cropBox.x,
-                                        top: cropBox.y,
-                                        width: cropBox.width,
-                                        height: cropBox.height,
-                                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-                                    }}
+                                {/* Dark surround */}
+                                <div style={{
+                                    position: "absolute",
+                                    left: cropBox.x, top: cropBox.y,
+                                    width: cropBox.width, height: cropBox.height,
+                                    boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)",
+                                    border: `2px solid ${T.surface0}`,
+                                    cursor: "move",
+                                }}
                                     onMouseDown={(e) => handleMouseDown(e, 'move')}
                                 >
-                                    <div className="absolute inset-0 bg-transparent" />
+                                    {/* Grid lines */}
+                                    <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                                        {[1/3, 2/3].map(f => (
+                                            <div key={f} style={{ position: "absolute", left: `${f * 100}%`, top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.3)" }} />
+                                        ))}
+                                        {[1/3, 2/3].map(f => (
+                                            <div key={f} style={{ position: "absolute", top: `${f * 100}%`, left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.3)" }} />
+                                        ))}
+                                    </div>
 
                                     {/* Corner handles */}
-                                    {['nw', 'ne', 'sw', 'se'].map(corner => (
+                                    {[
+                                        { type: 'nw', top: -HANDLE_SIZE/2, left: -HANDLE_SIZE/2, cursor: 'nw-resize' },
+                                        { type: 'ne', top: -HANDLE_SIZE/2, right: -HANDLE_SIZE/2, cursor: 'ne-resize' },
+                                        { type: 'sw', bottom: -HANDLE_SIZE/2, left: -HANDLE_SIZE/2, cursor: 'sw-resize' },
+                                        { type: 'se', bottom: -HANDLE_SIZE/2, right: -HANDLE_SIZE/2, cursor: 'se-resize' },
+                                    ].map(({ type, cursor, ...pos }) => (
                                         <div
-                                            key={corner}
-                                            className={`absolute bg-white border-2 border-blue-500 rounded-full cursor-${corner}-resize`}
+                                            key={type}
+                                            onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, type); }}
                                             style={{
-                                                width: HANDLE_SIZE,
-                                                height: HANDLE_SIZE,
-                                                [corner.includes('n') ? 'top' : 'bottom']: -HANDLE_SIZE / 2,
-                                                [corner.includes('w') ? 'left' : 'right']: -HANDLE_SIZE / 2,
-                                            }}
-                                            onMouseDown={(e) => {
-                                                e.stopPropagation();
-                                                handleMouseDown(e, corner);
+                                                position: "absolute", width: HANDLE_SIZE, height: HANDLE_SIZE,
+                                                background: T.surface0, border: `2px solid ${T.accent}`,
+                                                borderRadius: "50%", cursor, ...pos,
                                             }}
                                         />
                                     ))}
-
-                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                        <Move size={24} className="text-white opacity-70" />
-                                    </div>
                                 </div>
                             </div>
 
-                            <div className="flex-1 space-y-4">
-                                <div className="p-4 bg-blue-50 rounded-lg">
-                                    <h3 className="font-semibold mb-2">How to use:</h3>
-                                    <ul className="text-sm space-y-1 text-gray-700">
-                                        <li>• Drag the white box to move it</li>
-                                        <li>• Drag any corner to resize (stays square)</li>
-                                        <li>• The selected area will be your final image</li>
-                                        <li>• Output size matches the crop box proportions</li>
-                                    </ul>
+                            {/* Info panel */}
+                            <div style={{ flex: 1, minWidth: 160, display: "flex", flexDirection: "column", gap: 16, justifyContent: "space-between" }}>
+                                <div style={{ background: T.surface1, borderRadius: 6, padding: "14px 16px", border: `1px solid ${T.border}` }}>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: T.text400, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>Crop Info</p>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text600, margin: "0 0 4px" }}>
+                                        Selection: {Math.round(cropBox.width)} × {Math.round(cropBox.height)}px
+                                    </p>
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text600, margin: 0 }}>
+                                        Output: {OUTPUT_SIZE} × {OUTPUT_SIZE}px
+                                    </p>
                                 </div>
 
-                                <div className="p-4 bg-gray-50 rounded-lg">
-                                    <h3 className="font-semibold mb-2">Crop Info:</h3>
-                                    <p className="text-xs text-gray-600">Crop Size: {Math.round(cropBox.width)} × {Math.round(cropBox.height)}px</p>
-                                    <p className="text-xs text-gray-600">Output: {OUTPUT_SIZE} × {OUTPUT_SIZE}px (fixed)</p>
-                                    <p className="text-xs text-gray-500 mt-1">All images resized to same dimensions</p>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <button
+                                        onClick={applyCrop}
+                                        style={{
+                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                            height: 40, borderRadius: 6, border: "none",
+                                            background: T.accent, color: "#fff",
+                                            fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <Check size={16} /> Apply
+                                    </button>
+                                    <button
+                                        onClick={() => setEditingIndex(null)}
+                                        style={{
+                                            height: 40, borderRadius: 6, border: `1px solid ${T.border}`,
+                                            background: "transparent", color: T.text600,
+                                            fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="flex gap-3 justify-end">
-                            <button
-                                onClick={cancelEdit}
-                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={applyCrop}
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                            >
-                                <Check size={18} />
-                                Apply Crop
-                            </button>
                         </div>
                     </div>
                 </div>

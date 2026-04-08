@@ -22,17 +22,24 @@ func NewUserService(db *gorm.DB, emailSvc *EmailService, appBaseURL string) *Use
 }
 
 // SignUp creates a new user
-func (s *UserService) SignUp(email, password string) (*models.User, error) {
-    // Check if user exists
+func (s *UserService) SignUp(email, password, username string) (*models.User, error) {
+    if username == "" {
+        return nil, errors.New("username is required")
+    }
+
     var existing models.User
     if err := s.DB.First(&existing, "email = ?", email).Error; err == nil {
         return nil, errors.New("email already registered")
+    }
+    if err := s.DB.First(&existing, "username = ?", username).Error; err == nil {
+        return nil, errors.New("username already taken")
     }
 
     hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     user := &models.User{
         Email:        email,
+        Username:     username,
         PasswordHash: string(hashedPassword),
     }
 
@@ -40,6 +47,35 @@ func (s *UserService) SignUp(email, password string) (*models.User, error) {
         return nil, err
     }
 
+    return user, nil
+}
+
+// UpdateUsername changes a user's username, enforcing a 30-day cooldown.
+func (s *UserService) UpdateUsername(user *models.User, username string) (*models.User, error) {
+    if username == "" {
+        return nil, errors.New("username cannot be empty")
+    }
+
+    const cooldownDays = 30
+    if user.UsernameChangedAt != nil {
+        nextAllowed := user.UsernameChangedAt.AddDate(0, 0, cooldownDays)
+        if time.Now().Before(nextAllowed) {
+            daysLeft := int(time.Until(nextAllowed).Hours()/24) + 1
+            return nil, fmt.Errorf("you can change your username again in %d day(s)", daysLeft)
+        }
+    }
+
+    var existing models.User
+    if err := s.DB.First(&existing, "username = ? AND id != ?", username, user.ID).Error; err == nil {
+        return nil, errors.New("username already taken")
+    }
+
+    now := time.Now()
+    user.Username = username
+    user.UsernameChangedAt = &now
+    if err := s.DB.Save(user).Error; err != nil {
+        return nil, err
+    }
     return user, nil
 }
 

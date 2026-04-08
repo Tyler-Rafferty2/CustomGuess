@@ -36,6 +36,11 @@ export const UserProvider = ({ children }) => {
         localStorage.setItem("user", JSON.stringify(userData));
     };
 
+    const updateUser = (userData) => {
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+    };
+
     const logout = () => {
         // On logout, create a new guest identity
         const guestId = crypto.randomUUID();
@@ -52,7 +57,7 @@ export const UserProvider = ({ children }) => {
 
 
     return (
-        <UserContext.Provider value={{ user, login, logout }}>
+        <UserContext.Provider value={{ user, login, logout, updateUser }}>
             {children}
         </UserContext.Provider>
     );

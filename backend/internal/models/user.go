@@ -7,14 +7,16 @@ import (
 )
 
 type User struct {
-    ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-    Email     string    `gorm:"unique" json:"email"`
-    PasswordHash  string    `json:"-"`
-    IsGuest bool `gorm:"default:false" json:"isGuest"`
-    CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
-    Players []Player `gorm:"foreignKey:UserID" json:"players,omitempty"`
+    ID           uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
+    Email        string     `gorm:"unique" json:"email"`
+    Username     string     `gorm:"uniqueIndex" json:"username"`
+    PasswordHash string     `json:"-"`
+    IsGuest      bool       `gorm:"default:false" json:"isGuest"`
+    CreatedAt    time.Time  `gorm:"autoCreateTime" json:"createdAt"`
+    Players      []Player   `gorm:"foreignKey:UserID" json:"players,omitempty"`
     ResetToken          string     `gorm:"index" json:"-"`
     ResetTokenExpiresAt *time.Time `json:"-"`
+    UsernameChangedAt   *time.Time `json:"usernameChangedAt"`
 }
 
 // BeforeCreate generates a UUID before inserting a new User

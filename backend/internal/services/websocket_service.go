@@ -169,7 +169,8 @@ func getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
 		// handle invalid UUID
 	}
 	if err := config.DB.Preload("Players").
-		Preload("CharacterSet.Characters").
+		Preload("CharacterSet").
+		Preload("LobbyCharacters").
 		First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
 		return nil, err
 	}

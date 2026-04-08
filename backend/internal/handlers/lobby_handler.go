@@ -114,15 +114,19 @@ func (h *LobbyHandler) GetLobbyStatus(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(status)
 }
 
-// POST /player/move
+// POST /lobby/move
 func (h *LobbyHandler) MakeMoveHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
     var req struct {
-        PlayerID uuid.UUID `json:"playerId"`
-        Guess    string    `json:"guess"`
+        LobbyID     uuid.UUID `json:"lobbyId"`
+        CharacterID string    `json:"characterId"`
     }
-    json.NewDecoder(r.Body).Decode(&req)
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "invalid request", http.StatusBadRequest)
+        return
+    }
 
-    if err := h.Service.MakeMove(req.PlayerID, req.Guess); err != nil {
+    if err := h.Service.MakeMove(user, req.LobbyID, req.CharacterID); err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
@@ -152,7 +156,7 @@ func (h *LobbyHandler) GetLobbyHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // Call service with lobbyID and userID
-    lobby, secretChar, opponentChar, err := h.Service.GetLobbyForPlayer(lobbyID, user.ID)
+    lobby, secretChar, opponentChar, eliminated, err := h.Service.GetLobbyForPlayer(lobbyID, user.ID)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
@@ -160,13 +164,15 @@ func (h *LobbyHandler) GetLobbyHandler(w http.ResponseWriter, r *http.Request) {
 
     // Build response including secret character only for this user, plus opponent reveal on game over
     response := struct {
-        Lobby             *models.Lobby     `json:"lobby"`
-        SecretCharacter   *models.Character `json:"secretCharacter,omitempty"`
-        OpponentCharacter *models.Character `json:"opponentCharacter,omitempty"`
+        Lobby                *models.Lobby          `json:"lobby"`
+        SecretCharacter      *models.LobbyCharacter `json:"secretCharacter,omitempty"`
+        OpponentCharacter    *models.LobbyCharacter `json:"opponentCharacter,omitempty"`
+        EliminatedCharacters []string               `json:"eliminatedCharacters"`
     }{
-        Lobby:             lobby,
-        SecretCharacter:   secretChar,
-        OpponentCharacter: opponentChar,
+        Lobby:                lobby,
+        SecretCharacter:      secretChar,
+        OpponentCharacter:    opponentChar,
+        EliminatedCharacters: eliminated,
     }
 
     w.Header().Set("Content-Type", "application/json")

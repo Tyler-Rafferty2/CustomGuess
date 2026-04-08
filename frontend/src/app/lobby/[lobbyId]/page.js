@@ -8,6 +8,7 @@ import GameState from "./GameState";
 import ChatApp from '@/components/chatapp';
 import Navbar from "@/components/navbar";
 import GameSend from '@/components/gameSend';
+import SetCover from '@/components/SetCover';
 import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -831,7 +832,7 @@ export default function LobbyPage() {
                                     <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
                                         {(rematchSetView === 'public' ? rematchPublicSets : rematchMySets).map(set => (
                                             <div key={set.id} onClick={() => setSelectedRematchSet(set)} style={{ background: 'var(--surface-0)', border: `2px solid ${selectedRematchSet?.id === set.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: 'var(--s3)', cursor: 'pointer', transition: 'border-color 150ms' }}>
-                                                <img src={`http://localhost:8080${set.coverImageName}`} alt={set.name} style={{ width: '100%', height: 80, objectFit: 'cover', borderRadius: 4, marginBottom: 'var(--s2)' }} />
+                                                <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 80, borderRadius: 4, marginBottom: 'var(--s2)' }} />
                                                 <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 13, color: 'var(--text-900)', margin: 0 }}>{set.name}</p>
                                             </div>
                                         ))}
@@ -1088,7 +1089,7 @@ export default function LobbyPage() {
             }
         };
 
-        const characters = gameState?.lobby.characterSet.characters || [];
+        const characters = gameState?.lobby.lobbyCharacters || [];
         return (
             <>
                 <StyleInjector />

@@ -48,7 +48,12 @@ func MountRoutes(r chi.Router) {
         r.Get("/{id}", userHandler.GetUserHandler)
         r.Post("/forgot-password", userHandler.ForgotPasswordHandler)
         r.Post("/reset-password", userHandler.ResetPasswordHandler)
-	})
+
+        r.Group(func(r chi.Router) {
+            r.Use(middleware.UserMiddleware)
+            r.Put("/username", userHandler.UpdateUsernameHandler)
+        })
+    })
 
 
 	r.Route("/lobby", func(r chi.Router) {
@@ -88,6 +93,7 @@ func MountRoutes(r chi.Router) {
             r.Use(middleware.UserMiddleware) // Apply middleware to this group only
 
             r.Get("/", playerHandler.GetPlayersHandler)
+            r.Get("/stats", playerHandler.GetStatsHandler)
             r.Post("/set/create", playerHandler.CreateSetHandler)
             r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
             r.Put("/set/{setId}", playerHandler.UpdateSetHandler)

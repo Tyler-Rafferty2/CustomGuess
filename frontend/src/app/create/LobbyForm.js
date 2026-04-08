@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import ImageCropperIntegration from './ImageCropperIntegration';
-import { UserCircle, ArrowLeft, Search, Plus, Check, Star, Lock, Unlock, MessageSquare, Shuffle } from "lucide-react";
+import SetCover from '@/components/SetCover';
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle } from "lucide-react";
+import Navbar from "@/components/navbar";
 
 // ─── Design Token Injection ───────────────────────────────────────────────────
 const DESIGN_TOKENS = `
@@ -49,61 +50,6 @@ const DESIGN_TOKENS = `
     font-size: var(--text-base);
     color: var(--text-900);
   }
-
-  /* ── Header ── */
-  .lobby-header {
-    background: var(--surface-0);
-    border-bottom: 1px solid var(--border);
-    padding: var(--s4) var(--s6);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-  .lobby-header__inner {
-    max-width: 1080px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .lobby-header__title {
-    font-family: 'Fraunces', serif;
-    font-size: var(--text-xl);
-    font-weight: 700;
-    color: var(--text-900);
-    letter-spacing: -0.03em;
-    line-height: 1.1;
-  }
-  .lobby-header__sub {
-    font-size: var(--text-sm);
-    color: var(--text-400);
-    font-weight: 500;
-    margin-top: 2px;
-  }
-  .btn-back {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s2);
-    padding: var(--s2) var(--s3);
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    font-family: 'DM Sans', sans-serif;
-    font-size: var(--text-base);
-    font-weight: 600;
-    color: var(--text-600);
-    cursor: pointer;
-    transition: background var(--dur-fast) var(--ease-out),
-                border-color var(--dur-fast) var(--ease-out),
-                color var(--dur-fast) var(--ease-out);
-    height: 40px;
-  }
-  .btn-back:hover {
-    background: var(--surface-1);
-    border-color: var(--border-strong);
-    color: var(--text-900);
-  }
-  .btn-back:active { background: var(--surface-2); }
 
   /* ── Layout ── */
   .lobby-body {
@@ -342,138 +288,136 @@ const DESIGN_TOKENS = `
   }
   .guest-notice__sub { font-size: var(--text-sm); color: #A0722A; }
 
-  /* ── Create Set Form ── */
-  .create-form {
+  /* ── Set card preview button ── */
+  .set-card__img-wrap:hover .set-card__preview-btn { opacity: 1; }
+  .set-card__preview-btn {
+    position: absolute;
+    bottom: var(--s2);
+    right: var(--s2);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px var(--s3);
+    background: rgba(26,21,16,0.72);
+    border: none;
+    border-radius: var(--r);
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+    z-index: 2;
+  }
+  .set-card__preview-btn:hover { background: rgba(26,21,16,0.9); }
+
+  /* ── Preview Modal ── */
+  .preview-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,21,16,0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: var(--s6);
+    animation: fadeIn var(--dur-default) var(--ease-out);
+  }
+  .preview-modal {
     background: var(--surface-0);
     border: 1px solid var(--border);
     border-radius: var(--r);
-    padding: var(--s8);
+    width: 100%;
+    max-width: 680px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp var(--dur-default) var(--ease-out);
   }
-  .create-form__title {
+  @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .preview-modal__header {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    padding: var(--s5) var(--s6);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .preview-modal__cover {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--r);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .preview-modal__title {
     font-family: 'Fraunces', serif;
     font-size: var(--text-lg);
     font-weight: 700;
     color: var(--text-900);
     letter-spacing: -0.02em;
-    margin-bottom: var(--s6);
+  }
+  .preview-modal__count {
+    font-size: var(--text-sm);
+    color: var(--text-400);
+    margin-top: 2px;
+  }
+  .preview-modal__close {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    cursor: pointer;
+    color: var(--text-600);
+    transition: background var(--dur-fast) var(--ease-out);
+    flex-shrink: 0;
+  }
+  .preview-modal__close:hover { background: var(--surface-1); }
+  .preview-modal__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
     gap: var(--s3);
+    padding: var(--s5) var(--s6);
+    overflow-y: auto;
+    flex: 1;
   }
-  .create-form__row {
+  .preview-char {
     display: flex;
-    gap: var(--s6);
-    margin-bottom: var(--s5);
+    flex-direction: column;
+    align-items: center;
+    gap: var(--s2);
   }
-  .create-form__col { flex: 1; display: flex; flex-direction: column; gap: var(--s4); }
-  .create-form__cover { width: 220px; flex-shrink: 0; }
-
-  .field-label {
-    display: block;
-    font-size: var(--text-sm);
+  .preview-char__img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+  }
+  .preview-char__name {
+    font-size: var(--text-xs);
     font-weight: 600;
     color: var(--text-600);
-    margin-bottom: var(--s2);
-    letter-spacing: 0.02em;
-  }
-  .field-input {
-    width: 100%;
-    height: 40px;
-    padding: 0 var(--s4);
-    background: var(--surface-0);
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    font-family: 'DM Sans', sans-serif;
-    font-size: var(--text-base);
-    color: var(--text-900);
-    outline: none;
-    transition: border-color var(--dur-fast) var(--ease-out);
-  }
-  .field-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-  .field-input::placeholder { color: var(--text-400); }
-  .field-textarea {
-    width: 100%;
-    padding: var(--s3) var(--s4);
-    background: var(--surface-0);
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    font-family: 'DM Sans', sans-serif;
-    font-size: var(--text-base);
-    color: var(--text-900);
-    outline: none;
-    resize: vertical;
-    transition: border-color var(--dur-fast) var(--ease-out);
-    line-height: 1.6;
-  }
-  .field-textarea:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px var(--accent-light);
-  }
-  .field-textarea::placeholder { color: var(--text-400); }
-
-  .cover-dropzone {
-    border: 1.5px dashed var(--border-strong);
-    border-radius: var(--r);
-    height: 160px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--surface-1);
-    cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out),
-                background var(--dur-fast) var(--ease-out);
-    position: relative;
-    overflow: hidden;
-  }
-  .cover-dropzone:hover {
-    border-color: var(--accent);
-    background: var(--bg);
-  }
-  .cover-dropzone__label {
     text-align: center;
-    color: var(--text-400);
-    font-size: var(--text-sm);
+    line-height: 1.3;
+    word-break: break-word;
   }
-  .cover-dropzone__btn {
-    display: inline-block;
-    margin-top: var(--s3);
-    padding: var(--s2) var(--s4);
-    background: var(--surface-0);
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--text-900);
-    cursor: pointer;
-    transition: background var(--dur-fast) var(--ease-out);
-  }
-  .cover-dropzone__btn:hover { background: var(--surface-2); }
-  .cover-preview {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .cover-remove {
-    position: absolute;
-    top: var(--s2);
-    right: var(--s2);
-    width: 28px;
-    height: 28px;
-    background: var(--state-out);
-    border: none;
-    border-radius: 50%;
+  .preview-modal__footer {
+    padding: var(--s4) var(--s6);
+    border-top: 1px solid var(--border);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    cursor: pointer;
-    transition: opacity var(--dur-fast);
+    justify-content: flex-end;
+    gap: var(--s3);
+    flex-shrink: 0;
   }
-  .cover-remove:hover { opacity: 0.85; }
 
   .toggle-row {
     display: flex;
@@ -659,13 +603,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [mySets, setMySets] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const [newSetName, setNewSetName] = useState("");
-    const [newSetDescription, setNewSetDescription] = useState("");
-    const [newSetCards, setNewSetCards] = useState([]);
-    const [newSetImage, setNewSetImage] = useState("");
-    const [isSetPublic, setIsSetPublic] = useState(false);
     const [chatFeature, setChatFeature] = useState(true);
-    const [images, setImages] = useState([]);
+    const [previewSet, setPreviewSet] = useState(null);
 
     useEffect(() => { loadSetsPublic(); }, []);
     useEffect(() => { if (user?.isGuest == false) loadSets(); }, [user]);
@@ -716,30 +655,6 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         } catch { setError("Network error"); }
     };
 
-    const handleCreateSet = async () => {
-        setSetView("my-sets");
-        const formData = new FormData();
-        formData.append("name", newSetName);
-        formData.append("description", newSetDescription);
-        formData.append("public", isSetPublic);
-        formData.append("coverImage", newSetImage?.file || "");
-        images.forEach((card, index) => {
-            formData.append(`characters[${index}][name]`, card.name);
-            formData.append(`characters[${index}][image]`, card.croppedFile || card.file);
-        });
-        try {
-            const res = await fetch("http://localhost:8080/player/set/create", {
-                method: "POST", headers: { "X-User-ID": user?.id }, body: formData,
-            });
-            let data;
-            try { data = await res.json(); } catch { data = await res.text(); }
-            loadSets();
-            if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-        } catch { setError("Network error"); }
-        setNewSetName(""); setNewSetDescription(""); setNewSetCards([]);
-        setNewSetImage(""); setIsSetPublic(false); setChatFeature(true);
-    };
-
     const filteredSets = () => {
         const sets = setView === "public" ? publicSets : mySets;
         if (!searchQuery) return sets;
@@ -753,19 +668,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         <>
             <style>{DESIGN_TOKENS}</style>
             <div className="lobby-root">
-                {/* Header */}
-                <header className="lobby-header">
-                    <div className="lobby-header__inner">
-                        <div>
-                            <h1 className="lobby-header__title">Create New Game</h1>
-                            <p className="lobby-header__sub">Choose a character set and configure your game</p>
-                        </div>
-                        <button className="btn-back" onClick={() => router.back()}>
-                            <ArrowLeft size={16} />
-                            <span>Back</span>
-                        </button>
-                    </div>
-                </header>
+                <Navbar />
 
                 <div className="lobby-body">
                     {/* Left Panel */}
@@ -790,142 +693,37 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 <UserCircle size={15} />
                                 <span>My Sets</span>
                             </button>
-                            {!user?.isGuest && (
-                                <button
-                                    role="tab"
-                                    aria-selected={setView === "create"}
-                                    className={`tab-btn${setView === "create" ? " tab-btn--active" : ""}`}
-                                    onClick={() => setSetView("create")}
-                                >
-                                    <Plus size={15} />
-                                    <span>Create New</span>
-                                </button>
-                            )}
                         </div>
 
                         {/* Search */}
-                        {setView !== "create" && (
-                            <div className="search-wrap">
-                                <Search size={16} className="search-icon" aria-hidden="true" />
-                                <input
-                                    type="text"
-                                    className="search-input"
-                                    placeholder="Search character sets…"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    aria-label="Search character sets"
-                                />
+                        <div className="search-wrap">
+                            <Search size={16} className="search-icon" aria-hidden="true" />
+                            <input
+                                type="text"
+                                className="search-input"
+                                placeholder="Search character sets…"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                aria-label="Search character sets"
+                            />
+                        </div>
+
+                        {/* New Set link (My Sets only, non-guest) */}
+                        {setView === "my-sets" && !user?.isGuest && (
+                            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "var(--s4)" }}>
+                                <button
+                                    className="btn btn--secondary"
+                                    onClick={() => router.push("/set/new?from=create")}
+                                    style={{ gap: "var(--s2)" }}
+                                >
+                                    <Plus size={15} />
+                                    New Set
+                                </button>
                             </div>
                         )}
 
                         {/* Content */}
-                        {setView === "create" ? (
-                            <div className="create-form">
-                                <h2 className="create-form__title">
-                                    <Plus size={20} />
-                                    Create Character Set
-                                </h2>
-
-                                <div className="create-form__row">
-                                    <div className="create-form__col">
-                                        <div>
-                                            <label className="field-label" htmlFor="set-name">Set Name</label>
-                                            <input
-                                                id="set-name"
-                                                type="text"
-                                                className="field-input"
-                                                value={newSetName}
-                                                onChange={(e) => setNewSetName(e.target.value)}
-                                                placeholder="Enter set name"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="field-label" htmlFor="set-desc">Description</label>
-                                            <textarea
-                                                id="set-desc"
-                                                className="field-textarea"
-                                                value={newSetDescription}
-                                                onChange={(e) => setNewSetDescription(e.target.value)}
-                                                placeholder="Describe your character set"
-                                                rows={4}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="create-form__cover">
-                                        <label className="field-label">Cover Image</label>
-                                        <div className="cover-dropzone">
-                                            <input
-                                                type="file"
-                                                id="cover-upload"
-                                                accept="image/*"
-                                                style={{ display: "none" }}
-                                                onChange={(e) => {
-                                                    const file = e.target.files[0];
-                                                    if (file) {
-                                                        const reader = new FileReader();
-                                                        reader.onload = (ev) => setNewSetImage({ file, preview: ev.target.result });
-                                                        reader.readAsDataURL(file);
-                                                    }
-                                                }}
-                                            />
-                                            {newSetImage ? (
-                                                <>
-                                                    <img src={newSetImage.preview} alt="Cover preview" className="cover-preview" />
-                                                    <button
-                                                        className="cover-remove"
-                                                        onClick={() => setNewSetImage("")}
-                                                        aria-label="Remove cover image"
-                                                    >
-                                                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                                            <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                                                        </svg>
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <label htmlFor="cover-upload" className="cover-dropzone__label" style={{ cursor: "pointer" }}>
-                                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ margin: "0 auto 8px", display: "block", color: "var(--text-400)" }}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                    </svg>
-                                                    <span>Upload cover</span>
-                                                    <span className="cover-dropzone__btn">Choose Image</span>
-                                                </label>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <ImageCropperIntegration images={images} setImages={setImages} />
-                                </div>
-
-                                <label className="toggle-row" htmlFor="set-public">
-                                    <div className="toggle-row__left">
-                                        <Unlock size={16} className="toggle-row__icon" />
-                                        <div>
-                                            <div className="toggle-row__title">Make Public</div>
-                                            <div className="toggle-row__sub">Anyone can view and use this character set</div>
-                                        </div>
-                                    </div>
-                                    <input
-                                        id="set-public"
-                                        type="checkbox"
-                                        checked={isSetPublic}
-                                        onChange={(e) => setIsSetPublic(e.target.checked)}
-                                    />
-                                </label>
-
-                                <div className="form-actions">
-                                    <button className="btn btn--secondary btn--full" onClick={() => setSetView("my-sets")}>
-                                        Cancel
-                                    </button>
-                                    <button className="btn btn--primary btn--full" onClick={handleCreateSet}>
-                                        Create Set
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="sets-grid" role="list">
+                        <div className="sets-grid" role="list">
                                 {loading ? (
                                     <div className="state-loading">
                                         <div className="spinner" aria-label="Loading" role="status" />
@@ -957,16 +755,20 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                             aria-pressed={selectedSet?.id === set.id}
                                         >
                                             <div className="set-card__img-wrap">
-                                                <img
-                                                    src={`http://localhost:8080` + set.coverImageName}
-                                                    alt={set.name}
-                                                    className="set-card__img"
-                                                />
+                                                <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: "100%", borderRadius: 0 }} />
                                                 {selectedSet?.id === set.id && (
                                                     <div className="set-card__check" aria-hidden="true">
                                                         <Check size={14} strokeWidth={3} />
                                                     </div>
                                                 )}
+                                                <button
+                                                    className="set-card__preview-btn"
+                                                    onClick={(e) => { e.stopPropagation(); setPreviewSet(set); }}
+                                                    aria-label={`Preview ${set.name}`}
+                                                >
+                                                    <Eye size={12} />
+                                                    Preview
+                                                </button>
                                             </div>
                                             <div className="set-card__body">
                                                 <h3 className="set-card__name">{set.name}</h3>
@@ -991,23 +793,17 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                         </div>
                                     ))
                                 )}
-                            </div>
-                        )}
+                        </div>
                     </div>
 
                     {/* Right Panel — Game Settings */}
-                    {setView !== "create" && (
-                        <aside className="panel-right" aria-label="Game settings">
+                    <aside className="panel-right" aria-label="Game settings">
                             <div className="panel-right__inner">
                                 <h2 className="panel-right__heading">Game Settings</h2>
 
                                 {selectedSet && (
                                     <div className="selected-preview">
-                                        <img
-                                            src={`http://localhost:8080` + selectedSet.coverImageName}
-                                            alt={selectedSet.name}
-                                            className="selected-preview__img"
-                                        />
+                                        <SetCover coverImageName={selectedSet.coverImageName} alt={selectedSet.name} className="selected-preview__img" style={{ height: 60, borderRadius: 4 }} />
                                         <div className="selected-preview__body">
                                             <div className="selected-preview__eyebrow">Selected Set</div>
                                             <div className="selected-preview__name">{selectedSet.name}</div>
@@ -1080,9 +876,58 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 </div>
                             </div>
                         </aside>
-                    )}
                 </div>
             </div>
+
+            {/* Character Set Preview Modal */}
+            {previewSet && (
+                <div className="preview-overlay" onClick={() => setPreviewSet(null)}>
+                    <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="preview-modal__header">
+                            <div className="preview-modal__cover">
+                                <SetCover coverImageName={previewSet.coverImageName} alt={previewSet.name} style={{ width: "100%", height: "100%", borderRadius: "var(--r)" }} />
+                            </div>
+                            <div>
+                                <div className="preview-modal__title">{previewSet.name}</div>
+                                <div className="preview-modal__count">
+                                    {previewSet.characters?.length ?? 0} characters
+                                </div>
+                            </div>
+                            <button className="preview-modal__close" onClick={() => setPreviewSet(null)} aria-label="Close preview">
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                    <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="preview-modal__grid">
+                            {(previewSet.characters || []).map((char) => (
+                                <div key={char.id} className="preview-char">
+                                    <img
+                                        src={`http://localhost:8080${char.image}`}
+                                        alt={char.name}
+                                        className="preview-char__img"
+                                    />
+                                    <span className="preview-char__name">{char.name}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="preview-modal__footer">
+                            <button className="btn btn--secondary" onClick={() => setPreviewSet(null)}>
+                                Close
+                            </button>
+                            <button
+                                className="btn btn--primary"
+                                onClick={() => { setSelectedSet(previewSet); setPreviewSet(null); }}
+                            >
+                                <Check size={15} />
+                                Select This Set
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

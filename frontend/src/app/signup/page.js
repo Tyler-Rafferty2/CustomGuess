@@ -7,18 +7,19 @@ import Link from "next/link";
 export default function Signup() {
     const router = useRouter();
     const [email, setEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState(null);
 
     const handleSignup = async (e) => {
         e.preventDefault();
-        setError(null); // Clear previous errors
+        setError(null);
 
         try {
             const res = await fetch("http://localhost:8080/users/signup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, username }),
             });
 
             if (!res.ok) {
@@ -27,7 +28,7 @@ export default function Signup() {
                 return;
             }
 
-            router.push("/signin");
+            router.push("/signin?registered=1");
         } catch (err) {
             console.error(err);
             setError("Network error");
@@ -54,6 +55,21 @@ export default function Signup() {
                 )}
 
                 <form onSubmit={handleSignup} className="flex flex-col gap-4">
+                    <div>
+                        <label htmlFor="username" className="block text-[16px] font-semibold text-[#1A1510] mb-2">
+                            Username
+                        </label>
+                        <input
+                            id="username"
+                            type="text"
+                            placeholder="yourname"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="w-full h-[44px] px-4 bg-[#F2EDE7] border border-[#DDD5CA] rounded-[6px] text-[#1A1510] placeholder-[#A0937F] focus:outline-none focus:border-[#C4B8A8] focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF] transition-colors duration-150"
+                            required
+                        />
+                    </div>
+
                     <div>
                         {/* --text-md (16px), --text-900 (#1A1510) */}
                         <label htmlFor="email" className="block text-[16px] font-semibold text-[#1A1510] mb-2">
