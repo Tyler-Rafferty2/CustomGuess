@@ -1372,78 +1372,6 @@ export default function LobbyPage() {
                     Opponent disconnected — forfeiting in {Math.floor(disconnectCountdown / 60)}:{String(disconnectCountdown % 60).padStart(2, '0')}
                 </div>
             )}
-            {/* ── Turn timer bar ── */}
-            {turnTimeLeft !== null && lobby?.turnTimerSeconds > 0 && !lobby?.gameOver && (() => {
-                const totalMs = lobby.turnTimerSeconds * 1000;
-                const pct = Math.max(0, Math.min(1, turnTimeLeft / totalMs));
-                const secs = Math.ceil(turnTimeLeft / 1000);
-                const isLow = secs <= 10;
-                const isMine = lobby?.turn === playerId;
-                return (
-                    <div style={{ background: 'var(--surface-0)', borderBottom: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: '6px var(--s4)' }}>
-                            <div style={{ flex: 1, height: 4, background: 'var(--surface-2)', borderRadius: 2, overflow: 'hidden' }}>
-                                <div style={{
-                                    height: '100%',
-                                    width: `${pct * 100}%`,
-                                    background: isLow ? 'var(--state-out)' : 'var(--accent)',
-                                    borderRadius: 2,
-                                    transition: 'width 0.25s linear, background 0.3s',
-                                }} />
-                            </div>
-                            <span style={{
-                                fontFamily: "'DM Sans', sans-serif",
-                                fontWeight: 700,
-                                fontSize: 13,
-                                color: isLow ? 'var(--state-out)' : 'var(--text-600)',
-                                minWidth: 36,
-                                textAlign: 'right',
-                            }}>
-                                {secs}s
-                            </span>
-                            {/* Pause controls */}
-                            {lobby.turnTimerPaused ? (
-                                lobby.resumeRequestedBy && lobby.resumeRequestedBy !== playerId ? (
-                                    <button
-                                        onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'resume_accept' }))}
-                                        style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--state-live)', background: '#EAF6EF', border: '1px solid #2A7A5640', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
-                                    >
-                                        Accept Resume
-                                    </button>
-                                ) : lobby.resumeRequestedBy && lobby.resumeRequestedBy === playerId ? (
-                                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-400)' }}>Resume requested…</span>
-                                ) : (
-                                    <button
-                                        onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'resume_request' }))}
-                                        style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--state-live)', background: '#EAF6EF', border: '1px solid #2A7A5640', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
-                                    >
-                                        Resume
-                                    </button>
-                                )
-                            ) : lobby.pauseRequestedBy && lobby.pauseRequestedBy !== playerId ? (
-                                <button
-                                    onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'pause_accept' }))}
-                                    style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--accent)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
-                                >
-                                    Accept Pause
-                                </button>
-                            ) : lobby.pauseRequestedBy && lobby.pauseRequestedBy === playerId ? (
-                                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-400)' }}>Pause requested…</span>
-                            ) : (
-                                <button
-                                    onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'pause_request' }))}
-                                    style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--text-600)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
-                                >
-                                    Pause
-                                </button>
-                            )}
-                        </div>
-                        <div style={{ padding: '0 var(--s4) 5px', fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>
-                            {lobby.turnTimerPaused ? 'Timer paused' : isMine ? 'Your turn' : "Opponent's turn"}
-                        </div>
-                    </div>
-                );
-            })()}
             <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
                 {lobby.chatFeature && (
                     <div style={{
@@ -1551,37 +1479,47 @@ export default function LobbyPage() {
 
                 <div style={{ flex: 1, padding: 'var(--s6)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                     {!lobby.chatFeature && (
-                        <div style={{ display: 'flex', gap: 'var(--s6)', width: '100%', marginBottom: 'var(--s6)', alignItems: 'flex-start' }}>
-                            <div style={{ width: 200, flexShrink: 0 }}>
-                                {gameState && gameState.secretCharacter && (
-                                    <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s3)' }}>
-                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your Character</span>
+                        <>
+                            {/* Top bar: secret character + guess toggle */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 'var(--s5)',
+                                marginBottom: 'var(--s5)',
+                                padding: 'var(--s4)',
+                                background: 'var(--surface-0)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--r)',
+                            }}>
+                                {gameState?.secretCharacter && (
+                                    <>
                                         <img
                                             src={`http://localhost:8080` + gameState.secretCharacter.image}
                                             alt={gameState.secretCharacter.name}
-                                            style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', imageRendering: 'auto' }}
+                                            style={{ width: 80, height: 100, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', flexShrink: 0, border: '1px solid var(--border)' }}
                                         />
-                                        <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s2)', textAlign: 'center' }}>
-                                            {gameState.secretCharacter.name}
-                                        </p>
-                                    </div>
+                                        <div>
+                                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s2)' }}>Your Character</span>
+                                            <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)' }}>
+                                                {gameState.secretCharacter.name}
+                                            </span>
+                                        </div>
+                                    </>
                                 )}
                                 <button
                                     className={isGuessMode ? 'gw-btn-danger' : 'gw-btn-primary'}
-                                    style={{ width: '100%', justifyContent: 'center' }}
+                                    style={{ marginLeft: 'auto', height: 40, padding: '0 var(--s6)', justifyContent: 'center' }}
                                     onClick={() => setIsGuessMode(!isGuessMode)}
                                 >
                                     {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
                                 </button>
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <GameState
-                                    user={user} setError={setError} lobby={lobby} setLobby={setLobby}
-                                    gameState={gameState} setGameState={setGameState}
-                                    isGuessMode={isGuessMode} getGameState={getGameState}
-                                />
-                            </div>
-                        </div>
+                            <GameState
+                                user={user} setError={setError} lobby={lobby} setLobby={setLobby}
+                                gameState={gameState} setGameState={setGameState}
+                                isGuessMode={isGuessMode} getGameState={getGameState}
+                            />
+                        </>
                     )}
 
                     {lobby.chatFeature && (
@@ -1595,6 +1533,7 @@ export default function LobbyPage() {
                                         setSentMessage={setSentMessage} receivedMessage={receivedMessage}
                                         waitingReponse={waitingReponse} setWaitingReponse={setWaitingReponse}
                                         setIsGuessMode={setIsGuessMode} isGuessMode={isGuessMode}
+                                        turnTimeLeft={turnTimeLeft} lobby={lobby} playerId={playerId}
                                     />
                                 )}
                             </div>

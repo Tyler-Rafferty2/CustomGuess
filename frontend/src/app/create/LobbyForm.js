@@ -860,16 +860,19 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                             id="chat-feature"
                                             type="checkbox"
                                             checked={chatFeature}
-                                            onChange={(e) => setChatFeature(e.target.checked)}
+                                            onChange={(e) => {
+                                                setChatFeature(e.target.checked);
+                                                if (!e.target.checked) setTurnTimerSeconds(0);
+                                            }}
                                         />
                                     </label>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 0 4px' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 0 4px', opacity: chatFeature ? 1 : 0.4, pointerEvents: chatFeature ? 'auto' : 'none', transition: 'opacity 150ms' }}>
                                         <div className="toggle-row__left" style={{ marginBottom: 4 }}>
                                             <Timer size={16} className="toggle-row__icon" />
                                             <div>
                                                 <div className="toggle-row__title">Turn Timer</div>
-                                                <div className="toggle-row__sub">Auto-forfeit if time runs out</div>
+                                                <div className="toggle-row__sub">{chatFeature ? 'Auto-forfeit if time runs out' : 'Requires chat mode'}</div>
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', gap: 6 }}>

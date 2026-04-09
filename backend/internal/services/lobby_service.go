@@ -146,6 +146,10 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
 
     log.Printf("Is it chatFeature: %t", chatFeature)
 
+    if !chatFeature {
+        turnTimerSeconds = 0
+    }
+
     lobby := &models.Lobby{
         Code:             generateLobbyCode(),
         CharacterSetID:   charSet.ID,
@@ -621,13 +625,14 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
     }
 
     newLobby := &models.Lobby{
-        Code:           generateLobbyCode(),
-        CharacterSetID: charSet.ID,
-        Private:        oldLobby.Private,
-        RandomSecret:   oldLobby.RandomSecret,
-        ChatFeature:    oldLobby.ChatFeature,
-        UserID:         requestingPlayer.UserID,
-        GuestID:        requestingPlayer.GuestID,
+        Code:              generateLobbyCode(),
+        CharacterSetID:    charSet.ID,
+        Private:           oldLobby.Private,
+        RandomSecret:      oldLobby.RandomSecret,
+        ChatFeature:       oldLobby.ChatFeature,
+        TurnTimerSeconds:  oldLobby.TurnTimerSeconds,
+        UserID:            requestingPlayer.UserID,
+        GuestID:           requestingPlayer.GuestID,
     }
     if err := s.DB.Create(newLobby).Error; err != nil {
         return nil, err

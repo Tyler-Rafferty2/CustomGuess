@@ -1,50 +1,40 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Send } from 'lucide-react';
 
 export default function GameSend({
     lobbyId, username, wsRef, setIsConnected,
     messages, setMessages, turn, setSentMessage,
     receivedMessage, waitingReponse, setWaitingReponse,
-    setIsGuessMode, isGuessMode
+    setIsGuessMode, isGuessMode,
+    turnTimeLeft, lobby, playerId,
 }) {
     const [inputMessage, setInputMessage] = useState('');
 
-    const disconnect = () => {
-        if (wsRef.current) {
-            wsRef.current.close();
-            wsRef.current = null;
-            setMessages([]);
-            setIsConnected(false);
-        }
-    };
-
     const sendMessage = () => {
         if (!inputMessage.trim() || !wsRef.current) return;
-        const message = {
+        wsRef.current.send(JSON.stringify({
             type: 'message',
             content: inputMessage,
             time: new Date().toLocaleTimeString(),
             lobbyId,
             channel: 'game',
             swap: 'no',
-        };
+        }));
         setSentMessage(inputMessage);
         setWaitingReponse(true);
         setIsGuessMode(false);
-        wsRef.current.send(JSON.stringify(message));
         setInputMessage('');
     };
 
     const handleResponse = (ans) => {
-        const message = {
+        wsRef.current.send(JSON.stringify({
             type: 'message',
             content: ans,
             time: new Date().toLocaleTimeString(),
             lobbyId,
             channel: 'response',
             swap: 'yes',
-        };
-        wsRef.current.send(JSON.stringify(message));
+        }));
         setInputMessage('');
     };
 
@@ -55,14 +45,43 @@ export default function GameSend({
         }
     };
 
-    /* ── shared style primitives ── */
+    // Timer calculations
+    const hasTimer = turnTimeLeft !== null && lobby?.turnTimerSeconds > 0 && !lobby?.gameOver;
+    const totalMs = (lobby?.turnTimerSeconds || 1) * 1000;
+    const pct = hasTimer ? Math.max(0, Math.min(1, turnTimeLeft / totalMs)) : 1;
+    const secs = hasTimer ? Math.ceil(turnTimeLeft / 1000) : 0;
+    const isLow = hasTimer && secs <= 10;
+
+    // Pause/resume state
+    const isPaused = lobby?.turnTimerPaused;
+    const pauseRequestedByMe = lobby?.pauseRequestedBy && lobby.pauseRequestedBy === playerId;
+    const pauseRequestedByOpponent = lobby?.pauseRequestedBy && lobby.pauseRequestedBy !== playerId;
+    const resumeRequestedByMe = lobby?.resumeRequestedBy && lobby.resumeRequestedBy === playerId;
+    const resumeRequestedByOpponent = lobby?.resumeRequestedBy && lobby.resumeRequestedBy !== playerId;
+
+    const sendWs = (payload) => wsRef.current?.send(JSON.stringify(payload));
+
+    // User needs to take action: ask a question or answer one
+    const needsAction = (turn && !waitingReponse) || (!turn && receivedMessage !== '');
+
+    /* ── style primitives ── */
     const panel = {
-        background: 'var(--surface-0)',
-        border: '1px solid var(--border)',
-        borderLeft: turn ? '3px solid var(--accent)' : '3px solid var(--border-strong)',
+        background: needsAction ? '#FEF5F2' : 'var(--surface-0)',
+        border: needsAction ? '1px solid var(--accent-light)' : '1px solid var(--border)',
+        borderLeft: needsAction ? '3px solid var(--accent)' : '3px solid var(--border-strong)',
         borderRadius: 'var(--r)',
         padding: 'var(--s4)',
         fontFamily: "'DM Sans', sans-serif",
+        transition: 'background 200ms, border-color 200ms',
+    };
+
+    const turnLabel = {
+        fontFamily: "'DM Sans', sans-serif",
+        fontWeight: 600,
+        fontSize: 11,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        color: needsAction ? 'var(--accent)' : 'var(--text-400)',
     };
 
     const inputStyle = {
@@ -99,137 +118,228 @@ export default function GameSend({
         fontFamily: "'DM Sans', sans-serif",
         fontSize: 13,
         color: 'var(--text-400)',
+        margin: 0,
     };
 
-    console.log("GameSend props:", { turn, waitingReponse, inputMessage });
+    const smallBtn = {
+        fontFamily: "'DM Sans', sans-serif",
+        fontWeight: 600,
+        fontSize: 12,
+        borderRadius: 'var(--r)',
+        padding: '3px 10px',
+        cursor: 'pointer',
+        flexShrink: 0,
+    };
 
-    /* ── YOUR TURN ── */
-    if (turn) {
-        return (
-            <div style={panel}>
-                <span style={{
-                    fontFamily: "'DM Sans', sans-serif",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    color: 'var(--accent)',
-                    display: 'block',
-                    marginBottom: 'var(--s3)',
-                }}>
-                    Your Turn — Ask a Question
-                </span>
+    /* ── pause control inline button ── */
+    let pauseControl = null;
+    if (hasTimer) {
+        if (isPaused) {
+            if (resumeRequestedByOpponent) {
+                pauseControl = (
+                    <button
+                        onClick={() => sendWs({ channel: 'resume_accept' })}
+                        style={{ ...smallBtn, color: 'var(--state-live)', background: '#EAF6EF', border: '1px solid #2A7A5640' }}
+                    >
+                        Accept Resume
+                    </button>
+                );
+            } else if (resumeRequestedByMe) {
+                pauseControl = (
+                    <span style={{ ...metaText, fontSize: 11 }}>Resume requested…</span>
+                );
+            } else {
+                pauseControl = (
+                    <button
+                        onClick={() => sendWs({ channel: 'resume_request' })}
+                        style={{ ...smallBtn, color: 'var(--state-live)', background: '#EAF6EF', border: '1px solid #2A7A5640' }}
+                    >
+                        Resume
+                    </button>
+                );
+            }
+        } else if (pauseRequestedByOpponent) {
+            pauseControl = (
+                <button
+                    onClick={() => sendWs({ channel: 'pause_accept' })}
+                    style={{ ...smallBtn, color: 'var(--accent)', background: 'var(--surface-1)', border: '1px solid var(--border)' }}
+                >
+                    Accept Pause
+                </button>
+            );
+        } else if (pauseRequestedByMe) {
+            pauseControl = (
+                <span style={{ ...metaText, fontSize: 11 }}>Pause requested…</span>
+            );
+        } else {
+            pauseControl = (
+                <button
+                    onClick={() => sendWs({ channel: 'pause_request' })}
+                    style={{ ...smallBtn, color: 'var(--text-600)', background: 'transparent', border: '1px solid var(--border)' }}
+                >
+                    Pause
+                </button>
+            );
+        }
+    }
 
-                {!waitingReponse ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
-                        {/* Input row */}
-                        <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                            <input
-                                type="text"
-                                value={inputMessage}
-                                onChange={e => setInputMessage(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                                onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                                placeholder="Does your character have glasses?"
-                                style={inputStyle}
-                            />
-                            <button
-                                onClick={sendMessage}
-                                disabled={!inputMessage.trim()}
-                                style={{
-                                    ...btnBase,
-                                    background: inputMessage.trim() ? 'var(--accent)' : 'var(--surface-2)',
-                                    color: inputMessage.trim() ? '#fff' : 'var(--text-400)',
-                                    cursor: inputMessage.trim() ? 'pointer' : 'not-allowed',
-                                    width: 40,
-                                    padding: 0,
-                                }}
-                                onMouseEnter={e => { if (inputMessage.trim()) e.currentTarget.style.background = 'var(--accent-dim)'; }}
-                                onMouseLeave={e => { if (inputMessage.trim()) e.currentTarget.style.background = 'var(--accent)'; }}
-                            >
-                                <Send size={15} />
-                            </button>
-                        </div>
+    /* ── body content (state-specific, fixed-height container) ── */
+    let body;
 
-                        {/* Guess toggle */}
-                        <button
-                            onClick={() => setIsGuessMode(!isGuessMode)}
-                            style={{
-                                ...btnBase,
-                                alignSelf: 'flex-start',
-                                background: isGuessMode ? 'transparent' : 'var(--surface-1)',
-                                color: isGuessMode ? 'var(--state-out)' : 'var(--text-600)',
-                                border: isGuessMode ? '1px solid var(--accent-light)' : '1px solid var(--border)',
-                            }}
-                            onMouseEnter={e => {
-                                e.currentTarget.style.borderColor = isGuessMode ? 'var(--state-out)' : 'var(--border-strong)';
-                                e.currentTarget.style.background = isGuessMode ? '#fef2ef' : 'var(--surface-2)';
-                            }}
-                            onMouseLeave={e => {
-                                e.currentTarget.style.borderColor = isGuessMode ? 'var(--accent-light)' : 'var(--border)';
-                                e.currentTarget.style.background = isGuessMode ? 'transparent' : 'var(--surface-1)';
-                            }}
-                        >
-                            {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
-                        </button>
-                    </div>
-                ) : (
+    if (turn && !waitingReponse) {
+        body = (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+                    <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={e => setInputMessage(e.target.value)}
+                        onKeyPress={handleKeyPress}
+                        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                        onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                        placeholder="Does your character have glasses?"
+                        style={inputStyle}
+                    />
+                    <button
+                        onClick={sendMessage}
+                        disabled={!inputMessage.trim()}
+                        style={{
+                            ...btnBase,
+                            background: inputMessage.trim() ? 'var(--accent)' : 'var(--surface-2)',
+                            color: inputMessage.trim() ? '#fff' : 'var(--text-400)',
+                            cursor: inputMessage.trim() ? 'pointer' : 'not-allowed',
+                            width: 40,
+                            padding: 0,
+                        }}
+                        onMouseEnter={e => { if (inputMessage.trim()) e.currentTarget.style.background = 'var(--accent-dim)'; }}
+                        onMouseLeave={e => { if (inputMessage.trim()) e.currentTarget.style.background = 'var(--accent)'; }}
+                    >
+                        <Send size={15} />
+                    </button>
+                </div>
+                <button
+                    onClick={() => setIsGuessMode(!isGuessMode)}
+                    style={{
+                        ...btnBase,
+                        alignSelf: 'flex-start',
+                        background: isGuessMode ? 'transparent' : 'var(--surface-1)',
+                        color: isGuessMode ? 'var(--state-out)' : 'var(--text-600)',
+                        border: isGuessMode ? '1px solid var(--accent-light)' : '1px solid var(--border)',
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = isGuessMode ? 'var(--state-out)' : 'var(--border-strong)';
+                        e.currentTarget.style.background = isGuessMode ? '#fef2ef' : 'var(--surface-2)';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = isGuessMode ? 'var(--accent-light)' : 'var(--border)';
+                        e.currentTarget.style.background = isGuessMode ? 'transparent' : 'var(--surface-1)';
+                    }}
+                >
+                    {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
+                </button>
+            </div>
+        );
+    } else if (turn && waitingReponse) {
+        body = (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+                <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
                     <p style={metaText}>Waiting for opponent's response…</p>
-                )}
+                </div>
+                {/* Placeholder to maintain height */}
+                <div style={{ height: 40 }} />
+            </div>
+        );
+    } else if (!turn && receivedMessage !== '') {
+        body = (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+                <p style={{
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 14,
+                    color: 'var(--text-900)',
+                    margin: 0,
+                    lineHeight: 1.5,
+                    height: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    overflow: 'hidden',
+                }}>
+                    {receivedMessage}
+                </p>
+                <div style={{ display: 'flex', gap: 'var(--s2)' }}>
+                    <button
+                        onClick={() => handleResponse('yes')}
+                        style={{ ...btnBase, flex: 1, background: 'var(--state-live)', color: '#fff' }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >
+                        Yes
+                    </button>
+                    <button
+                        onClick={() => handleResponse('no')}
+                        style={{ ...btnBase, flex: 1, background: 'var(--state-out)', color: '#fff' }}
+                        onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                    >
+                        No
+                    </button>
+                </div>
+            </div>
+        );
+    } else {
+        // opponent's turn, no question yet
+        body = (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
+                <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
+                    <p style={metaText}>Waiting for opponent to ask…</p>
+                </div>
+                <div style={{ height: 40 }} />
             </div>
         );
     }
 
-    /* ── OPPONENT'S TURN ── */
     return (
         <div style={panel}>
-            <span style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontWeight: 600,
-                fontSize: 11,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--text-400)',
-                display: 'block',
-                marginBottom: 'var(--s3)',
-            }}>
-                Opponent's Turn
-            </span>
-
-            {receivedMessage !== '' ? (
-                <div>
-                    <p style={{
-                        fontFamily: "'DM Sans', sans-serif",
-                        fontSize: 14,
-                        color: 'var(--text-900)',
-                        marginBottom: 'var(--s4)',
-                        lineHeight: 1.5,
-                    }}>
-                        {receivedMessage}
-                    </p>
-                    <div style={{ display: 'flex', gap: 'var(--s2)' }}>
-                        <button
-                            onClick={() => handleResponse('yes')}
-                            style={{ ...btnBase, flex: 1, background: 'var(--state-live)', color: '#fff' }}
-                            onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                        >
-                            Yes
-                        </button>
-                        <button
-                            onClick={() => handleResponse('no')}
-                            style={{ ...btnBase, flex: 1, background: 'var(--state-out)', color: '#fff' }}
-                            onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-                        >
-                            No
-                        </button>
+            {/* ── Header: turn label + timer controls ── */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasTimer ? 'var(--s2)' : 'var(--s3)' }}>
+                <span style={turnLabel}>
+                    {turn && !waitingReponse ? 'Your Turn — Ask a Question'
+                        : turn && waitingReponse ? 'Your Turn — Waiting for Response'
+                        : !turn && receivedMessage !== '' ? 'Your Turn — Answer the Question'
+                        : "Opponent's Turn"}
+                </span>
+                {hasTimer && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+                        {pauseControl}
+                        <span style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontWeight: 700,
+                            fontSize: 13,
+                            color: isPaused ? 'var(--text-400)' : isLow ? 'var(--state-out)' : 'var(--text-600)',
+                            minWidth: 32,
+                            textAlign: 'right',
+                            fontVariantNumeric: 'tabular-nums',
+                        }}>
+                            {isPaused ? '—' : `${secs}s`}
+                        </span>
                     </div>
+                )}
+            </div>
+
+            {/* ── Timer bar ── */}
+            {hasTimer && (
+                <div style={{ height: 3, background: 'var(--surface-2)', borderRadius: 2, marginBottom: 'var(--s3)', overflow: 'hidden' }}>
+                    <div style={{
+                        height: '100%',
+                        width: isPaused ? `${pct * 100}%` : `${pct * 100}%`,
+                        background: isPaused || !needsAction ? 'var(--border-strong)' : isLow ? 'var(--state-out)' : 'var(--accent)',
+                        borderRadius: 2,
+                        transition: isPaused ? 'none' : 'width 0.25s linear, background 0.3s',
+                    }} />
                 </div>
-            ) : (
-                <p style={metaText}>Waiting for opponent to ask…</p>
             )}
+
+            {/* ── Body ── */}
+            {body}
         </div>
     );
 }
