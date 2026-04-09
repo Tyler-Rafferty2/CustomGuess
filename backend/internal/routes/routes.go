@@ -17,8 +17,6 @@ func MountRoutes(r chi.Router) {
     chatHub := services.NewHub()
     go chatHub.Run()
 
-    wsHandler := handlers.NewWebSocketHandler(chatHub)
-
 	// Create services
     emailService := services.NewEmailService(os.Getenv("RESEND_API_KEY"))
     appBaseURL := os.Getenv("APP_BASE_URL")
@@ -27,6 +25,10 @@ func MountRoutes(r chi.Router) {
     }
     userService := services.NewUserService(config.DB, emailService, appBaseURL)
     lobbyService := services.NewLobbyService(config.DB, chatHub)
+    chatHub.DisconnectHandler = lobbyService.ForfeitByPlayerID
+    chatHub.TurnExpiredHandler = lobbyService.ForfeitByPlayerID
+
+    wsHandler := handlers.NewWebSocketHandler(chatHub, lobbyService)
     playerService := services.NewPlayerService(config.DB)
     gameStateService := services.NewGameStateService(config.DB)
 
@@ -67,6 +69,7 @@ func MountRoutes(r chi.Router) {
         r.Use(middleware.UserMiddleware) // Apply middleware to this group only
         
         r.Post("/create", lobbyHandler.CreateLobbyHandler)
+        r.Get("/active", lobbyHandler.GetActiveLobbyHandler)
         r.Get("/find", lobbyHandler.FindLobbyHandler)
         r.Post("/join", lobbyHandler.JoinLobbyHandler)
         r.Get("/{lobbyID}", lobbyHandler.GetLobbyHandler)

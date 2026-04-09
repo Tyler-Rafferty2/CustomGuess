@@ -17,12 +17,14 @@ var upgrader = websocket.Upgrader{
 }
 
 type WebSocketHandler struct {
-	Hub *services.Hub
+	Hub          *services.Hub
+	LobbyService *services.LobbyService
 }
 
-func NewWebSocketHandler(hub *services.Hub) *WebSocketHandler {
+func NewWebSocketHandler(hub *services.Hub, lobbyService *services.LobbyService) *WebSocketHandler {
 	return &WebSocketHandler{
-		Hub: hub,
+		Hub:          hub,
+		LobbyService: lobbyService,
 	}
 }
 
@@ -77,7 +79,7 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	})
 
 	// Create WebSocket service
-	wsService := services.NewWebSocketService(h.Hub, conn)
+	wsService := services.NewWebSocketService(h.Hub, conn, h.LobbyService)
 
 	// Start pumps
 	go wsService.WritePump(client)

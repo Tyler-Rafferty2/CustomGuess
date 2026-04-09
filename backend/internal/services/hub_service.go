@@ -3,23 +3,68 @@ package services
 import (
 	"log"
 	"sync"
+	"time"
 	"github.com/tyler-rafferty2/GuessWho/internal/models"
 )
 
 type Hub struct {
-	lobbies    map[string]map[string]*models.Client
-	broadcast  chan models.Message
-	register   chan *models.Client
-	unregister chan *models.Client
-	mu         sync.RWMutex
+	lobbies          map[string]map[string]*models.Client
+	broadcast        chan models.Message
+	register         chan *models.Client
+	unregister       chan *models.Client
+	mu               sync.RWMutex
+	disconnectTimers map[string]*time.Timer
+	disconnectMu     sync.Mutex
+	// DisconnectHandler is called after the 2-minute grace period expires for a disconnected player.
+	DisconnectHandler func(playerID, lobbyID string)
+
+	turnTimers  map[string]*time.Timer // key: lobbyID
+	turnTimerMu sync.Mutex
+	// TurnExpiredHandler is called when a player's turn timer runs out.
+	TurnExpiredHandler func(playerID, lobbyID string)
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		lobbies:    make(map[string]map[string]*models.Client),
-		broadcast:  make(chan models.Message),
-		register:   make(chan *models.Client),
-		unregister: make(chan *models.Client),
+		lobbies:          make(map[string]map[string]*models.Client),
+		broadcast:        make(chan models.Message),
+		register:         make(chan *models.Client),
+		unregister:       make(chan *models.Client),
+		disconnectTimers: make(map[string]*time.Timer),
+		turnTimers:       make(map[string]*time.Timer),
+	}
+}
+
+// StartTurnTimer (re-)starts the per-lobby turn timer for playerID with the given duration.
+// Calling it again cancels any running timer first.
+func (h *Hub) StartTurnTimer(lobbyID, playerID string, duration time.Duration) {
+	h.turnTimerMu.Lock()
+	defer h.turnTimerMu.Unlock()
+	if t, ok := h.turnTimers[lobbyID]; ok {
+		t.Stop()
+	}
+	if duration <= 0 {
+		delete(h.turnTimers, lobbyID)
+		return
+	}
+	h.turnTimers[lobbyID] = time.AfterFunc(duration, func() {
+		h.turnTimerMu.Lock()
+		delete(h.turnTimers, lobbyID)
+		h.turnTimerMu.Unlock()
+		log.Printf("Turn timer expired for player %s in lobby %s", playerID, lobbyID)
+		if h.TurnExpiredHandler != nil {
+			h.TurnExpiredHandler(playerID, lobbyID)
+		}
+	})
+}
+
+// CancelTurnTimer stops and removes any running turn timer for the given lobby.
+func (h *Hub) CancelTurnTimer(lobbyID string) {
+	h.turnTimerMu.Lock()
+	defer h.turnTimerMu.Unlock()
+	if t, ok := h.turnTimers[lobbyID]; ok {
+		t.Stop()
+		delete(h.turnTimers, lobbyID)
 	}
 }
 
@@ -32,7 +77,7 @@ func (h *Hub) Run() {
 				h.lobbies[client.LobbyID] = make(map[string]*models.Client)
 				log.Printf("Created new lobby: %s", client.LobbyID)
 			}
-			
+
 			// Check if user is already connected (by PlayerId)
 			if client.PlayerId != "" {
 				for existingClientID, existingClient := range h.lobbies[client.LobbyID] {
@@ -43,11 +88,33 @@ func (h *Hub) Run() {
 					}
 				}
 			}
-			
+
 			h.lobbies[client.LobbyID][client.ID] = client
 			lobbySize := len(h.lobbies[client.LobbyID])
 			h.mu.Unlock()
 			log.Printf("Client registered: %s (%s) in lobby %s. Lobby size: %d", client.Username, client.ID, client.LobbyID, lobbySize)
+
+			// Cancel any pending disconnect timer for this player (reconnect case)
+			if client.PlayerId != "" {
+				timerKey := client.PlayerId + ":" + client.LobbyID
+				h.disconnectMu.Lock()
+				if timer, ok := h.disconnectTimers[timerKey]; ok {
+					timer.Stop()
+					delete(h.disconnectTimers, timerKey)
+					h.disconnectMu.Unlock()
+					log.Printf("Cancelled disconnect timer for player %s (reconnected)", client.PlayerId)
+					go func(lobbyID, playerID string) {
+						h.broadcast <- models.Message{
+							Type:     "player_reconnected",
+							Channel:  "player_reconnected",
+							SenderId: playerID,
+							LobbyID:  lobbyID,
+						}
+					}(client.LobbyID, client.PlayerId)
+				} else {
+					h.disconnectMu.Unlock()
+				}
+			}
 
 		case client := <-h.unregister:
 			h.mu.Lock()
@@ -65,6 +132,35 @@ func (h *Hub) Run() {
 				}
 			}
 			h.mu.Unlock()
+
+			// Start a 2-minute forfeit countdown for disconnected in-game players
+			if client.PlayerId != "" {
+				timerKey := client.PlayerId + ":" + client.LobbyID
+				go func(lobbyID, playerID string) {
+					h.broadcast <- models.Message{
+						Type:     "opponent_disconnected",
+						Channel:  "opponent_disconnected",
+						SenderId: playerID,
+						LobbyID:  lobbyID,
+					}
+				}(client.LobbyID, client.PlayerId)
+
+				h.disconnectMu.Lock()
+				// Don't stack timers if one is already running
+				if _, exists := h.disconnectTimers[timerKey]; !exists {
+					timer := time.AfterFunc(2*time.Minute, func() {
+						h.disconnectMu.Lock()
+						delete(h.disconnectTimers, timerKey)
+						h.disconnectMu.Unlock()
+						log.Printf("Disconnect timer expired for player %s in lobby %s — forfeiting", client.PlayerId, client.LobbyID)
+						if h.DisconnectHandler != nil {
+							h.DisconnectHandler(client.PlayerId, client.LobbyID)
+						}
+					})
+					h.disconnectTimers[timerKey] = timer
+				}
+				h.disconnectMu.Unlock()
+			}
 
 		case message := <-h.broadcast:
 			h.mu.RLock()

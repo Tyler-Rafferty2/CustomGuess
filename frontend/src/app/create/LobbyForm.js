@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
-import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle } from "lucide-react";
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer } from "lucide-react";
 import Navbar from "@/components/navbar";
 
 // ─── Design Token Injection ───────────────────────────────────────────────────
@@ -604,6 +604,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [loading, setLoading] = useState(false);
 
     const [chatFeature, setChatFeature] = useState(true);
+    const [turnTimerSeconds, setTurnTimerSeconds] = useState(0);
     const [previewSet, setPreviewSet] = useState(null);
 
     useEffect(() => { loadSetsPublic(); }, []);
@@ -642,7 +643,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const res = await fetch("http://localhost:8080/lobby/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
-                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature }),
+                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds }),
             });
             const data = await res.json();
             if (res.status === 409) {
@@ -862,6 +863,45 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                             onChange={(e) => setChatFeature(e.target.checked)}
                                         />
                                     </label>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 0 4px' }}>
+                                        <div className="toggle-row__left" style={{ marginBottom: 4 }}>
+                                            <Timer size={16} className="toggle-row__icon" />
+                                            <div>
+                                                <div className="toggle-row__title">Turn Timer</div>
+                                                <div className="toggle-row__sub">Auto-forfeit if time runs out</div>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 6 }}>
+                                            {[
+                                                { label: 'Off', value: 0 },
+                                                { label: '30s', value: 30 },
+                                                { label: '1 min', value: 60 },
+                                                { label: '2 min', value: 120 },
+                                            ].map(({ label, value }) => (
+                                                <button
+                                                    key={value}
+                                                    type="button"
+                                                    onClick={() => setTurnTimerSeconds(value)}
+                                                    style={{
+                                                        flex: 1,
+                                                        height: 34,
+                                                        border: `1px solid ${turnTimerSeconds === value ? 'var(--accent)' : 'var(--border)'}`,
+                                                        borderRadius: 'var(--r)',
+                                                        background: turnTimerSeconds === value ? 'var(--accent)' : 'var(--surface-0)',
+                                                        color: turnTimerSeconds === value ? '#fff' : 'var(--text-600)',
+                                                        fontFamily: "'DM Sans', sans-serif",
+                                                        fontSize: 13,
+                                                        fontWeight: 600,
+                                                        cursor: 'pointer',
+                                                        transition: 'all 150ms',
+                                                    }}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="panel-right__cta">

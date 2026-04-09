@@ -1,9 +1,9 @@
 "use client";
 
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
-import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User } from "lucide-react";
+import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /* ─────────────────────────────────────────────
@@ -98,6 +98,7 @@ export default function Navbar() {
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showHowToPlay, setShowHowToPlay] = useState(false);
+    const [activeLobbyId, setActiveLobbyId] = useState(null);
 
     const router = useRouter();
 
@@ -106,6 +107,20 @@ export default function Navbar() {
     const pathname = usePathname();
     const isInGame = pathname?.startsWith("/lobby/");
     const lobbyID = pathname?.startsWith("/lobby/") ? pathname.split("/lobby/")[1] : null;
+
+    // Check for an active game when not in one, so we can show a Rejoin button
+    useEffect(() => {
+        if (isInGame || !user?.id) {
+            setActiveLobbyId(null);
+            return;
+        }
+        fetch("http://localhost:8080/lobby/active", {
+            headers: { "X-User-ID": user.id },
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => setActiveLobbyId(data?.lobbyId ?? null))
+            .catch(() => setActiveLobbyId(null));
+    }, [pathname, user?.id, isInGame]);
 
     const handleLeaveGame = async () => {
         setShowLeaveConfirm(false);
@@ -263,6 +278,30 @@ export default function Navbar() {
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        {activeLobbyId && (
+                            <motion.button
+                                onClick={() => router.push(`/lobby/${activeLobbyId}`)}
+                                style={{
+                                    display: "flex", alignItems: "center", gap: 6,
+                                    height: 32, padding: "0 14px",
+                                    background: T.accent,
+                                    border: `1px solid ${T.accent}`,
+                                    borderRadius: "6px",
+                                    color: "#fff",
+                                    fontFamily: "'DM Sans', sans-serif",
+                                    fontSize: 13, fontWeight: 600,
+                                    cursor: "pointer", outline: "none",
+                                    letterSpacing: "0.01em",
+                                }}
+                                whileHover={{ background: T.accentDim, borderColor: T.accentDim }}
+                                whileTap={{ scale: 0.97 }}
+                                animate={{ scale: [1, 1.03, 1] }}
+                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                            >
+                                <Swords size={13} strokeWidth={2} />
+                                Rejoin Game
+                            </motion.button>
+                        )}
                         {user && user.email !== "guest" ? (
                             <div style={{ position: "relative" }}>
                                 {/* Trigger */}

@@ -121,7 +121,7 @@ func (e *LobbyError) Error() string {
 }
 
 // create a new lobby with the first player
-func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool) (*models.Lobby, error) {
+func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool, turnTimerSeconds int) (*models.Lobby, error) {
 
     existing, err := s.GetPlayerByUser(user)
     if err != nil {
@@ -147,11 +147,12 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
     log.Printf("Is it chatFeature: %t", chatFeature)
 
     lobby := &models.Lobby{
-        Code:         generateLobbyCode(),
-        CharacterSetID: charSet.ID,
-        Private:      private,
-        RandomSecret: randomizeChar,
-        ChatFeature:  chatFeature,
+        Code:             generateLobbyCode(),
+        CharacterSetID:   charSet.ID,
+        Private:          private,
+        RandomSecret:     randomizeChar,
+        ChatFeature:      chatFeature,
+        TurnTimerSeconds: turnTimerSeconds,
     }
 
     if user.IsGuest {
@@ -412,8 +413,17 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
         now := time.Now()
         if err := s.DB.Model(&models.Lobby{}).
             Where("id = ? AND game_started_at IS NULL", lobbyID).
-            Update("game_started_at", now).Error; err != nil {
+            Updates(map[string]interface{}{"game_started_at": now, "turn_started_at": now}).Error; err != nil {
             log.Printf("warn: could not set GameStartedAt: %v", err)
+        }
+        // Start turn timer for first player if enabled
+        if s.Hub != nil {
+            var lobby models.Lobby
+            if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err == nil {
+                if lobby.TurnTimerSeconds > 0 && lobby.TurnID != nil {
+                    s.Hub.StartTurnTimer(lobbyID.String(), lobby.TurnID.String(), time.Duration(lobby.TurnTimerSeconds)*time.Second)
+                }
+            }
         }
     }
 
@@ -703,6 +713,201 @@ func (s *LobbyService) DeclineRematch(user *models.User, lobbyID uuid.UUID) erro
         Channel:  "rematch_declined",
         SenderId: decliningPlayerID,
     })
+    return nil
+}
+
+// ForfeitByPlayerID forfeits the game on behalf of a disconnected player.
+// It is a no-op if the game is already over or hasn't started yet.
+func (s *LobbyService) ForfeitByPlayerID(playerID, lobbyID string) {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        log.Printf("ForfeitByPlayerID: invalid lobbyID %s: %v", lobbyID, err)
+        return
+    }
+    playerUUID, err := uuid.Parse(playerID)
+    if err != nil {
+        log.Printf("ForfeitByPlayerID: invalid playerID %s: %v", playerID, err)
+        return
+    }
+
+    var lobby models.Lobby
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        log.Printf("ForfeitByPlayerID: lobby not found: %v", err)
+        return
+    }
+
+    if lobby.GameOver || lobby.GameStartedAt == nil {
+        return
+    }
+
+    var forfeitingPlayer *models.Player
+    var otherPlayer *models.Player
+    for i := range lobby.Players {
+        p := &lobby.Players[i]
+        if p.ID == playerUUID {
+            forfeitingPlayer = p
+        } else {
+            otherPlayer = p
+        }
+    }
+
+    if forfeitingPlayer == nil {
+        log.Printf("ForfeitByPlayerID: player %s not found in lobby %s", playerID, lobbyID)
+        return
+    }
+
+    now := time.Now()
+    lobby.GameOver = true
+    lobby.GameOverAt = &now
+    if otherPlayer != nil {
+        lobby.Winner = &otherPlayer.ID
+    }
+
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        log.Printf("ForfeitByPlayerID: failed to save lobby: %v", err)
+        return
+    }
+
+    if otherPlayer != nil {
+        s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, true)
+    }
+
+    s.broadcastLobbyUpdate(lobbyID)
+}
+
+// RequestPause lets a player request a timer pause. Broadcasts the updated lobby.
+func (s *LobbyService) RequestPause(playerID, lobbyID string) error {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        return err
+    }
+    playerUUID, err := uuid.Parse(playerID)
+    if err != nil {
+        return err
+    }
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        return err
+    }
+    if lobby.GameOver || lobby.TurnTimerSeconds == 0 || lobby.TurnTimerPaused || lobby.PauseRequestedBy != nil {
+        return nil // silently ignore if pausing doesn't make sense
+    }
+    lobby.PauseRequestedBy = &playerUUID
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        return err
+    }
+    s.broadcastLobbyUpdate(lobbyID)
+    return nil
+}
+
+// AcceptPause pauses the timer: saves remaining time and cancels the hub timer.
+func (s *LobbyService) AcceptPause(playerID, lobbyID string) error {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        return err
+    }
+    playerUUID, err := uuid.Parse(playerID)
+    if err != nil {
+        return err
+    }
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        return err
+    }
+    if lobby.GameOver || lobby.TurnTimerSeconds == 0 || lobby.TurnTimerPaused || lobby.PauseRequestedBy == nil {
+        return nil
+    }
+    // Must be accepted by the other player
+    if *lobby.PauseRequestedBy == playerUUID {
+        return nil // can't accept your own request
+    }
+    // Calculate remaining ms
+    var remainingMs int64
+    if lobby.TurnStartedAt != nil {
+        elapsed := time.Since(*lobby.TurnStartedAt).Milliseconds()
+        total := int64(lobby.TurnTimerSeconds) * 1000
+        remainingMs = total - elapsed
+        if remainingMs < 0 {
+            remainingMs = 0
+        }
+    }
+    if err := s.DB.Model(&lobby).Updates(map[string]interface{}{
+        "turn_timer_paused":   true,
+        "turn_remaining_ms":   remainingMs,
+        "pause_requested_by":  nil,
+    }).Error; err != nil {
+        return err
+    }
+    if s.Hub != nil {
+        s.Hub.CancelTurnTimer(lobbyID)
+    }
+    s.broadcastLobbyUpdate(lobbyID)
+    return nil
+}
+
+// RequestResume lets a player request to resume a paused timer.
+func (s *LobbyService) RequestResume(playerID, lobbyID string) error {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        return err
+    }
+    playerUUID, err := uuid.Parse(playerID)
+    if err != nil {
+        return err
+    }
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        return err
+    }
+    if lobby.GameOver || !lobby.TurnTimerPaused || lobby.ResumeRequestedBy != nil {
+        return nil
+    }
+    lobby.ResumeRequestedBy = &playerUUID
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        return err
+    }
+    s.broadcastLobbyUpdate(lobbyID)
+    return nil
+}
+
+// AcceptResume lets the other player accept a resume request, restarting the timer.
+func (s *LobbyService) AcceptResume(playerID, lobbyID string) error {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        return err
+    }
+    playerUUID, err := uuid.Parse(playerID)
+    if err != nil {
+        return err
+    }
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        return err
+    }
+    if lobby.GameOver || !lobby.TurnTimerPaused || lobby.ResumeRequestedBy == nil || lobby.TurnID == nil {
+        return nil
+    }
+    if *lobby.ResumeRequestedBy == playerUUID {
+        return nil // can't accept your own request
+    }
+    remainingMs := lobby.TurnRemainingMs
+    if remainingMs <= 0 {
+        remainingMs = int64(lobby.TurnTimerSeconds) * 1000
+    }
+    elapsed := time.Duration(int64(lobby.TurnTimerSeconds)*1000-remainingMs) * time.Millisecond
+    newStart := time.Now().Add(-elapsed)
+    if err := s.DB.Model(&lobby).Updates(map[string]interface{}{
+        "turn_timer_paused":    false,
+        "turn_remaining_ms":    0,
+        "turn_started_at":      newStart,
+        "resume_requested_by":  nil,
+    }).Error; err != nil {
+        return err
+    }
+    if s.Hub != nil {
+        s.Hub.StartTurnTimer(lobbyID, lobby.TurnID.String(), time.Duration(remainingMs)*time.Millisecond)
+    }
+    s.broadcastLobbyUpdate(lobbyID)
     return nil
 }
 

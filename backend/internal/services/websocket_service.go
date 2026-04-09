@@ -17,14 +17,16 @@ const (
 )
 
 type WebSocketService struct {
-	hub  *Hub
-	conn *websocket.Conn
+	hub          *Hub
+	conn         *websocket.Conn
+	lobbyService *LobbyService
 }
 
-func NewWebSocketService(hub *Hub, conn *websocket.Conn) *WebSocketService {
+func NewWebSocketService(hub *Hub, conn *websocket.Conn, lobbyService *LobbyService) *WebSocketService {
 	return &WebSocketService{
-		hub:  hub,
-		conn: conn,
+		hub:          hub,
+		conn:         conn,
+		lobbyService: lobbyService,
 	}
 }
 
@@ -103,26 +105,87 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 			LobbyTurn: "",
 		}
 
-		log.Printf("ReadPump received message: Type=%s, Content=%s, LobbyID=%s, Username=%s", 
+		log.Printf("ReadPump received message: Type=%s, Content=%s, LobbyID=%s, Username=%s",
 			message.Type, message.Content, message.LobbyID, message.Username)
-		
+
 		lobby, err := getLobbyFromDB(client.LobbyID)
 		log.Printf("Current turn in lobby %s: %v", lobby.ID, lobby.TurnID)
 		log.Printf("You are %s", client.ID)
 		log.Printf("You are really %s", client.PlayerId)
-		if client.PlayerId != lobby.TurnID.String() && message.Channel == "game" || client.PlayerId == lobby.TurnID.String() && message.Channel == "response"{
+
+		// ── Pause / Resume channels — bypass turn check ──────────────────────────
+		if message.Channel == "pause_request" {
+			if ws.lobbyService != nil {
+				ws.lobbyService.RequestPause(client.PlayerId, client.LobbyID)
+			}
+			continue
+		}
+		if message.Channel == "pause_accept" {
+			if ws.lobbyService != nil {
+				ws.lobbyService.AcceptPause(client.PlayerId, client.LobbyID)
+			}
+			continue
+		}
+		if message.Channel == "resume_request" {
+			if ws.lobbyService != nil {
+				ws.lobbyService.RequestResume(client.PlayerId, client.LobbyID)
+			}
+			continue
+		}
+		if message.Channel == "resume_accept" {
+			if ws.lobbyService != nil {
+				ws.lobbyService.AcceptResume(client.PlayerId, client.LobbyID)
+			}
+			continue
+		}
+
+		// ── Turn enforcement ──────────────────────────────────────────────────────
+		if client.PlayerId != lobby.TurnID.String() && message.Channel == "game" || client.PlayerId == lobby.TurnID.String() && message.Channel == "response" {
 			// Not this player's turn
 			client.Send <- models.Message{
 				Type:    "error",
 				Content: "It's not your turn!",
 			}
 			continue
-		}else if message.Channel == "response" && getStringValue(msg, "swap") == "yes" {
+		} else if message.Channel == "response" && getStringValue(msg, "swap") == "yes" {
 			err = lobbySwapTurn(lobby)
 			if err != nil {
 				log.Printf("Error swapping turn: %v", err)
 			}
-		} 
+			// After swap: restart timer for the new turn player (the asker)
+			if err == nil && lobby.TurnTimerSeconds > 0 && !lobby.TurnTimerPaused {
+				updatedLobby, dbErr := getLobbyFromDB(client.LobbyID)
+				if dbErr == nil && updatedLobby.TurnID != nil {
+					now := time.Now()
+					config.DB.Model(updatedLobby).Updates(map[string]interface{}{
+						"turn_started_at":   now,
+						"turn_remaining_ms": 0,
+					})
+					ws.hub.StartTurnTimer(client.LobbyID, updatedLobby.TurnID.String(),
+						time.Duration(updatedLobby.TurnTimerSeconds)*time.Second)
+				}
+			}
+		} else if message.Channel == "game" {
+			// A question was asked: restart timer targeting the responder (non-turn player).
+			if lobby.TurnTimerSeconds > 0 && !lobby.TurnTimerPaused {
+				var responderID string
+				for _, p := range lobby.Players {
+					if p.ID.String() != lobby.TurnID.String() {
+						responderID = p.ID.String()
+						break
+					}
+				}
+				if responderID != "" {
+					now := time.Now()
+					config.DB.Model(&models.Lobby{}).Where("id = ?", lobby.ID).Updates(map[string]interface{}{
+						"turn_started_at":   now,
+						"turn_remaining_ms": 0,
+					})
+					ws.hub.StartTurnTimer(client.LobbyID, responderID,
+						time.Duration(lobby.TurnTimerSeconds)*time.Second)
+				}
+			}
+		}
 
 		message.LobbyTurn = (*lobby.TurnID).String()
 
@@ -131,6 +194,13 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 
 		// Broadcast valid move
 		ws.hub.BroadcastMessage(message)
+
+		// Push a fresh lobby_update after any action that changes turn timer state
+		// (swap updates lobby.turn; question asked updates turnStartedAt for responder).
+		if message.Channel == "response" && getStringValue(msg, "swap") == "yes" ||
+			(message.Channel == "game" && lobby.TurnTimerSeconds > 0) {
+			ws.BroadcastLobbyUpdate(client.LobbyID)
+		}
 
 		// Update turn in DB to next player
 		//lobby.TurnID = getNextPlayerID(lobby)

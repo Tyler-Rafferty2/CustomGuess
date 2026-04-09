@@ -259,6 +259,13 @@ export default function LobbyPage() {
     const [rematchSetView, setRematchSetView] = useState("public");
     const [rematchDeclinedToast, setRematchDeclinedToast] = useState(false);
     const [sentRematchSetName, setSentRematchSetName] = useState(null);
+    const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+    const [disconnectCountdown, setDisconnectCountdown] = useState(120);
+    const disconnectIntervalRef = useRef(null);
+
+    // Turn timer
+    const [turnTimeLeft, setTurnTimeLeft] = useState(null); // ms remaining, null = off
+    const turnTimerIntervalRef = useRef(null);
 
     const params = useParams();
     const lobbyID = params.lobbyId;
@@ -466,6 +473,13 @@ export default function LobbyPage() {
                     if (message.lobbyTurn === playerIdRef.current) { setTurn(true); } else { setTurn(false); }
                 } else if (message.channel === "lobby_update") {
                     setLobby(message.lobby);
+                    if (message.lobby?.gameOver) {
+                        setOpponentDisconnected(false);
+                        if (disconnectIntervalRef.current) {
+                            clearInterval(disconnectIntervalRef.current);
+                            disconnectIntervalRef.current = null;
+                        }
+                    }
                 } else if (message.channel === "rematch_request") {
                     if (message.SenderId !== playerIdRef.current) {
                         setIncomingRematch({ characterSetName: message.content });
@@ -477,6 +491,31 @@ export default function LobbyPage() {
                         setRematchWaiting(false);
                         setRematchDeclinedToast(true);
                         setTimeout(() => setRematchDeclinedToast(false), 3000);
+                    }
+                } else if (message.channel === "opponent_disconnected") {
+                    if (message.SenderId !== playerIdRef.current) {
+                        setOpponentDisconnected(true);
+                        setDisconnectCountdown(120);
+                        if (disconnectIntervalRef.current) clearInterval(disconnectIntervalRef.current);
+                        disconnectIntervalRef.current = setInterval(() => {
+                            setDisconnectCountdown(prev => {
+                                if (prev <= 1) {
+                                    clearInterval(disconnectIntervalRef.current);
+                                    disconnectIntervalRef.current = null;
+                                    return 0;
+                                }
+                                return prev - 1;
+                            });
+                        }, 1000);
+                    }
+                } else if (message.channel === "player_reconnected") {
+                    if (message.SenderId !== playerIdRef.current) {
+                        setOpponentDisconnected(false);
+                        setDisconnectCountdown(120);
+                        if (disconnectIntervalRef.current) {
+                            clearInterval(disconnectIntervalRef.current);
+                            disconnectIntervalRef.current = null;
+                        }
                     }
                 } else if (message.channel === "response") {
                     if (message.lobbyTurn === playerIdRef.current) { setTurn(true); } else { setTurn(false); }
@@ -508,7 +547,9 @@ export default function LobbyPage() {
 
             websocket.onclose = () => {
                 setIsConnected(false);
-                wsRef.current = null;
+                // Only clear the ref if it still points to this connection.
+                // If playerId changed and triggered a new connection, don't overwrite it.
+                if (wsRef.current === websocket) wsRef.current = null;
                 if (!shouldReconnectRef.current) return;
                 const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
                 reconnectAttemptsRef.current++;
@@ -528,12 +569,50 @@ export default function LobbyPage() {
                 wsRef.current.close();
                 wsRef.current = null;
             }
+            if (disconnectIntervalRef.current) {
+                clearInterval(disconnectIntervalRef.current);
+                disconnectIntervalRef.current = null;
+            }
+            if (turnTimerIntervalRef.current) {
+                clearInterval(turnTimerIntervalRef.current);
+                turnTimerIntervalRef.current = null;
+            }
         };
     }, [lobbyID, username, playerId]);
 
     useEffect(() => {
         if (lobby?.players) { console.log(`Player count changed: ${lobby.players.length}`); }
     }, [lobby]);
+
+    // Drive the turn countdown from lobby state
+    useEffect(() => {
+        if (turnTimerIntervalRef.current) {
+            clearInterval(turnTimerIntervalRef.current);
+            turnTimerIntervalRef.current = null;
+        }
+        if (!lobby || !lobby.turnTimerSeconds || lobby.gameOver) {
+            setTurnTimeLeft(null);
+            return;
+        }
+        if (lobby.turnTimerPaused) {
+            setTurnTimeLeft(lobby.turnRemainingMs);
+            return;
+        }
+        if (!lobby.turnStartedAt) {
+            setTurnTimeLeft(lobby.turnTimerSeconds * 1000);
+            return;
+        }
+        const tick = () => {
+            const elapsed = Date.now() - new Date(lobby.turnStartedAt).getTime();
+            const remaining = lobby.turnTimerSeconds * 1000 - elapsed;
+            setTurnTimeLeft(Math.max(0, remaining));
+        };
+        tick();
+        turnTimerIntervalRef.current = setInterval(tick, 250);
+        return () => {
+            if (turnTimerIntervalRef.current) clearInterval(turnTimerIntervalRef.current);
+        };
+    }, [lobby?.turnStartedAt, lobby?.turnTimerPaused, lobby?.turnRemainingMs, lobby?.turnTimerSeconds, lobby?.gameOver]);
 
     useEffect(() => { checkLobbyStatus(); }, [lobbyID]);
 
@@ -1279,6 +1358,92 @@ export default function LobbyPage() {
                     Reconnecting…
                 </div>
             )}
+            {opponentDisconnected && (
+                <div style={{
+                    background: 'var(--state-out)',
+                    color: '#fff',
+                    fontFamily: "'DM Sans', sans-serif",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    padding: '6px var(--s4)',
+                    letterSpacing: '0.02em',
+                }}>
+                    Opponent disconnected — forfeiting in {Math.floor(disconnectCountdown / 60)}:{String(disconnectCountdown % 60).padStart(2, '0')}
+                </div>
+            )}
+            {/* ── Turn timer bar ── */}
+            {turnTimeLeft !== null && lobby?.turnTimerSeconds > 0 && !lobby?.gameOver && (() => {
+                const totalMs = lobby.turnTimerSeconds * 1000;
+                const pct = Math.max(0, Math.min(1, turnTimeLeft / totalMs));
+                const secs = Math.ceil(turnTimeLeft / 1000);
+                const isLow = secs <= 10;
+                const isMine = lobby?.turn === playerId;
+                return (
+                    <div style={{ background: 'var(--surface-0)', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', padding: '6px var(--s4)' }}>
+                            <div style={{ flex: 1, height: 4, background: 'var(--surface-2)', borderRadius: 2, overflow: 'hidden' }}>
+                                <div style={{
+                                    height: '100%',
+                                    width: `${pct * 100}%`,
+                                    background: isLow ? 'var(--state-out)' : 'var(--accent)',
+                                    borderRadius: 2,
+                                    transition: 'width 0.25s linear, background 0.3s',
+                                }} />
+                            </div>
+                            <span style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontWeight: 700,
+                                fontSize: 13,
+                                color: isLow ? 'var(--state-out)' : 'var(--text-600)',
+                                minWidth: 36,
+                                textAlign: 'right',
+                            }}>
+                                {secs}s
+                            </span>
+                            {/* Pause controls */}
+                            {lobby.turnTimerPaused ? (
+                                lobby.resumeRequestedBy && lobby.resumeRequestedBy !== playerId ? (
+                                    <button
+                                        onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'resume_accept' }))}
+                                        style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--state-live)', background: '#EAF6EF', border: '1px solid #2A7A5640', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
+                                    >
+                                        Accept Resume
+                                    </button>
+                                ) : lobby.resumeRequestedBy && lobby.resumeRequestedBy === playerId ? (
+                                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-400)' }}>Resume requested…</span>
+                                ) : (
+                                    <button
+                                        onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'resume_request' }))}
+                                        style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--state-live)', background: '#EAF6EF', border: '1px solid #2A7A5640', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
+                                    >
+                                        Resume
+                                    </button>
+                                )
+                            ) : lobby.pauseRequestedBy && lobby.pauseRequestedBy !== playerId ? (
+                                <button
+                                    onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'pause_accept' }))}
+                                    style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--accent)', background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
+                                >
+                                    Accept Pause
+                                </button>
+                            ) : lobby.pauseRequestedBy && lobby.pauseRequestedBy === playerId ? (
+                                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: 'var(--text-400)' }}>Pause requested…</span>
+                            ) : (
+                                <button
+                                    onClick={() => wsRef.current?.send(JSON.stringify({ channel: 'pause_request' }))}
+                                    style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--text-600)', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '3px 10px', cursor: 'pointer' }}
+                                >
+                                    Pause
+                                </button>
+                            )}
+                        </div>
+                        <div style={{ padding: '0 var(--s4) 5px', fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>
+                            {lobby.turnTimerPaused ? 'Timer paused' : isMine ? 'Your turn' : "Opponent's turn"}
+                        </div>
+                    </div>
+                );
+            })()}
             <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
                 {lobby.chatFeature && (
                     <div style={{

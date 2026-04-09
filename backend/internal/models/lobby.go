@@ -31,6 +31,13 @@ type Lobby struct {
 
     RematchRequestedBy    *uuid.UUID `gorm:"type:uuid" json:"rematchRequestedBy"`
     RematchCharacterSetID *uuid.UUID `gorm:"type:uuid" json:"rematchCharacterSetID"`
+
+    TurnTimerSeconds  int        `gorm:"default:0" json:"turnTimerSeconds"`
+    TurnStartedAt     *time.Time `json:"turnStartedAt"`
+    TurnTimerPaused   bool       `gorm:"default:false" json:"turnTimerPaused"`
+    TurnRemainingMs   int64      `gorm:"default:0" json:"turnRemainingMs"`
+    PauseRequestedBy  *uuid.UUID `gorm:"type:uuid" json:"pauseRequestedBy"`
+    ResumeRequestedBy *uuid.UUID `gorm:"type:uuid" json:"resumeRequestedBy"`
 }
 
 func (l *Lobby) BeforeCreate(tx *gorm.DB) (err error) {

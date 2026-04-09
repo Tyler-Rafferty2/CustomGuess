@@ -35,14 +35,15 @@ func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request
     user := middleware.GetUserFromContext(r)
 
     var req struct {
-        SetID        uuid.UUID `json:"setId"`
-        Private      bool      `json:"isPrivate"`
-        RandomSecret bool      `json:"randomizeSecret"`
-        ChatFeature  bool      `json:"chatFeature"`
+        SetID            uuid.UUID `json:"setId"`
+        Private          bool      `json:"isPrivate"`
+        RandomSecret     bool      `json:"randomizeSecret"`
+        ChatFeature      bool      `json:"chatFeature"`
+        TurnTimerSeconds int       `json:"turnTimerSeconds"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
-    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature)
+    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature, req.TurnTimerSeconds)
     if err != nil {
         var lobbyErr *services.LobbyError
         if errors.As(err, &lobbyErr) {
@@ -87,6 +88,24 @@ func (h *LobbyHandler) JoinLobbyHandler(w http.ResponseWriter, r *http.Request) 
     }
 
     json.NewEncoder(w).Encode(lobby)
+}
+
+// GET /lobby/active — returns the caller's current active lobby, if any
+func (h *LobbyHandler) GetActiveLobbyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    player, err := h.Service.GetPlayerByUser(user)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    if player == nil {
+        http.Error(w, "no active game", http.StatusNotFound)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]string{"lobbyId": player.LobbyID.String()})
 }
 
 // POST /find
