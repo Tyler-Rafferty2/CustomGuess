@@ -18,6 +18,7 @@ import (
 func main() {
 
     config.ConnectDB()
+    config.InitR2()
 
     services.StartLobbyCleanup(config.DB)
 

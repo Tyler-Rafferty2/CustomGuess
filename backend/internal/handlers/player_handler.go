@@ -1,12 +1,13 @@
 package handlers
 
 import (
+    "bytes"
+    "context"
     "encoding/json"
     "net/http"
     "fmt"
     "log"
     "mime/multipart"
-    "os"
     "io"
     "strconv"
     "github.com/go-chi/chi/v5"
@@ -14,8 +15,11 @@ import (
     "path/filepath"
     "strings"
 
+    "github.com/aws/aws-sdk-go-v2/aws"
+    "github.com/aws/aws-sdk-go-v2/service/s3"
+    "github.com/tyler-rafferty2/GuessWho/internal/config"
     "github.com/tyler-rafferty2/GuessWho/internal/services"
-	"github.com/tyler-rafferty2/GuessWho/internal/middleware"
+    "github.com/tyler-rafferty2/GuessWho/internal/middleware"
     "github.com/tyler-rafferty2/GuessWho/internal/models"
 )
 
@@ -137,64 +141,53 @@ func truncate(s string, max int) string {
     return s
 }
 
-//Helper func
+// Helper func — uploads to Cloudflare R2 and returns the public URL
 func saveFile(file multipart.File, originalFilename string) (string, error) {
-    // Preserve file extension
     ext := strings.ToLower(filepath.Ext(originalFilename))
 
-    // Validate file extension
     allowedExts := map[string]bool{
-        ".jpg": true, ".jpeg": true, ".png": true, 
+        ".jpg": true, ".jpeg": true, ".png": true,
         ".gif": true, ".webp": true,
     }
-    
     if !allowedExts[ext] {
         return "", fmt.Errorf("invalid file type: %s", ext)
     }
 
-    // Read first 512 bytes to detect MIME type
-    buffer := make([]byte, 512)
-    _, err := file.Read(buffer)
+    // Read full file into memory (needed for Content-Length and MIME detection)
+    data, err := io.ReadAll(file)
     if err != nil {
         return "", fmt.Errorf("failed to read file: %w", err)
     }
-    
-    // Reset file pointer to beginning
-    _, err = file.Seek(0, 0)
-    if err != nil {
-        return "", fmt.Errorf("failed to reset file pointer: %w", err)
-    }
-    
+
     // Verify it's actually an image
-    mimeType := http.DetectContentType(buffer)
+    mimeType := http.DetectContentType(data[:min(512, len(data))])
     if !strings.HasPrefix(mimeType, "image/") {
         return "", fmt.Errorf("file is not an image: %s", mimeType)
     }
 
-    // Generate unique ID
-    uniqueID := uuid.New().String()
-    
-    // Create unique filename
-    filename := uniqueID + ext
-    
-    // Ensure uploads directory exists
-    if err := os.MkdirAll("uploads", 0755); err != nil {
-        return "", fmt.Errorf("failed to create uploads directory: %w", err)
-    }
-    
-    out, err := os.Create("uploads/" + filename)
-    if err != nil {
-        return "", fmt.Errorf("failed to create file: %w", err)
-    }
-    defer out.Close()
+    filename := uuid.New().String() + ext
 
-    _, err = io.Copy(out, file)
+    _, err = config.R2Client.PutObject(context.Background(), &s3.PutObjectInput{
+        Bucket:        aws.String(config.R2Bucket),
+        Key:           aws.String(filename),
+        Body:          bytes.NewReader(data),
+        ContentLength: aws.Int64(int64(len(data))),
+        ContentType:   aws.String(mimeType),
+    })
     if err != nil {
-        return "", fmt.Errorf("failed to copy file: %w", err)
+        return "", fmt.Errorf("failed to upload to R2: %w", err)
     }
 
-    log.Println("✅ File saved to uploads/" + filename)
-    return "/uploads/" + filename, nil
+    publicURL := config.R2PublicURL + "/" + filename
+    log.Println("✅ File uploaded to R2:", publicURL)
+    return publicURL, nil
+}
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
 }
 
 

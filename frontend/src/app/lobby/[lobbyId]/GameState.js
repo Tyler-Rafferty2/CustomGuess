@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { imgUrl } from "@/lib/imgUrl";
 import { useParams } from "next/navigation";
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
@@ -184,7 +185,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                                 }}
                             >
                                 <div className="flex flex-col items-center w-full">
-                                    <img src={`http://localhost:8080` + char.image} alt={char.name} />
+                                    <img src={imgUrl(char.image)} alt={char.name} />
                                     <span className="character-name">{char.name}</span>
                                 </div>
                             </Item>

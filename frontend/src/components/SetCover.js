@@ -52,9 +52,12 @@ export default function SetCover({ coverImageName, alt = "", style = {} }) {
     const merged = { ...DEFAULT_STYLE, ...style };
 
     if (coverImageName) {
+        const src = coverImageName.startsWith("http")
+            ? coverImageName
+            : `http://localhost:8080${coverImageName}`;
         return (
             <img
-                src={`http://localhost:8080${coverImageName}`}
+                src={src}
                 alt={alt}
                 style={{ ...merged, objectFit: "cover" }}
             />

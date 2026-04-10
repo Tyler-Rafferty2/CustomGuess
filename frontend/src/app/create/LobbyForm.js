@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
 import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart } from "lucide-react";
@@ -1085,7 +1086,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                             {(previewSet.characters || []).map((char) => (
                                 <div key={char.id} className="preview-char">
                                     <img
-                                        src={`http://localhost:8080${char.image}`}
+                                        src={imgUrl(char.image)}
                                         alt={char.name}
                                         className="preview-char__img"
                                     />

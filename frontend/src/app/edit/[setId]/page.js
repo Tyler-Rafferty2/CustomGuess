@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useContext, useRef } from "react";
+import { imgUrl } from "@/lib/imgUrl";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
 import { ArrowLeft, X, Plus, Loader2, Globe, Lock, Crop, Check, Pencil } from "lucide-react";
@@ -74,7 +75,7 @@ export default function EditSetPage() {
                 setName(found.name ?? "");
                 setDescription(found.description ?? "");
                 setIsPublic(found.public ?? false);
-                setCoverPreview(found.coverImageName ? `http://localhost:8080${found.coverImageName}` : null);
+                setCoverPreview(found.coverImageName ? imgUrl(found.coverImageName) : null);
                 setExistingChars((found.characters ?? []).map(c => ({ id: c.id, name: c.name, image: c.image })));
                 setLoading(false);
             })
@@ -174,7 +175,7 @@ export default function EditSetPage() {
 
     const cropExisting = async (char) => {
         try {
-            const res = await fetch(`http://localhost:8080${char.image}`);
+            const res = await fetch(imgUrl(char.image));
             const blob = await res.blob();
             const objectURL = URL.createObjectURL(blob);
             const file = new File([blob], `${char.name}.jpg`, { type: blob.type });
@@ -373,7 +374,7 @@ export default function EditSetPage() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
                                     <div key={char.id} style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
-                                        <img src={`http://localhost:8080${char.image}`} alt={char.name} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                                        <img src={imgUrl(char.image)} alt={char.name} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
 
                                         {/* Hover overlay */}
                                         <div style={{

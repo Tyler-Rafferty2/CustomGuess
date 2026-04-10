@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useContext, useEffect, useRef } from "react";
+import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import { useParams } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
@@ -820,7 +821,7 @@ export default function LobbyPage() {
                                     {myChar ? (
                                         <>
                                             <img
-                                                src={`http://localhost:8080` + myChar.image}
+                                                src={imgUrl(myChar.image)}
                                                 alt={myChar.name}
                                                 style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--border)' }}
                                             />
@@ -853,7 +854,7 @@ export default function LobbyPage() {
                                             style={{ transformStyle: 'preserve-3d' }}
                                         >
                                             <img
-                                                src={`http://localhost:8080` + opponentChar.image}
+                                                src={imgUrl(opponentChar.image)}
                                                 alt={opponentChar.name}
                                                 style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: `2px solid ${isWinner ? 'var(--state-live)' : 'var(--state-out)'}` }}
                                             />
@@ -1220,7 +1221,7 @@ export default function LobbyPage() {
                                 <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
                                     <Item onClick={() => selectSecretCharacter(char.id)} className="h-full">
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <img src={`http://localhost:8080` + char.image} alt={char.name} style={{ imageRendering: 'auto' }} />
+                                            <img src={imgUrl(char.image)} alt={char.name} style={{ imageRendering: 'auto' }} />
                                             <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--text-600)', marginTop: 8 }}>
                                                 {char.name}
                                             </span>
@@ -1281,7 +1282,7 @@ export default function LobbyPage() {
                                     initial={{ scale: 0.92, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
-                                    src={`http://localhost:8080` + gameState.secretCharacter.image}
+                                    src={imgUrl(gameState.secretCharacter.image)}
                                     alt={gameState.secretCharacter.name}
                                     style={{ width: 160, height: 200, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--accent-light)', display: 'block', margin: '0 auto var(--s3)' }}
                                 />
@@ -1391,7 +1392,7 @@ export default function LobbyPage() {
                             <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)' }}>
                                 <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your Character</span>
                                 <img
-                                    src={`http://localhost:8080` + gameState.secretCharacter.image}
+                                    src={imgUrl(gameState.secretCharacter.image)}
                                     alt={gameState.secretCharacter.name}
                                     style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', imageRendering: 'auto' }}
                                 />
@@ -1494,7 +1495,7 @@ export default function LobbyPage() {
                                 {gameState?.secretCharacter && (
                                     <>
                                         <img
-                                            src={`http://localhost:8080` + gameState.secretCharacter.image}
+                                            src={imgUrl(gameState.secretCharacter.image)}
                                             alt={gameState.secretCharacter.name}
                                             style={{ width: 80, height: 100, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', flexShrink: 0, border: '1px solid var(--border)' }}
                                         />
