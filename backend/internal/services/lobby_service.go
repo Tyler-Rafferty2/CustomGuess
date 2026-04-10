@@ -397,6 +397,29 @@ func (s *LobbyService) GetLobbyForPlayer(lobbyID, userID uuid.UUID) (*models.Lob
     return &lobby, gs.SecretCharacter, opponentChar, eliminated, nil
 }
 
+func (s *LobbyService) SetPlayerUnready(user *models.User, lobbyID uuid.UUID) error {
+    var lobby models.Lobby
+    if err := s.DB.First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return err
+    }
+    if lobby.GameStartedAt != nil {
+        return errors.New("game already started")
+    }
+
+    var player models.Player
+    if err := s.DB.Where("lobby_id = ? AND (user_id = ? OR guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {
+        return err
+    }
+
+    player.Ready = false
+    if err := s.DB.Save(&player).Error; err != nil {
+        return err
+    }
+
+    s.broadcastLobbyUpdate(lobbyID.String())
+    return nil
+}
+
 func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (bool, error) {
     var player models.Player
     if err := s.DB.Where("lobby_id = ? AND (user_id = ? OR guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {
@@ -782,6 +805,64 @@ func (s *LobbyService) ForfeitByPlayerID(playerID, lobbyID string) {
 
     if otherPlayer != nil {
         s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, true)
+    }
+
+    s.broadcastLobbyUpdate(lobbyID)
+}
+
+// IsGameStarted returns true if the lobby's game has already started.
+func (s *LobbyService) IsGameStarted(lobbyID string) bool {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        return false
+    }
+    var lobby models.Lobby
+    if err := s.DB.Select("game_started_at", "game_over").First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        return false
+    }
+    return lobby.GameStartedAt != nil && !lobby.GameOver
+}
+
+// PreGameForfeitByPlayerID forfeits on behalf of a player who disconnected before the game started.
+func (s *LobbyService) PreGameForfeitByPlayerID(playerID, lobbyID string) {
+    lobbyUUID, err := uuid.Parse(lobbyID)
+    if err != nil {
+        log.Printf("PreGameForfeitByPlayerID: invalid lobbyID %s: %v", lobbyID, err)
+        return
+    }
+    playerUUID, err := uuid.Parse(playerID)
+    if err != nil {
+        log.Printf("PreGameForfeitByPlayerID: invalid playerID %s: %v", playerID, err)
+        return
+    }
+
+    var lobby models.Lobby
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+        log.Printf("PreGameForfeitByPlayerID: lobby not found: %v", err)
+        return
+    }
+
+    if lobby.GameOver {
+        return
+    }
+
+    var otherPlayer *models.Player
+    for i := range lobby.Players {
+        if lobby.Players[i].ID != playerUUID {
+            otherPlayer = &lobby.Players[i]
+        }
+    }
+
+    now := time.Now()
+    lobby.GameOver = true
+    lobby.GameOverAt = &now
+    if otherPlayer != nil {
+        lobby.Winner = &otherPlayer.ID
+    }
+
+    if err := s.DB.Save(&lobby).Error; err != nil {
+        log.Printf("PreGameForfeitByPlayerID: failed to save lobby: %v", err)
+        return
     }
 
     s.broadcastLobbyUpdate(lobbyID)

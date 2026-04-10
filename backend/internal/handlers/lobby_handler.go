@@ -236,6 +236,24 @@ func (h *LobbyHandler) SetSecretCharHandler(w http.ResponseWriter, r *http.Reque
     json.NewEncoder(w).Encode(lobby)
 }
 
+// POST /lobby/unready
+func (h *LobbyHandler) UnreadyHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    var req struct {
+        LobbyID uuid.UUID `json:"lobbyId"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    if err := h.Service.SetPlayerUnready(user, req.LobbyID); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
+
 // POST /lobby/ready
 func (h *LobbyHandler) ReadyHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)

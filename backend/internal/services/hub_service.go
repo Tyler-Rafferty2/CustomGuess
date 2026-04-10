@@ -15,8 +15,12 @@ type Hub struct {
 	mu               sync.RWMutex
 	disconnectTimers map[string]*time.Timer
 	disconnectMu     sync.Mutex
-	// DisconnectHandler is called after the 2-minute grace period expires for a disconnected player.
+	// DisconnectHandler is called after the 2-minute grace period expires for a disconnected in-game player.
 	DisconnectHandler func(playerID, lobbyID string)
+	// PreGameDisconnectHandler is called after the 30-second grace period for pre-game disconnects.
+	PreGameDisconnectHandler func(playerID, lobbyID string)
+	// IsGameStarted returns whether the lobby's game has already begun (used to pick timer duration).
+	IsGameStarted func(lobbyID string) bool
 
 	turnTimers  map[string]*time.Timer // key: lobbyID
 	turnTimerMu sync.Mutex
@@ -133,7 +137,8 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 
-			// Start a 2-minute forfeit countdown for disconnected in-game players
+			// Start a forfeit countdown for disconnected players.
+			// Pre-game: 30 seconds. In-game: 2 minutes.
 			if client.PlayerId != "" {
 				timerKey := client.PlayerId + ":" + client.LobbyID
 				go func(lobbyID, playerID string) {
@@ -145,16 +150,28 @@ func (h *Hub) Run() {
 					}
 				}(client.LobbyID, client.PlayerId)
 
+				gameStarted := h.IsGameStarted != nil && h.IsGameStarted(client.LobbyID)
+				duration := 2 * time.Minute
+				if !gameStarted {
+					duration = 30 * time.Second
+				}
+
 				h.disconnectMu.Lock()
 				// Don't stack timers if one is already running
 				if _, exists := h.disconnectTimers[timerKey]; !exists {
-					timer := time.AfterFunc(2*time.Minute, func() {
+					timer := time.AfterFunc(duration, func() {
 						h.disconnectMu.Lock()
 						delete(h.disconnectTimers, timerKey)
 						h.disconnectMu.Unlock()
-						log.Printf("Disconnect timer expired for player %s in lobby %s — forfeiting", client.PlayerId, client.LobbyID)
-						if h.DisconnectHandler != nil {
-							h.DisconnectHandler(client.PlayerId, client.LobbyID)
+						log.Printf("Disconnect timer expired for player %s in lobby %s — forfeiting (gameStarted=%v)", client.PlayerId, client.LobbyID, gameStarted)
+						if gameStarted {
+							if h.DisconnectHandler != nil {
+								h.DisconnectHandler(client.PlayerId, client.LobbyID)
+							}
+						} else {
+							if h.PreGameDisconnectHandler != nil {
+								h.PreGameDisconnectHandler(client.PlayerId, client.LobbyID)
+							}
 						}
 					})
 					h.disconnectTimers[timerKey] = timer

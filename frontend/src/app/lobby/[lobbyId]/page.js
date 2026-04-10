@@ -260,9 +260,16 @@ export default function LobbyPage() {
     const [rematchSetView, setRematchSetView] = useState("public");
     const [rematchDeclinedToast, setRematchDeclinedToast] = useState(false);
     const [sentRematchSetName, setSentRematchSetName] = useState(null);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+    const opponentDisconnectedRef = useRef(false);
     const [disconnectCountdown, setDisconnectCountdown] = useState(120);
     const disconnectIntervalRef = useRef(null);
+    const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
+    const [preGameDisconnected, setPreGameDisconnected] = useState(false);
+    const [preGameCountdown, setPreGameCountdown] = useState(30);
+    const preGameIntervalRef = useRef(null);
+    const lobbyRef = useRef(null);
 
     // Turn timer
     const [turnTimeLeft, setTurnTimeLeft] = useState(null); // ms remaining, null = off
@@ -475,6 +482,12 @@ export default function LobbyPage() {
                 } else if (message.channel === "lobby_update") {
                     setLobby(message.lobby);
                     if (message.lobby?.gameOver) {
+                        if (opponentDisconnectedRef.current) {
+                            setOpponentLeftAfterGame(true);
+                            setRematchModalOpen(false);
+                            setIncomingRematch(null);
+                        }
+                        opponentDisconnectedRef.current = false;
                         setOpponentDisconnected(false);
                         if (disconnectIntervalRef.current) {
                             clearInterval(disconnectIntervalRef.current);
@@ -495,24 +508,53 @@ export default function LobbyPage() {
                     }
                 } else if (message.channel === "opponent_disconnected") {
                     if (message.SenderId !== playerIdRef.current) {
-                        setOpponentDisconnected(true);
-                        setDisconnectCountdown(120);
-                        if (disconnectIntervalRef.current) clearInterval(disconnectIntervalRef.current);
-                        disconnectIntervalRef.current = setInterval(() => {
-                            setDisconnectCountdown(prev => {
-                                if (prev <= 1) {
-                                    clearInterval(disconnectIntervalRef.current);
-                                    disconnectIntervalRef.current = null;
-                                    return 0;
-                                }
-                                return prev - 1;
-                            });
-                        }, 1000);
+                        if (lobbyRef.current?.gameOver) {
+                            setOpponentLeftAfterGame(true);
+                            setRematchModalOpen(false);
+                            setIncomingRematch(null);
+                        } else if (!lobbyRef.current?.gameStartedAt) {
+                            // Pre-game phase (character pick / ready-up) — 30s countdown
+                            setPreGameDisconnected(true);
+                            setPreGameCountdown(30);
+                            if (preGameIntervalRef.current) clearInterval(preGameIntervalRef.current);
+                            preGameIntervalRef.current = setInterval(() => {
+                                setPreGameCountdown(prev => {
+                                    if (prev <= 1) {
+                                        clearInterval(preGameIntervalRef.current);
+                                        preGameIntervalRef.current = null;
+                                        return 0;
+                                    }
+                                    return prev - 1;
+                                });
+                            }, 1000);
+                        } else {
+                            opponentDisconnectedRef.current = true;
+                            setOpponentDisconnected(true);
+                            setDisconnectCountdown(120);
+                            if (disconnectIntervalRef.current) clearInterval(disconnectIntervalRef.current);
+                            disconnectIntervalRef.current = setInterval(() => {
+                                setDisconnectCountdown(prev => {
+                                    if (prev <= 1) {
+                                        clearInterval(disconnectIntervalRef.current);
+                                        disconnectIntervalRef.current = null;
+                                        return 0;
+                                    }
+                                    return prev - 1;
+                                });
+                            }, 1000);
+                        }
                     }
                 } else if (message.channel === "player_reconnected") {
                     if (message.SenderId !== playerIdRef.current) {
+                        opponentDisconnectedRef.current = false;
                         setOpponentDisconnected(false);
                         setDisconnectCountdown(120);
+                        setPreGameDisconnected(false);
+                        setPreGameCountdown(30);
+                        if (preGameIntervalRef.current) {
+                            clearInterval(preGameIntervalRef.current);
+                            preGameIntervalRef.current = null;
+                        }
                         if (disconnectIntervalRef.current) {
                             clearInterval(disconnectIntervalRef.current);
                             disconnectIntervalRef.current = null;
@@ -615,7 +657,28 @@ export default function LobbyPage() {
         };
     }, [lobby?.turnStartedAt, lobby?.turnTimerPaused, lobby?.turnRemainingMs, lobby?.turnTimerSeconds, lobby?.gameOver]);
 
+    const confirmLeave = async () => {
+        setShowLeaveConfirm(false);
+        try {
+            await fetch(`http://localhost:8080/lobby/forfeit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                body: JSON.stringify({ lobbyId: lobbyID }),
+            });
+        } catch (err) {
+            console.error("Leave error:", err);
+        }
+        router.push('/');
+    };
+
     useEffect(() => { checkLobbyStatus(); }, [lobbyID]);
+    useEffect(() => { lobbyRef.current = lobby; }, [lobby]);
+    useEffect(() => {
+        if (preGameCountdown === 0 && preGameDisconnected) {
+            const t = setTimeout(() => router.push('/'), 1500);
+            return () => clearTimeout(t);
+        }
+    }, [preGameCountdown, preGameDisconnected]);
 
     useEffect(() => {
         if (!lobbyID || !playerId) return;
@@ -801,23 +864,23 @@ export default function LobbyPage() {
                         style={{ maxWidth: 560, width: '100%', position: 'relative', zIndex: 20 }}
                     >
                         {/* Header */}
-                        <div style={{ textAlign: 'center', marginBottom: 'var(--s8)' }}>
-                            <div style={{ width: 48, height: 4, background: isWinner ? 'var(--state-live)' : 'var(--state-out)', borderRadius: 2, margin: '0 auto var(--s5)' }} />
-                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 42, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s2)', lineHeight: 1 }}>
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--s4)' }}>
+                            <div style={{ width: 48, height: 4, background: isWinner ? 'var(--state-live)' : 'var(--state-out)', borderRadius: 2, margin: '0 auto var(--s3)' }} />
+                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 36, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s1)', lineHeight: 1 }}>
                                 {isWinner ? "Victory!" : "Defeat"}
                             </h1>
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 13 }}>
                                 {isWinner ? "You guessed your opponent's character." : "Your opponent guessed your character."}
                             </p>
                         </div>
 
                         {/* Character Reveal */}
-                        <div className="gw-card" style={{ padding: 'var(--s6)', marginBottom: 'var(--s4)' }}>
-                            <span className="gw-label" style={{ display: 'block', textAlign: 'center', marginBottom: 'var(--s5)' }}>Character Reveal</span>
-                            <div style={{ display: 'flex', gap: 'var(--s6)', justifyContent: 'center' }}>
+                        <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s3)' }}>
+                            <span className="gw-label" style={{ display: 'block', textAlign: 'center', marginBottom: 'var(--s3)' }}>Character Reveal</span>
+                            <div style={{ display: 'flex', gap: 'var(--s4)', justifyContent: 'center' }}>
                                 {/* Your character */}
                                 <div style={{ flex: 1, textAlign: 'center', maxWidth: 200 }}>
-                                    <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)', color: 'var(--accent)' }}>You</span>
+                                    <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s2)', color: 'var(--accent)' }}>You</span>
                                     {myChar ? (
                                         <>
                                             <img
@@ -825,7 +888,7 @@ export default function LobbyPage() {
                                                 alt={myChar.name}
                                                 style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--border)' }}
                                             />
-                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15, color: 'var(--text-900)', marginTop: 'var(--s2)' }}>
+                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s1)', marginBottom: 0 }}>
                                                 {myChar.name}
                                             </p>
                                         </>
@@ -845,7 +908,7 @@ export default function LobbyPage() {
 
                                 {/* Opponent character */}
                                 <div style={{ flex: 1, textAlign: 'center', maxWidth: 200 }}>
-                                    <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)', color: 'var(--text-600)' }}>Opponent</span>
+                                    <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s2)', color: 'var(--text-600)' }}>Opponent</span>
                                     {opponentChar ? (
                                         <motion.div
                                             initial={{ rotateY: 90, opacity: 0 }}
@@ -858,7 +921,7 @@ export default function LobbyPage() {
                                                 alt={opponentChar.name}
                                                 style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: `2px solid ${isWinner ? 'var(--state-live)' : 'var(--state-out)'}` }}
                                             />
-                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 15, color: 'var(--text-900)', marginTop: 'var(--s2)' }}>
+                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s1)', marginBottom: 0 }}>
                                                 {opponentChar.name}
                                             </p>
                                         </motion.div>
@@ -872,18 +935,18 @@ export default function LobbyPage() {
                         </div>
 
                         {/* Stats */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', marginBottom: 'var(--s6)' }}>
-                            <div className="gw-card" style={{ padding: 'var(--s4)', textAlign: 'center' }}>
-                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 28, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
+                            <div className="gw-card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em' }}>
                                     {questionLog.length}
                                 </p>
-                                <span className="gw-label" style={{ marginTop: 'var(--s1)', display: 'block' }}>Questions Asked</span>
+                                <span className="gw-label" style={{ marginTop: 2, display: 'block' }}>Questions Asked</span>
                             </div>
-                            <div className="gw-card" style={{ padding: 'var(--s4)', textAlign: 'center' }}>
-                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 28, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
+                            <div className="gw-card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
                                     {timePlayed ?? '—'}
                                 </p>
-                                <span className="gw-label" style={{ marginTop: 'var(--s1)', display: 'block' }}>Time Played</span>
+                                <span className="gw-label" style={{ marginTop: 2, display: 'block' }}>Time Played</span>
                             </div>
                         </div>
 
@@ -914,8 +977,13 @@ export default function LobbyPage() {
 
                         <div style={{ display: 'flex', gap: 'var(--s3)' }}>
                             {!rematchWaiting && (
-                                <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} onClick={() => setRematchModalOpen(true)}>
-                                    Rematch
+                                <button
+                                    className="gw-btn-ghost"
+                                    style={{ flex: 1, height: 44, opacity: opponentLeftAfterGame ? 0.45 : 1, cursor: opponentLeftAfterGame ? 'not-allowed' : 'pointer' }}
+                                    onClick={() => { if (!opponentLeftAfterGame) { setSelectedRematchSet(lobby.characterSet ?? null); setRematchModalOpen(true); } }}
+                                    disabled={opponentLeftAfterGame}
+                                >
+                                    {opponentLeftAfterGame ? "Opponent Left" : "Rematch"}
                                 </button>
                             )}
                             <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} onClick={() => router.push('/')}>
@@ -931,6 +999,22 @@ export default function LobbyPage() {
                                         <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)', margin: 0 }}>Choose Character Set</h2>
                                         <button onClick={() => setRematchModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-400)', fontSize: 20, lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
                                     </div>
+                                    {/* Last used set */}
+                                    {lobby.characterSet && (
+                                        <div
+                                            onClick={() => setSelectedRematchSet(lobby.characterSet)}
+                                            style={{ display: 'flex', alignItems: 'center', gap: 'var(--s3)', background: 'var(--surface-1)', border: `2px solid ${selectedRematchSet?.id === lobby.characterSet.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: 'var(--s3)', marginBottom: 'var(--s4)', cursor: 'pointer', transition: 'border-color 150ms' }}
+                                        >
+                                            <SetCover coverImageName={lobby.characterSet.coverImageName} alt={lobby.characterSet.name} style={{ width: 48, height: 48, borderRadius: 4, flexShrink: 0 }} />
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-400)', margin: '0 0 2px' }}>Last used</p>
+                                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lobby.characterSet.name}</p>
+                                            </div>
+                                            {selectedRematchSet?.id === lobby.characterSet.id && (
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                            )}
+                                        </div>
+                                    )}
                                     {/* Tabs */}
                                     <div style={{ display: 'flex', gap: 'var(--s2)', marginBottom: 'var(--s4)', borderBottom: '1px solid var(--border)', paddingBottom: 'var(--s2)' }}>
                                         {['public', 'mine'].map(tab => (
@@ -1183,6 +1267,8 @@ export default function LobbyPage() {
             }),
         }));
 
+        const leaveLobbyFromPicker = () => setShowLeaveConfirm(true);
+
         const selectSecretCharacter = async (charid) => {
             setError(null);
             try {
@@ -1200,11 +1286,38 @@ export default function LobbyPage() {
             }
         };
 
+        const leaveConfirmModal = showLeaveConfirm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                <div className="gw-card" style={{ width: '100%', maxWidth: 360, padding: 'var(--s6)' }}>
+                    <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: 'var(--text-900)', marginBottom: 'var(--s2)' }}>Leave Lobby?</h2>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s6)' }}>
+                        Your opponent will be notified and the lobby will end.
+                    </p>
+                    <div style={{ display: 'flex', gap: 'var(--s3)' }}>
+                        <button className="gw-btn-ghost" style={{ flex: 1, height: 40 }} onClick={() => setShowLeaveConfirm(false)}>
+                            Cancel
+                        </button>
+                        <button className="gw-btn-primary" style={{ flex: 1, height: 40, background: 'var(--state-out)', borderColor: 'var(--state-out)' }} onClick={confirmLeave}>
+                            Leave
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
         const characters = gameState?.lobby.lobbyCharacters || [];
         return (
             <>
                 <StyleInjector />
                 {conflictModal}
+                {leaveConfirmModal}
+                {preGameDisconnected && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: preGameCountdown === 0 ? 'var(--state-out)' : '#7A5C1E', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '8px var(--s4)', letterSpacing: '0.02em' }}>
+                        {preGameCountdown > 0
+                            ? `Opponent disconnected — returning in ${preGameCountdown}s`
+                            : 'Opponent left. Returning to home…'}
+                    </div>
+                )}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 'var(--s12) var(--s6)' }}>
                     <div style={{ maxWidth: 960, margin: '0 auto' }}>
                         <div style={{ textAlign: 'center', marginBottom: 'var(--s10)' }}>
@@ -1230,6 +1343,15 @@ export default function LobbyPage() {
                                 </Grid>
                             ))}
                         </Grid>
+                        <div style={{ textAlign: 'center', marginTop: 'var(--s8)' }}>
+                            <button
+                                className="gw-btn-ghost"
+                                style={{ height: 40, padding: '0 var(--s8)' }}
+                                onClick={leaveLobbyFromPicker}
+                            >
+                                Leave Lobby
+                            </button>
+                        </div>
                     </div>
                 </div>
             </>
@@ -1241,6 +1363,8 @@ export default function LobbyPage() {
         const me = lobby?.players?.find(p => p.userId === user?.id || p.guestId === user?.id);
         const opponent = lobby?.players?.find(p => p.userId !== user?.id && p.guestId !== user?.id);
         const iAmReady = me?.ready ?? false;
+
+        const leaveLobby = () => setShowLeaveConfirm(true);
 
         const setReady = async () => {
             try {
@@ -1254,49 +1378,87 @@ export default function LobbyPage() {
             }
         };
 
+        const setUnready = async () => {
+            try {
+                await fetch(`http://localhost:8080/lobby/unready`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                    body: JSON.stringify({ lobbyId: lobbyID }),
+                });
+            } catch (err) {
+                console.error("Unready error:", err);
+            }
+        };
+
+        const leaveConfirmModal = showLeaveConfirm && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                <div className="gw-card" style={{ width: '100%', maxWidth: 360, padding: 'var(--s6)' }}>
+                    <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: 'var(--text-900)', marginBottom: 'var(--s2)' }}>Leave Lobby?</h2>
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s6)' }}>
+                        Your opponent will be notified and the lobby will end.
+                    </p>
+                    <div style={{ display: 'flex', gap: 'var(--s3)' }}>
+                        <button className="gw-btn-ghost" style={{ flex: 1, height: 40 }} onClick={() => setShowLeaveConfirm(false)}>
+                            Cancel
+                        </button>
+                        <button className="gw-btn-primary" style={{ flex: 1, height: 40, background: 'var(--state-out)', borderColor: 'var(--state-out)' }} onClick={confirmLeave}>
+                            Leave
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+
         return (
             <>
                 <StyleInjector />
                 {conflictModal}
-                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
+                {leaveConfirmModal}
+                {preGameDisconnected && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: preGameCountdown === 0 ? 'var(--state-out)' : '#7A5C1E', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '8px var(--s4)', letterSpacing: '0.02em' }}>
+                        {preGameCountdown > 0
+                            ? `Opponent disconnected — returning in ${preGameCountdown}s`
+                            : 'Opponent left. Returning to home…'}
+                    </div>
+                )}
+                <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '8vh', padding: 'var(--s6)', paddingTop: '8vh', overflow: 'hidden' }}>
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
-                        style={{ maxWidth: 480, width: '100%' }}
+                        style={{ maxWidth: 420, width: '100%' }}
                     >
-                        <div style={{ textAlign: 'center', marginBottom: 'var(--s8)' }}>
-                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Ready Up</span>
-                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 36, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s2)' }}>
+                        <div style={{ textAlign: 'center', marginBottom: 'var(--s4)' }}>
+                            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 28, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s1)' }}>
                                 Your secret character
                             </h1>
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14 }}>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 13 }}>
                                 Remember this face. Your opponent will try to guess who you are.
                             </p>
                         </div>
 
                         {/* Secret character preview */}
                         {gameState?.secretCharacter && (
-                            <div className="gw-card" style={{ padding: 'var(--s6)', marginBottom: 'var(--s4)', textAlign: 'center' }}>
+                            <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s3)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                 <motion.img
                                     initial={{ scale: 0.92, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
                                     src={imgUrl(gameState.secretCharacter.image)}
                                     alt={gameState.secretCharacter.name}
-                                    style={{ width: 160, height: 200, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--accent-light)', display: 'block', margin: '0 auto var(--s3)' }}
+                                    style={{ width: 150, height: 190, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--accent-light)', marginBottom: 'var(--s3)' }}
                                 />
-                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 18, color: 'var(--text-900)', margin: 0 }}>
+                                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: 'var(--text-900)', margin: 0, textAlign: 'center' }}>
                                     {gameState.secretCharacter.name}
                                 </p>
                             </div>
                         )}
 
                         {/* Player ready status */}
-                        <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)', display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
-                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)' }}>Players</span>
+                        <div className="gw-card" style={{ padding: 'var(--s3)', marginBottom: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                            <span className="gw-label" style={{ display: 'block', marginBottom: 2 }}>Players</span>
                             {[{ label: 'You', player: me }, { label: 'Opponent', player: opponent }].map(({ label, player }) => (
-                                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s3) var(--s4)', background: 'var(--surface-1)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
+                                <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--s2) var(--s3)', background: 'var(--surface-1)', borderRadius: 'var(--r)', border: '1px solid var(--border)' }}>
                                     <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, color: 'var(--text-900)' }}>
                                         {label}
                                     </span>
@@ -1314,13 +1476,28 @@ export default function LobbyPage() {
                             ))}
                         </div>
 
+                        {iAmReady ? (
+                            <button
+                                style={{ width: '100%', height: 44, justifyContent: 'center', display: 'flex', alignItems: 'center', background: '#FDF0EA', border: '1px solid #F2C5B4', borderRadius: 'var(--r)', fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 15, color: '#B84422', cursor: 'pointer', transition: 'background 75ms' }}
+                                onClick={setUnready}
+                            >
+                                Unready
+                            </button>
+                        ) : (
+                            <button
+                                className="gw-btn-primary"
+                                style={{ width: '100%', height: 44, justifyContent: 'center' }}
+                                onClick={setReady}
+                            >
+                                Ready Up
+                            </button>
+                        )}
                         <button
-                            className="gw-btn-primary"
-                            style={{ width: '100%', height: 44, justifyContent: 'center', opacity: iAmReady ? 0.38 : 1, cursor: iAmReady ? 'not-allowed' : 'pointer' }}
-                            onClick={setReady}
-                            disabled={iAmReady}
+                            className="gw-btn-ghost"
+                            style={{ width: '100%', height: 40, justifyContent: 'center', marginTop: 'var(--s2)' }}
+                            onClick={leaveLobby}
                         >
-                            {iAmReady ? 'Waiting for opponent…' : 'Ready Up'}
+                            Leave Lobby
                         </button>
                     </motion.div>
                 </div>

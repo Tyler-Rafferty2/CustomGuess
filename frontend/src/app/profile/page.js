@@ -84,6 +84,7 @@ export default function Profile() {
     const [mySets, setMySets] = useState([]);
     const [setsLoading, setSetsLoading] = useState(true);
     const [deletingId, setDeletingId] = useState(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState(null);
     const [stats, setStats] = useState(null);
     const [statsLoading, setStatsLoading] = useState(true);
     const [usernameModalOpen, setUsernameModalOpen] = useState(false);
@@ -158,8 +159,11 @@ export default function Profile() {
         } catch { /* optimistic state remains */ }
     };
 
-    const handleDeleteSet = async (setId) => {
-        if (!confirm("Delete this set? This cannot be undone.")) return;
+    const handleDeleteSet = (setId) => setDeleteConfirmId(setId);
+
+    const confirmDeleteSet = async () => {
+        const setId = deleteConfirmId;
+        setDeleteConfirmId(null);
         setDeletingId(setId);
         try {
             await fetch(`http://localhost:8080/player/set/${setId}`, {
@@ -173,6 +177,30 @@ export default function Profile() {
 
     return (
         <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
+            {deleteConfirmId && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+                    <div style={{ background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, padding: 32, width: '100%', maxWidth: 360 }}>
+                        <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: T.text900, marginBottom: 8, marginTop: 0 }}>Delete Set?</h2>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: T.text600, fontSize: 14, marginBottom: 24 }}>
+                            This cannot be undone. The set and all its characters will be permanently deleted.
+                        </p>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                style={{ flex: 1, height: 40, background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, color: T.text600, cursor: 'pointer' }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDeleteSet}
+                                style={{ flex: 1, height: 40, background: T.stateOut, border: `1px solid ${T.stateOut}`, borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, color: '#fff', cursor: 'pointer' }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');
 

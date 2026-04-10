@@ -26,6 +26,8 @@ func MountRoutes(r chi.Router) {
     userService := services.NewUserService(config.DB, emailService, appBaseURL)
     lobbyService := services.NewLobbyService(config.DB, chatHub)
     chatHub.DisconnectHandler = lobbyService.ForfeitByPlayerID
+    chatHub.PreGameDisconnectHandler = lobbyService.PreGameForfeitByPlayerID
+    chatHub.IsGameStarted = lobbyService.IsGameStarted
     chatHub.TurnExpiredHandler = lobbyService.ForfeitByPlayerID
 
     wsHandler := handlers.NewWebSocketHandler(chatHub, lobbyService)
@@ -83,6 +85,7 @@ func MountRoutes(r chi.Router) {
         r.With(middleware.StrictRateLimitMiddleware).Post("/setSecretChar", lobbyHandler.SetSecretCharHandler)
         r.With(middleware.StrictRateLimitMiddleware).Post("/forfeit", lobbyHandler.ForfeitHandler)
         r.With(middleware.StrictRateLimitMiddleware).Post("/ready", lobbyHandler.ReadyHandler)
+        r.With(middleware.StrictRateLimitMiddleware).Post("/unready", lobbyHandler.UnreadyHandler)
         })
     })
 
