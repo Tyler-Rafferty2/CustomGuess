@@ -6,7 +6,7 @@ import { useContext, useState, useEffect } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, Hash, Star, Lock, Globe, Pencil, Trash2, Layers } from "lucide-react";
+import { ArrowLeft, Trophy, Hash, Star, Lock, Globe, Pencil, Trash2, Layers, Heart } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    Design tokens — v3.0 schema
@@ -136,6 +136,26 @@ export default function Profile() {
             }, 1200);
         } catch { setUsernameError("Network error"); }
         finally { setUsernameSaving(false); }
+    };
+
+    const handleToggleLike = async (setId) => {
+        setMySets(prev => prev.map(s => {
+            if (s.id !== setId) return s;
+            const wasLiked = s.likedByMe;
+            return { ...s, likedByMe: !wasLiked, likeCount: (s.likeCount ?? 0) + (wasLiked ? -1 : 1) };
+        }));
+        try {
+            const res = await fetch(`http://localhost:8080/player/set/${setId}/like`, {
+                method: "POST",
+                headers: { "X-User-ID": user.id },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setMySets(prev => prev.map(s =>
+                    s.id === setId ? { ...s, likedByMe: data.likedByMe, likeCount: data.likeCount } : s
+                ));
+            }
+        } catch { /* optimistic state remains */ }
     };
 
     const handleDeleteSet = async (setId) => {
@@ -421,9 +441,21 @@ export default function Profile() {
                                                         : <Lock size={12} color={T.text400} style={{ flexShrink: 0 }} />
                                                     }
                                                 </div>
-                                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
-                                                    {set.characters?.length ?? 0} character{set.characters?.length !== 1 ? "s" : ""}
-                                                </p>
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+                                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
+                                                        {set.characters?.length ?? 0} character{set.characters?.length !== 1 ? "s" : ""}
+                                                    </p>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleToggleLike(set.id); }}
+                                                        title={set.likedByMe ? "Unlike" : "Like"}
+                                                        style={{ display: "flex", alignItems: "center", gap: 4, background: "transparent", border: "none", padding: "2px 4px", borderRadius: 4, cursor: "pointer", color: set.likedByMe ? T.stateOut : T.text400, fontSize: 12, fontWeight: 600, transition: "color 150ms" }}
+                                                        onMouseEnter={e => e.currentTarget.style.color = T.stateOut}
+                                                        onMouseLeave={e => e.currentTarget.style.color = set.likedByMe ? T.stateOut : T.text400}
+                                                    >
+                                                        <Heart size={12} fill={set.likedByMe ? "currentColor" : "none"} strokeWidth={2} />
+                                                        {set.likeCount ?? 0}
+                                                    </button>
+                                                </div>
                                             </div>
                                         </motion.div>
                                     ))}

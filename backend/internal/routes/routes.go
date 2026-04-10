@@ -104,6 +104,7 @@ func MountRoutes(r chi.Router) {
             r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
             r.Put("/set/{setId}", playerHandler.UpdateSetHandler)
             r.Delete("/set/{setId}", playerHandler.DeleteSetHandler)
+            r.Post("/set/{setId}/like", playerHandler.ToggleLikeHandler)
         })
     })
 

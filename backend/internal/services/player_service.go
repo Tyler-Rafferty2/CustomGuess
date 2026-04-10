@@ -13,6 +13,85 @@ type PlayerService struct {
     DB *gorm.DB
 }
 
+type CharacterSetResponse struct {
+    models.CharacterSet
+    LikeCount   int    `json:"likeCount"`
+    LikedByMe   bool   `json:"likedByMe"`
+    CreatorName string `json:"creator"`
+}
+
+func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.UUID) []CharacterSetResponse {
+    if len(sets) == 0 {
+        return []CharacterSetResponse{}
+    }
+
+    setIDs := make([]uuid.UUID, len(sets))
+    userIDs := make([]uuid.UUID, 0, len(sets))
+    userIDSet := make(map[uuid.UUID]bool)
+    for i, set := range sets {
+        setIDs[i] = set.ID
+        if !userIDSet[set.UserID] {
+            userIDs = append(userIDs, set.UserID)
+            userIDSet[set.UserID] = true
+        }
+    }
+
+    // Batch fetch like counts
+    type likeCount struct {
+        SetID uuid.UUID
+        Cnt   int
+    }
+    var counts []likeCount
+    s.DB.Model(&models.SetLike{}).
+        Select("set_id, COUNT(*) as cnt").
+        Where("set_id IN ?", setIDs).
+        Group("set_id").
+        Scan(&counts)
+
+    countMap := make(map[uuid.UUID]int, len(counts))
+    for _, lc := range counts {
+        countMap[lc.SetID] = lc.Cnt
+    }
+
+    // Batch fetch caller's liked sets
+    likedMap := make(map[uuid.UUID]bool)
+    if callerID != nil {
+        var likedIDs []uuid.UUID
+        s.DB.Model(&models.SetLike{}).
+            Where("user_id = ? AND set_id IN ?", *callerID, setIDs).
+            Pluck("set_id", &likedIDs)
+        for _, id := range likedIDs {
+            likedMap[id] = true
+        }
+    }
+
+    // Batch fetch creator usernames
+    type userRow struct {
+        ID       uuid.UUID
+        Username string
+    }
+    var users []userRow
+    s.DB.Model(&models.User{}).
+        Select("id, username").
+        Where("id IN ?", userIDs).
+        Scan(&users)
+    usernameMap := make(map[uuid.UUID]string, len(users))
+    for _, u := range users {
+        usernameMap[u.ID] = u.Username
+    }
+
+    result := make([]CharacterSetResponse, len(sets))
+    for i, set := range sets {
+        result[i] = CharacterSetResponse{
+            CharacterSet: set,
+            LikeCount:    countMap[set.ID],
+            LikedByMe:    likedMap[set.ID],
+            CreatorName:  usernameMap[set.UserID],
+        }
+    }
+    return result
+}
+
 func NewPlayerService(db *gorm.DB) *PlayerService {
     return &PlayerService{DB: db}
 }
@@ -57,21 +136,21 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, p
     return set, nil
 }
 
-func (s *PlayerService) GetSets(user *models.User) ([]models.CharacterSet, error) {
+func (s *PlayerService) GetSets(user *models.User) ([]CharacterSetResponse, error) {
     var sets []models.CharacterSet
-    
+
     err := s.DB.Where("user_id = ?", user.ID).
-        Preload("Characters"). 
+        Preload("Characters").
         Find(&sets).Error
-    
+
     if err != nil {
         return nil, fmt.Errorf("failed to get character sets: %w", err)
     }
-    
-    return sets, nil
+
+    return s.attachLikes(sets, &user.ID), nil
 }
 
-func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character) (*models.CharacterSet, error) {
+func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character, nameUpdates map[uuid.UUID]string) (*models.CharacterSet, error) {
     if len(keepCharacterIDs)+len(newCharacters) < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
     }
@@ -97,6 +176,13 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
         }
     } else {
         if err := s.DB.Where("set_id = ?", setID).Delete(&models.Character{}).Error; err != nil {
+            return nil, err
+        }
+    }
+
+    // Update names of kept characters
+    for id, newName := range nameUpdates {
+        if err := s.DB.Model(&models.Character{}).Where("id = ? AND set_id = ?", id, setID).Update("name", newName).Error; err != nil {
             return nil, err
         }
     }
@@ -128,7 +214,7 @@ func (s *PlayerService) DeleteSet(user *models.User, setID uuid.UUID) error {
     return nil
 }
 
-func (s *PlayerService) GetPublicSets() ([]models.CharacterSet, error) {
+func (s *PlayerService) GetPublicSets(callerID *uuid.UUID) ([]CharacterSetResponse, error) {
     var sets []models.CharacterSet
 
     err := s.DB.Where("public = ?", true).
@@ -139,7 +225,31 @@ func (s *PlayerService) GetPublicSets() ([]models.CharacterSet, error) {
         return nil, fmt.Errorf("failed to get character sets: %w", err)
     }
 
-    return sets, nil
+    return s.attachLikes(sets, callerID), nil
+}
+
+func (s *PlayerService) ToggleLike(userID, setID uuid.UUID) (likeCount int, likedByMe bool, err error) {
+    err = s.DB.Transaction(func(tx *gorm.DB) error {
+        result := tx.Where("user_id = ? AND set_id = ?", userID, setID).Delete(&models.SetLike{})
+        if result.Error != nil {
+            return result.Error
+        }
+        if result.RowsAffected == 0 {
+            // Was not liked — insert
+            if err := tx.Create(&models.SetLike{UserID: userID, SetID: setID}).Error; err != nil {
+                return err
+            }
+            likedByMe = true
+        }
+        // Count total likes
+        var count int64
+        if err := tx.Model(&models.SetLike{}).Where("set_id = ?", setID).Count(&count).Error; err != nil {
+            return err
+        }
+        likeCount = int(count)
+        return nil
+    })
+    return
 }
 
 // Stats types

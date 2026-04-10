@@ -415,10 +415,17 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
     allReady := notReadyCount == 0
     if allReady {
         now := time.Now()
-        if err := s.DB.Model(&models.Lobby{}).
-            Where("id = ? AND game_started_at IS NULL", lobbyID).
-            Updates(map[string]interface{}{"game_started_at": now, "turn_started_at": now}).Error; err != nil {
-            log.Printf("warn: could not set GameStartedAt: %v", err)
+        var lobby models.Lobby
+        lobbyNotStarted := s.DB.First(&lobby, "id = ? AND game_started_at IS NULL", lobbyID).Error == nil
+        if lobbyNotStarted {
+            if err := s.DB.Model(&models.Lobby{}).
+                Where("id = ?", lobbyID).
+                Updates(map[string]interface{}{"game_started_at": now, "turn_started_at": now}).Error; err != nil {
+                log.Printf("warn: could not set GameStartedAt: %v", err)
+            }
+            s.DB.Model(&models.CharacterSet{}).
+                Where("id = ?", lobby.CharacterSetID).
+                UpdateColumn("play_count", gorm.Expr("play_count + 1"))
         }
         // Start turn timer for first player if enabled
         if s.Hub != nil {

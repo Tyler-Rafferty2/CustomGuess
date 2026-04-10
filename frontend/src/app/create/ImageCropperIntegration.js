@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Check, Move, Upload, Crop } from 'lucide-react';
+import { X, Check, Upload, Crop, Pencil } from 'lucide-react';
 
 const T = {
     bg: "#F7F3EE", surface0: "#FFFFFF", surface1: "#F2EDE7", surface2: "#E8E0D8",
@@ -9,7 +9,7 @@ const T = {
 };
 
 const CONTAINER_SIZE = 400;
-const OUTPUT_SIZE = 300;
+const OUTPUT_SIZE = 280;
 const HANDLE_SIZE = 12;
 const MIN_CROP = 50;
 
@@ -17,7 +17,7 @@ const MIN_CROP = 50;
 // Parent should reset it to null after passing (use a counter so the same index re-triggers).
 export default function ImageCropperIntegration({ images, setImages, triggerEdit = null }) {
     const [editingIndex, setEditingIndex] = useState(null);
-    const [cropBox, setCropBox] = useState({ x: 50, y: 50, width: 200, height: 200 });
+    const [cropBox, setCropBox] = useState({ x: 50, y: 50, width: 280, height: 280 });
     const [dragging, setDragging] = useState(null);
     const [dropHover, setDropHover] = useState(false);
     const fileInputRef = useRef(null);
@@ -39,7 +39,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                     const croppedFile = new File([blob], file.name, { type: 'image/png' });
                     onDone({
                         id: Date.now() + Math.random(),
-                        name: file.name.replace(/\.[^/.]+$/, ''),
+                        name: file.name.replace(/\.[^/.]+$/, '').slice(0, 28),
                         originalName: file.name,
                         file: croppedFile,
                         original: e.target.result,
@@ -68,7 +68,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
 
     const startEdit = (index) => {
         setEditingIndex(index);
-        setCropBox({ x: 50, y: 50, width: 200, height: 200 });
+        setCropBox({ x: 50, y: 50, width: 280, height: 280 });
     };
 
     const handleMouseDown = (e, type) => {
@@ -125,7 +125,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
     useEffect(() => {
         if (triggerEdit == null || images.length === 0) return;
         setEditingIndex(triggerEdit);
-        setCropBox({ x: 50, y: 50, width: 200, height: 200 });
+        setCropBox({ x: 50, y: 50, width: 280, height: 280 });
     }, [triggerEdit]);
 
     const applyCrop = () => {
@@ -209,18 +209,18 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
 
             {/* Image grid */}
             {images.length > 0 && (
-                <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10 }}>
+                <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {images.map((img, index) => (
                         <div key={img.id} style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
                             <img
                                 src={img.cropped || img.original}
                                 alt={img.name}
-                                style={{ width: "100%", height: 90, objectFit: "cover", display: "block" }}
+                                style={{ width: "100%", height: 128, objectFit: "cover", display: "block" }}
                             />
 
                             {/* Hover actions */}
                             <div style={{
-                                position: "absolute", inset: 0, height: 90,
+                                position: "absolute", inset: 0, height: 128,
                                 background: "rgba(26,21,16,0.45)",
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                                 opacity: 0, transition: "opacity 150ms",
@@ -231,28 +231,37 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                                 <button
                                     onClick={() => startEdit(index)}
                                     title="Adjust crop"
-                                    style={{ width: 30, height: 30, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 >
-                                    <Move size={14} color={T.text900} />
+                                    <Crop size={14} color={T.text900} />
                                 </button>
                                 <button
                                     onClick={() => remove(index)}
                                     title="Remove"
-                                    style={{ width: 30, height: 30, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 >
                                     <X size={14} color={T.stateOut} />
                                 </button>
                             </div>
 
                             {/* Name */}
-                            <div style={{ padding: "5px 7px" }}>
+                            <div style={{ padding: "7px 8px 8px", borderTop: `1px solid ${T.border}` }}>
+                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 600, color: T.text400, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px", display: "flex", alignItems: "center", gap: 3 }}>
+                                    Name <Pencil size={9} />
+                                </p>
                                 <input
                                     value={img.name}
                                     onChange={(e) => updateName(img.id, e.target.value)}
+                                    maxLength={28}
+                                    placeholder="Enter name…"
+                                    onFocus={e => e.target.style.borderBottomColor = T.accent}
+                                    onBlur={e => e.target.style.borderBottomColor = T.border}
                                     style={{
-                                        width: "100%", border: "none", background: "transparent",
-                                        fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600,
-                                        color: T.text900, outline: "none", padding: 0,
+                                        width: "100%", border: "none", borderBottom: `1px solid ${T.border}`,
+                                        background: "transparent",
+                                        fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 600,
+                                        color: T.text900, outline: "none", padding: "2px 0",
+                                        boxSizing: "border-box",
                                     }}
                                 />
                             </div>
@@ -271,10 +280,10 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                 }}>
                     <div style={{
                         background: T.surface0, borderRadius: 6, padding: 24,
-                        width: "100%", maxWidth: CONTAINER_SIZE + 220,
+                        width: "100%", maxWidth: CONTAINER_SIZE + 228,
                         border: `1px solid ${T.border}`,
                     }}>
-                        <div style={{ marginBottom: 20 }}>
+                        <div style={{ marginBottom: 28 }}>
                             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: T.text900, margin: "0 0 2px", letterSpacing: "-0.02em" }}>
                                 Adjust Crop
                             </h2>
@@ -283,7 +292,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                             </p>
                         </div>
 
-                        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
                             {/* Canvas */}
                             <div style={{
                                 position: "relative", flexShrink: 0,

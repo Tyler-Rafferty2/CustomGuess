@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
-import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer } from "lucide-react";
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart } from "lucide-react";
 import Navbar from "@/components/navbar";
 
 // ─── Design Token Injection ───────────────────────────────────────────────────
@@ -56,8 +56,6 @@ const DESIGN_TOKENS = `
     display: flex;
     height: calc(100vh - 73px);
     overflow: hidden;
-    max-width: 1080px;
-    margin: 0 auto;
     width: 100%;
   }
 
@@ -419,6 +417,52 @@ const DESIGN_TOKENS = `
     flex-shrink: 0;
   }
 
+  /* ── Sort buttons ── */
+  .sort-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    margin-bottom: var(--s4);
+  }
+  .sort-select {
+    height: 32px;
+    padding: 0 var(--s3);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface-0);
+    color: var(--text-900);
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    outline: none;
+  }
+  .sort-select:hover { border-color: var(--border-strong); }
+  .sort-select:focus { border-color: var(--accent); }
+
+  /* ── Like button ── */
+  .set-card__like-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    border-radius: var(--r);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-400);
+    transition: color var(--dur-fast), transform var(--dur-fast);
+    line-height: 1;
+  }
+  .set-card__like-btn:hover:not(:disabled) {
+    color: var(--state-out);
+    transform: scale(1.1);
+  }
+  .set-card__like-btn--active { color: var(--state-out); }
+  .set-card__like-btn:disabled { cursor: default; opacity: 0.6; }
+
   .toggle-row {
     display: flex;
     align-items: center;
@@ -599,6 +643,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
 
     const [setView, setSetView] = useState("public");
     const [searchQuery, setSearchQuery] = useState("");
+    const [sortOrder, setSortOrder] = useState("most-popular");
+    const [likedSnapshot, setLikedSnapshot] = useState(null); // set IDs locked in when entering "liked" filter
     const [publicSets, setPublicSets] = useState([]);
     const [mySets, setMySets] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -607,7 +653,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [turnTimerSeconds, setTurnTimerSeconds] = useState(0);
     const [previewSet, setPreviewSet] = useState(null);
 
-    useEffect(() => { loadSetsPublic(); }, []);
+    useEffect(() => { if (user !== undefined) loadSetsPublic(); }, [user?.id]);
     useEffect(() => { if (user?.isGuest == false) loadSets(); }, [user]);
 
     const loadSets = async () => {
@@ -626,8 +672,10 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const loadSetsPublic = async () => {
         setLoading(true); setError(null);
         try {
+            const headers = { "Content-Type": "application/json" };
+            if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
             const res = await fetch("http://localhost:8080/player/set/public", {
-                method: "GET", headers: { "Content-Type": "application/json" },
+                method: "GET", headers,
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
@@ -657,12 +705,60 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     };
 
     const filteredSets = () => {
-        const sets = setView === "public" ? publicSets : mySets;
-        if (!searchQuery) return sets;
-        return sets.filter(set =>
-            set.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            set.description?.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        let sets = setView === "public" ? publicSets : mySets;
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            sets = sets.filter(set =>
+                set.name.toLowerCase().includes(q) ||
+                set.description?.toLowerCase().includes(q) ||
+                set.creator?.toLowerCase().includes(q)
+            );
+        }
+        if (setView === "public") {
+            if (sortOrder === "liked") {
+                const snap = likedSnapshot;
+                sets = snap ? sets.filter(s => snap.has(s.id)) : sets.filter(s => s.likedByMe);
+            } else if (sortOrder === "most-liked") {
+                sets = [...sets].sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
+            } else if (sortOrder === "most-popular") {
+                sets = [...sets].sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0));
+            }
+        }
+        return sets;
+    };
+
+    const handleToggleLike = async (setId) => {
+        if (!user?.id || user?.isGuest) return;
+        const updateSets = (prev) => prev.map(s => {
+            if (s.id !== setId) return s;
+            const wasLiked = s.likedByMe;
+            return { ...s, likedByMe: !wasLiked, likeCount: (s.likeCount ?? 0) + (wasLiked ? -1 : 1) };
+        });
+        if (setView === "public") setPublicSets(updateSets);
+        else setMySets(updateSets);
+        try {
+            const res = await fetch(`http://localhost:8080/player/set/${setId}/like`, {
+                method: "POST",
+                headers: { "X-User-ID": user.id },
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const reconcile = (prev) => prev.map(s =>
+                    s.id === setId ? { ...s, likedByMe: data.likedByMe, likeCount: data.likeCount } : s
+                );
+                if (setView === "public") setPublicSets(reconcile);
+                else setMySets(reconcile);
+            }
+        } catch {
+            // revert optimistic update
+            const revert = (prev) => prev.map(s => {
+                if (s.id !== setId) return s;
+                const cur = s.likedByMe;
+                return { ...s, likedByMe: !cur, likeCount: (s.likeCount ?? 0) + (cur ? -1 : 1) };
+            });
+            if (setView === "public") setPublicSets(revert);
+            else setMySets(revert);
+        }
     };
 
     return (
@@ -680,7 +776,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 role="tab"
                                 aria-selected={setView === "public"}
                                 className={`tab-btn${setView === "public" ? " tab-btn--active" : ""}`}
-                                onClick={() => setSetView("public")}
+                                onClick={() => { setSetView("public"); setSortOrder("most-popular"); setLikedSnapshot(null); }}
                             >
                                 <Search size={15} />
                                 <span>Public Sets</span>
@@ -689,7 +785,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 role="tab"
                                 aria-selected={setView === "my-sets"}
                                 className={`tab-btn${setView === "my-sets" ? " tab-btn--active" : ""}`}
-                                onClick={() => setSetView("my-sets")}
+                                onClick={() => { setSetView("my-sets"); setSortOrder("default"); setLikedSnapshot(null); }}
                             >
                                 <UserCircle size={15} />
                                 <span>My Sets</span>
@@ -708,6 +804,33 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 aria-label="Search character sets"
                             />
                         </div>
+
+                        {/* Sort/filter bar — public tab only */}
+                        {setView === "public" && (
+                            <div className="sort-bar">
+                                <select
+                                    className="sort-select"
+                                    value={sortOrder}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val === "liked") {
+                                            setLikedSnapshot(new Set(publicSets.filter(s => s.likedByMe).map(s => s.id)));
+                                        } else {
+                                            setLikedSnapshot(null);
+                                        }
+                                        setSortOrder(val);
+                                    }}
+                                    aria-label="Sort or filter sets"
+                                >
+                                    <option value="most-popular">Most Played</option>
+                                    <option value="most-liked">Most Liked</option>
+                                    <option value="default">Newest</option>
+                                    {!user?.isGuest && user?.id && (
+                                        <option value="liked">My Liked Sets</option>
+                                    )}
+                                </select>
+                            </div>
+                        )}
 
                         {/* New Set link (My Sets only, non-guest) */}
                         {setView === "my-sets" && !user?.isGuest && (
@@ -762,6 +885,17 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                                         <Check size={14} strokeWidth={3} />
                                                     </div>
                                                 )}
+                                                {setView === "my-sets" && (
+                                                    <button
+                                                        className="set-card__preview-btn"
+                                                        style={{ bottom: "auto", top: "var(--s2)", right: "auto", left: "var(--s2)" }}
+                                                        onClick={(e) => { e.stopPropagation(); router.push(`/edit/${set.id}?from=create`); }}
+                                                        aria-label={`Edit ${set.name}`}
+                                                    >
+                                                        <Pencil size={12} />
+                                                        Edit
+                                                    </button>
+                                                )}
                                                 <button
                                                     className="set-card__preview-btn"
                                                     onClick={(e) => { e.stopPropagation(); setPreviewSet(set); }}
@@ -778,17 +912,21 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                                     {set.creator && (
                                                         <span className="set-card__creator">by {set.creator}</span>
                                                     )}
-                                                    {set.rating && (
-                                                        <span className="set-card__rating">
-                                                            <Star size={13} fill="currentColor" style={{ color: "#C98C1A" }} />
-                                                            {set.rating}
-                                                        </span>
-                                                    )}
                                                     {set.isPublic !== undefined && (
                                                         <span className={`set-card__badge${set.isPublic ? " set-card__badge--public" : ""}`}>
                                                             {set.isPublic ? "Public" : "Private"}
                                                         </span>
                                                     )}
+                                                    <button
+                                                        className={`set-card__like-btn${set.likedByMe ? " set-card__like-btn--active" : ""}`}
+                                                        onClick={(e) => { e.stopPropagation(); handleToggleLike(set.id); }}
+                                                        disabled={!user?.id || user?.isGuest}
+                                                        title={user?.isGuest || !user?.id ? "Sign in to like sets" : (set.likedByMe ? "Unlike" : "Like")}
+                                                        aria-label={`${set.likedByMe ? "Unlike" : "Like"} ${set.name}`}
+                                                    >
+                                                        <Heart size={13} fill={set.likedByMe ? "currentColor" : "none"} strokeWidth={2} />
+                                                        {set.likeCount ?? 0}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>

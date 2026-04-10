@@ -67,7 +67,7 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
     }
 
     // Get basic fields
-    name := r.FormValue("name")
+    name := truncate(r.FormValue("name"), 50)
     description := r.FormValue("description")
     publicStr  := r.FormValue("public")
     public, err := strconv.ParseBool(publicStr)
@@ -113,7 +113,7 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
         }
 
         characters = append(characters, models.Character{
-            Name: charName,
+            Name: truncate(charName, 28),
             Image: imageURL,
         })
     }
@@ -127,6 +127,14 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(set)
+}
+
+func truncate(s string, max int) string {
+    runes := []rune(s)
+    if len(runes) > max {
+        return string(runes[:max])
+    }
+    return s
 }
 
 //Helper func
@@ -205,7 +213,7 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
         return
     }
 
-    name := r.FormValue("name")
+    name := truncate(r.FormValue("name"), 50)
     description := r.FormValue("description")
     publicStr := r.FormValue("public")
     public, _ := strconv.ParseBool(publicStr)
@@ -221,12 +229,26 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
         }
     }
 
-    // Parse keep IDs
-    var keepIDs []uuid.UUID
-    for _, idStr := range r.Form["keepCharacterIds[]"] {
-        if id, err := uuid.Parse(idStr); err == nil {
-            keepIDs = append(keepIDs, id)
+    // Parse keep characters (id + updated name)
+    type keepChar struct {
+        ID   uuid.UUID
+        Name string
+    }
+    var keepChars []keepChar
+    for i := 0; ; i++ {
+        idStr := r.FormValue(fmt.Sprintf("keepCharacters[%d][id]", i))
+        if idStr == "" {
+            break
         }
+        id, err := uuid.Parse(idStr)
+        if err != nil {
+            continue
+        }
+        keepChars = append(keepChars, keepChar{ID: id, Name: truncate(r.FormValue(fmt.Sprintf("keepCharacters[%d][name]", i)), 28)})
+    }
+    var keepIDs []uuid.UUID
+    for _, kc := range keepChars {
+        keepIDs = append(keepIDs, kc.ID)
     }
 
     // Parse new characters
@@ -245,10 +267,14 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
         } else {
             imageURL = r.FormValue(charImageKey)
         }
-        newCharacters = append(newCharacters, models.Character{Name: charName, Image: imageURL})
+        newCharacters = append(newCharacters, models.Character{Name: truncate(charName, 28), Image: imageURL})
     }
 
-    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters)
+    nameUpdates := make(map[uuid.UUID]string)
+    for _, kc := range keepChars {
+        nameUpdates[kc.ID] = kc.Name
+    }
+    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
@@ -277,23 +303,52 @@ func (h *PlayerHandler) DeleteSetHandler(w http.ResponseWriter, r *http.Request)
 
 // GET /set/player
 func (h *PlayerHandler) GetSetFromPlayerHandler(w http.ResponseWriter, r *http.Request) {
-	user := middleware.GetUserFromContext(r)
+    user := middleware.GetUserFromContext(r)
     sets, err := h.Service.GetSets(user)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-
+    w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(sets)
 }
 
 // GET /set/public
 func (h *PlayerHandler) GetSetFromPublicHandler(w http.ResponseWriter, r *http.Request) {
-    sets, err := h.Service.GetPublicSets()
+    var callerID *uuid.UUID
+    if idStr := r.Header.Get("X-User-ID"); idStr != "" {
+        if id, err := uuid.Parse(idStr); err == nil {
+            callerID = &id
+        }
+    }
+    sets, err := h.Service.GetPublicSets(callerID)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
-
+    w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(sets)
+}
+
+// POST /set/{setId}/like
+func (h *PlayerHandler) ToggleLikeHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    setID, err := uuid.Parse(chi.URLParam(r, "setId"))
+    if err != nil {
+        http.Error(w, "invalid setId", http.StatusBadRequest)
+        return
+    }
+
+    count, likedByMe, err := h.Service.ToggleLike(user.ID, setID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]any{
+        "likeCount": count,
+        "likedByMe": likedByMe,
+    })
 }
