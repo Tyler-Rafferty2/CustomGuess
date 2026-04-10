@@ -3,11 +3,40 @@ package handlers
 import (
     "encoding/json"
     "net/http"
+    "strings"
+    "unicode"
 
     "github.com/google/uuid"
     "github.com/tyler-rafferty2/GuessWho/internal/middleware"
     "github.com/tyler-rafferty2/GuessWho/internal/services"
 )
+
+func validatePassword(p string) string {
+    if len(p) < 8 {
+        return "Password must be at least 8 characters"
+    }
+    var hasUpper, hasDigit, hasSymbol bool
+    for _, c := range p {
+        switch {
+        case unicode.IsUpper(c):
+            hasUpper = true
+        case unicode.IsDigit(c):
+            hasDigit = true
+        case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+            hasSymbol = true
+        }
+    }
+    if !hasUpper {
+        return "Password must contain at least one uppercase letter"
+    }
+    if !hasDigit {
+        return "Password must contain at least one number"
+    }
+    if !hasSymbol {
+        return "Password must contain at least one symbol"
+    }
+    return ""
+}
 
 type UserHandler struct {
     Service *services.UserService
@@ -21,6 +50,26 @@ func (h *UserHandler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
         Username string `json:"username"`
     }
     json.NewDecoder(r.Body).Decode(&req)
+
+    if strings.ContainsAny(req.Username, " \t\n") {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Username cannot contain spaces"})
+        return
+    }
+    if len(req.Username) > 20 {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": "Username must be 20 characters or fewer"})
+        return
+    }
+
+    if msg := validatePassword(req.Password); msg != "" {
+        w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusBadRequest)
+        json.NewEncoder(w).Encode(map[string]string{"error": msg})
+        return
+    }
 
     user, err := h.Service.SignUp(req.Email, req.Password, req.Username)
     if err != nil {

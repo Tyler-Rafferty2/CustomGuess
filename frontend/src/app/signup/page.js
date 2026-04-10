@@ -4,16 +4,85 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 
+function EyeIcon({ open }) {
+    return open ? (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+        </svg>
+    ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+    );
+}
+
+function PasswordInput({ id, value, onChange, placeholder, required }) {
+    const [visible, setVisible] = useState(false);
+    return (
+        <div className="relative">
+            <input
+                id={id}
+                type={visible ? "text" : "password"}
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                className="w-full h-[44px] px-4 pr-11 bg-[#F2EDE7] border border-[#DDD5CA] rounded-[6px] text-[#1A1510] placeholder-[#A0937F] focus:outline-none focus:border-[#C4B8A8] focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF] transition-colors duration-150"
+                required={required}
+            />
+            <button
+                type="button"
+                onClick={() => setVisible((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A0937F] hover:text-[#5C5047] transition-colors"
+                tabIndex={-1}
+                aria-label={visible ? "Hide password" : "Show password"}
+            >
+                <EyeIcon open={visible} />
+            </button>
+        </div>
+    );
+}
+
 export default function Signup() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState(null);
 
     const handleSignup = async (e) => {
         e.preventDefault();
         setError(null);
+
+        if (/\s/.test(username)) {
+            setError("Username cannot contain spaces");
+            return;
+        }
+
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters");
+            return;
+        }
+        if (!/[A-Z]/.test(password)) {
+            setError("Password must contain at least one uppercase letter");
+            return;
+        }
+        if (!/[0-9]/.test(password)) {
+            setError("Password must contain at least one number");
+            return;
+        }
+        if (!/[^A-Za-z0-9]/.test(password)) {
+            setError("Password must contain at least one symbol");
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setError("Passwords do not match");
+            return;
+        }
 
         try {
             const res = await fetch("http://localhost:8080/users/signup", {
@@ -36,19 +105,13 @@ export default function Signup() {
     };
 
     return (
-        /* --bg (#F7F3EE) */
         <div className="flex items-center justify-center min-h-screen bg-[#F7F3EE] p-6 font-sans">
-
-            {/* --surface-0 (#FFFFFF) with --border (#DDD5CA) and strict 6px radius */}
             <div className="w-full max-w-md bg-[#FFFFFF] border border-[#DDD5CA] rounded-[6px] p-8">
-
-                {/* --text-xl (26px), Fraunces (font-serif), --text-900 (#1A1510) */}
                 <h1 className="text-[26px] leading-[1.1] tracking-[-0.02em] font-bold text-center mb-6 font-serif text-[#1A1510]">
                     Create an Account
                 </h1>
 
                 {error && (
-                    /* Toast/Error spec: --state-out (#C0392B) left border accent */
                     <div className="bg-[#FFFFFF] border border-[#DDD5CA] border-l-[3px] border-l-[#C0392B] rounded-[6px] p-3 mb-6 text-[#1A1510] text-[14px]">
                         {error}
                     </div>
@@ -64,6 +127,7 @@ export default function Signup() {
                             type="text"
                             placeholder="yourname"
                             value={username}
+                            maxLength={20}
                             onChange={(e) => setUsername(e.target.value)}
                             className="w-full h-[44px] px-4 bg-[#F2EDE7] border border-[#DDD5CA] rounded-[6px] text-[#1A1510] placeholder-[#A0937F] focus:outline-none focus:border-[#C4B8A8] focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF] transition-colors duration-150"
                             required
@@ -71,7 +135,6 @@ export default function Signup() {
                     </div>
 
                     <div>
-                        {/* --text-md (16px), --text-900 (#1A1510) */}
                         <label htmlFor="email" className="block text-[16px] font-semibold text-[#1A1510] mb-2">
                             Email
                         </label>
@@ -81,7 +144,6 @@ export default function Signup() {
                             placeholder="you@example.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            /* --surface-1 (#F2EDE7), strict 6px radius, --border (#DDD5CA), --accent (#D9572B) focus ring */
                             className="w-full h-[44px] px-4 bg-[#F2EDE7] border border-[#DDD5CA] rounded-[6px] text-[#1A1510] placeholder-[#A0937F] focus:outline-none focus:border-[#C4B8A8] focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF] transition-colors duration-150"
                             required
                         />
@@ -91,30 +153,38 @@ export default function Signup() {
                         <label htmlFor="password" className="block text-[16px] font-semibold text-[#1A1510] mb-2">
                             Password
                         </label>
-                        <input
+                        <PasswordInput
                             id="password"
-                            type="password"
-                            placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full h-[44px] px-4 bg-[#F2EDE7] border border-[#DDD5CA] rounded-[6px] text-[#1A1510] placeholder-[#A0937F] focus:outline-none focus:border-[#C4B8A8] focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF] transition-colors duration-150"
+                            placeholder="••••••••"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="confirmPassword" className="block text-[16px] font-semibold text-[#1A1510] mb-2">
+                            Confirm Password
+                        </label>
+                        <PasswordInput
+                            id="confirmPassword"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="••••••••"
                             required
                         />
                     </div>
 
                     <button
                         type="submit"
-                        /* --accent (#D9572B) fill, --accent-dim (#B84422) hover/active, strict 6px radius */
                         className="w-full h-[44px] mt-4 bg-[#D9572B] hover:bg-[#B84422] active:bg-[#B84422] text-[#FFFFFF] text-[16px] font-semibold rounded-[6px] transition-colors duration-75 focus:outline-none focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF]"
                     >
                         Sign Up
                     </button>
                 </form>
 
-                {/* --text-sm (14px), --text-600 (#5C5047) */}
                 <p className="text-center text-[#5C5047] text-[14px] mt-6">
                     Already have an account?{" "}
-                    {/* --accent (#D9572B) link */}
                     <Link
                         href="/signin"
                         className="text-[#D9572B] font-semibold hover:text-[#B84422] focus:outline-none focus:underline rounded-sm transition-colors"
