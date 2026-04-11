@@ -82,34 +82,13 @@ export default function LobbyPage() {
                         </div>
                     )}
 
-                    <div style={{
-                        background: 'var(--surface-0)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 'var(--r)',
-                        padding: 'var(--s6)',
-                    }}>
-
-                        {/* Scrollable container */}
-                        <div style={{
-                            maxHeight: 420,
-                            overflowY: 'auto',
-                            scrollbarGutter: 'stable',
-                            background: 'var(--surface-1)',
-                            borderRadius: 'var(--r)',
-                            padding: 'var(--s3)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 'var(--s2)',
-                        }}>
-                            <OpenGames
-                                user={user}
-                                setError={setError}
-                                lobbies={lobbies}
-                                setLobbies={setLobbies}
-                                joinLobby={joinLobby}
-                            />
-                        </div>
-                    </div>
+                    <OpenGames
+                        user={user}
+                        setError={setError}
+                        lobbies={lobbies}
+                        setLobbies={setLobbies}
+                        joinLobby={joinLobby}
+                    />
 
                 </div>
             </div>

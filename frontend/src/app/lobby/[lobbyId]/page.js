@@ -699,7 +699,7 @@ export default function LobbyPage() {
                 });
                 setQuestionLog(log);
             })
-            .catch(() => {});
+            .catch(() => { });
     }, [lobbyID, playerId]);
 
 
@@ -734,14 +734,14 @@ export default function LobbyPage() {
         fetch("http://localhost:8080/player/set/public")
             .then(r => r.json())
             .then(data => setRematchPublicSets(Array.isArray(data) ? data : []))
-            .catch(() => {});
+            .catch(() => { });
         if (user && !user.isGuest) {
             fetch("http://localhost:8080/player/set/player", {
                 headers: { "X-User-ID": user.id }
             })
                 .then(r => r.json())
                 .then(data => setRematchMySets(Array.isArray(data) ? data : []))
-                .catch(() => {});
+                .catch(() => { });
         }
     }, [lobby?.gameOver]);
 
@@ -869,9 +869,6 @@ export default function LobbyPage() {
                             <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 36, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s1)', lineHeight: 1 }}>
                                 {isWinner ? "Victory!" : "Defeat"}
                             </h1>
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 13 }}>
-                                {isWinner ? "You guessed your opponent's character." : "Your opponent guessed your character."}
-                            </p>
                         </div>
 
                         {/* Character Reveal */}
@@ -1011,7 +1008,7 @@ export default function LobbyPage() {
                                                 <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{lobby.characterSet.name}</p>
                                             </div>
                                             {selectedRematchSet?.id === lobby.characterSet.id && (
-                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                             )}
                                         </div>
                                     )}

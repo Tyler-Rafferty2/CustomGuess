@@ -69,4 +69,4 @@ Current setup:
   it deletes finished lobbies — that's actually the right time to clean up LobbyCharacter image files, since you know
   the game is done.
 
-  The simplest place to hook this in would be the cleanup service. Want me to look at that before we go further with R2?
+  The simplest place to hook this in would be the cleanup service. Want me to look at that before we go further with R2?a

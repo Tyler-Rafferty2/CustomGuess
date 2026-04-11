@@ -10,10 +10,238 @@ import { Loader2 } from "lucide-react";
 
 const IMAGE_SIZE = '140px';
 
+const Item = styled(Paper)(({ theme, isSelected, isGuessMode, isPendingGuess }) => ({
+    ...theme.typography.body2,
+    padding: theme.spacing(0.5),
+    textAlign: 'center',
+    backgroundColor: 'var(--surface-0)',
+    color: 'var(--text-900)',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+    position: 'relative',
+    height: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    border: isPendingGuess
+        ? '2px solid var(--accent)'
+        : isGuessMode
+        ? '2px solid var(--accent-light)'
+        : '2px solid var(--border)',
+    borderRadius: 'var(--r)',
+    boxShadow: isPendingGuess ? '0 0 0 3px var(--accent-light)' : 'none',
+
+    '&:hover': {
+        backgroundColor: 'var(--surface-1)',
+        borderColor: isPendingGuess ? 'var(--accent)' : isGuessMode ? 'var(--accent-dim)' : 'var(--border-strong)',
+        boxShadow: isPendingGuess ? '0 0 0 3px var(--accent-light)' : '0 2px 8px rgba(0,0,0,0.10)',
+    },
+
+    '& img': {
+        width: '100%',
+        height: IMAGE_SIZE,
+        objectFit: 'cover',
+        borderRadius: 'calc(var(--r) - 2px)',
+        flexShrink: 0,
+        imageRendering: 'auto',
+        transform: 'translateZ(0)',
+        backfaceVisibility: 'hidden',
+        WebkitBackfaceVisibility: 'hidden',
+    },
+
+    '& .character-name': {
+        marginTop: theme.spacing(1),
+        fontSize: '0.75rem',
+        fontWeight: 600,
+        fontFamily: "'DM Sans', sans-serif",
+        lineHeight: '1.25rem',
+        padding: '0 4px 4px 4px',
+        height: '2.5rem',
+        overflow: 'hidden',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        textAlign: 'center',
+        color: 'var(--text-900)',
+    },
+
+    ...(isSelected && {
+        borderColor: 'var(--border)',
+        '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: theme.spacing(0.5),
+            left: theme.spacing(0.5),
+            right: theme.spacing(0.5),
+            height: IMAGE_SIZE,
+            backgroundColor: 'rgba(26, 21, 16, 0.9)',
+            pointerEvents: 'none',
+            borderRadius: 'calc(var(--r) - 2px)',
+        }
+    }),
+}));
+
+function GuessModal({ char, onConfirm, onCancel }) {
+    return (
+        <div
+            onClick={onCancel}
+            style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(247, 243, 238, 0.75)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                animation: 'gw-fade-in 0.2s ease-out',
+            }}
+        >
+            <div
+                onClick={e => e.stopPropagation()}
+                style={{
+                    background: 'var(--surface-0)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--r)',
+                    width: '100%',
+                    maxWidth: 360,
+                    margin: '0 var(--s4)',
+                    animation: 'gw-slide-up 0.25s ease-out',
+                    overflow: 'hidden',
+                }}
+            >
+                {/* Header */}
+                <div style={{
+                    padding: 'var(--s4) var(--s5)',
+                    borderBottom: '1px solid var(--border)',
+                }}>
+                    <p style={{
+                        fontFamily: "'Fraunces', serif",
+                        fontSize: 18,
+                        fontWeight: 600,
+                        color: 'var(--text-900)',
+                        margin: 0,
+                    }}>
+                        Final guess
+                    </p>
+                    <p style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 13,
+                        color: 'var(--text-400)',
+                        margin: '4px 0 0 0',
+                    }}>
+                        A wrong guess means you lose instantly.
+                    </p>
+                </div>
+
+                {/* Body */}
+                <div style={{
+                    padding: 'var(--s5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--s4)',
+                }}>
+                    <img
+                        src={imgUrl(char.image)}
+                        alt={char.name}
+                        style={{
+                            width: 72,
+                            height: 72,
+                            objectFit: 'cover',
+                            borderRadius: 'var(--r)',
+                            border: '1px solid var(--border)',
+                            flexShrink: 0,
+                        }}
+                    />
+                    <div>
+                        <p style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: 'var(--text-400)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            margin: '0 0 4px 0',
+                        }}>
+                            Your guess
+                        </p>
+                        <p style={{
+                            fontFamily: "'Fraunces', serif",
+                            fontSize: 22,
+                            fontWeight: 700,
+                            color: 'var(--text-900)',
+                            margin: 0,
+                        }}>
+                            {char.name}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    padding: 'var(--s3) var(--s5) var(--s4)',
+                    borderTop: '1px solid var(--border)',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 'var(--s2)',
+                }}>
+                    <button
+                        onClick={onCancel}
+                        style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontWeight: 600,
+                            fontSize: 13,
+                            padding: '8px 16px',
+                            background: 'transparent',
+                            color: 'var(--text-600)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 'var(--r)',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        style={{
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontWeight: 600,
+                            fontSize: 13,
+                            padding: '8px 16px',
+                            background: 'var(--accent)',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: 'var(--r)',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        Confirm guess
+                    </button>
+                </div>
+            </div>
+
+            <style>{`
+                @keyframes gw-fade-in {
+                    from { opacity: 0; }
+                    to   { opacity: 1; }
+                }
+                @keyframes gw-slide-up {
+                    from { opacity: 0; transform: translateY(16px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+            `}</style>
+        </div>
+    );
+}
+
 export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode, getGameState }) {
     const params = useParams();
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
+    const [pendingGuessId, setPendingGuessId] = useState(null);
+
+    // Clear pending guess when leaving guess mode
+    useEffect(() => {
+        if (!isGuessMode) setPendingGuessId(null);
+    }, [isGuessMode]);
 
     // Seed eliminated characters from server on load / refresh
     useEffect(() => {
@@ -24,7 +252,6 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     }, [gameState?.eliminatedCharacters?.join?.(",")]);
 
     const toggleCharacter = async (charId) => {
-        // Optimistic update
         setSelectedCharacters(prev => {
             const next = new Set(prev);
             if (next.has(charId)) next.delete(charId);
@@ -44,9 +271,9 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     };
 
     const makeGuess = async (charId) => {
+        setPendingGuessId(null);
         setError(null);
         try {
-            console.log("Making guess for character ID:", user?.id);
             const res = await fetch(`http://localhost:8080/lobby/guess`, {
                 method: "POST",
                 headers: {
@@ -82,103 +309,32 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
         );
     }
 
-    const Item = styled(Paper)(({ theme, isSelected, isGuessMode }) => ({
-        ...theme.typography.body2,
-        padding: theme.spacing(0.5),
-        textAlign: 'center',
-        backgroundColor: 'var(--surface-0)',
-        color: 'var(--text-900)',
-        cursor: 'pointer',
-        transition: 'all 0.15s',
-        position: 'relative',
-        height: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        border: isGuessMode ? '2px solid var(--accent)' : '1px solid var(--border)',
-        borderRadius: 'var(--r)',
-        boxShadow: 'none',
-
-        '&:hover': {
-            transform: 'translateY(-2px)',
-            backgroundColor: 'var(--surface-1)',
-            borderColor: isGuessMode ? 'var(--accent-dim)' : 'var(--border-strong)',
-        },
-
-        '& img': {
-            width: '100%',
-            height: IMAGE_SIZE,
-            objectFit: 'cover',
-            borderRadius: 'calc(var(--r) - 2px)',
-            flexShrink: 0,
-            imageRendering: 'auto',
-            transform: 'translateZ(0)',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
-        },
-
-        '& .character-name': {
-            marginTop: theme.spacing(1),
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            fontFamily: "'DM Sans', sans-serif",
-            lineHeight: '1.25rem',
-            padding: '0 4px 4px 4px',
-            height: '2.5rem',
-            overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            textAlign: 'center',
-            color: 'var(--text-900)',
-        },
-
-        ...(isSelected && {
-            borderColor: 'var(--border)',
-            '&::after': {
-                content: '""',
-                position: 'absolute',
-                top: theme.spacing(0.5),
-                left: theme.spacing(0.5),
-                right: theme.spacing(0.5),
-                height: IMAGE_SIZE,
-                backgroundColor: 'rgba(26, 21, 16, 0.55)',
-                pointerEvents: 'none',
-                borderRadius: 'calc(var(--r) - 2px)',
-            }
-        }),
-    }));
-
     const characters = gameState.lobby.lobbyCharacters || [];
+    const pendingChar = characters.find(c => c.id === pendingGuessId);
 
     return (
         <div>
-            {/* Guess mode banner */}
-            {isGuessMode && (
-                <div style={{
-                    marginBottom: 'var(--s5)',
-                    padding: 'var(--s3) var(--s4)',
-                    background: 'var(--accent-light)',
-                    border: '1px solid var(--accent)',
-                    borderRadius: 'var(--r)',
-                    textAlign: 'center',
-                }}>
-                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 13, color: 'var(--accent-dim)', margin: 0 }}>
-                        Guess mode — click a character to make your final guess
-                    </p>
-                </div>
+            {pendingChar && (
+                <GuessModal
+                    char={pendingChar}
+                    onConfirm={() => makeGuess(pendingGuessId)}
+                    onCancel={() => setPendingGuessId(null)}
+                />
             )}
 
             <Grid container spacing={1.5} justifyContent="center">
                 {characters.map((char) => {
                     const isSelected = selectedCharacters.has(char.id);
+                    const isPendingGuess = isGuessMode && pendingGuessId === char.id;
                     return (
                         <Grid item key={char.id} sx={{ width: IMAGE_SIZE }}>
                             <Item
                                 isSelected={isSelected}
                                 isGuessMode={isGuessMode}
+                                isPendingGuess={isPendingGuess}
                                 onClick={() => {
                                     if (isGuessMode) {
-                                        makeGuess(char.id);
+                                        setPendingGuessId(prev => prev === char.id ? null : char.id);
                                     } else {
                                         toggleCharacter(char.id);
                                     }
