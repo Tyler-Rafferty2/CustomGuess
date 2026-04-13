@@ -671,9 +671,11 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
     if err := s.DB.Where("id = ?", *oldLobby.RematchCharacterSetID).First(&charSet).Error; err != nil {
         return nil, fmt.Errorf("character set not found: %w", err)
     }
-    var setCharacters []models.Character
-    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&setCharacters).Error; err != nil || len(setCharacters) == 0 {
-        return nil, fmt.Errorf("no characters found for this set")
+
+    // Reuse the same character subset from the old lobby
+    var oldLobbyChars []models.LobbyCharacter
+    if err := s.DB.Where("lobby_id = ?", oldLobby.ID).Find(&oldLobbyChars).Error; err != nil || len(oldLobbyChars) == 0 {
+        return nil, fmt.Errorf("no characters found for this lobby")
     }
 
     newLobby := &models.Lobby{
@@ -690,9 +692,9 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
         return nil, err
     }
 
-    // Snapshot characters for the new lobby
-    lobbyChars := make([]models.LobbyCharacter, len(setCharacters))
-    for i, c := range setCharacters {
+    // Snapshot the same characters from the old lobby into the new one
+    lobbyChars := make([]models.LobbyCharacter, len(oldLobbyChars))
+    for i, c := range oldLobbyChars {
         lobbyChars[i] = models.LobbyCharacter{
             LobbyID: newLobby.ID,
             Name:    c.Name,

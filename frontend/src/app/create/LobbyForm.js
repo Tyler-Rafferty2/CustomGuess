@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
-import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart } from "lucide-react";
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2 } from "lucide-react";
 import Navbar from "@/components/navbar";
 
 // ─── Design Token Injection ───────────────────────────────────────────────────
@@ -732,7 +732,9 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [likedSnapshot, setLikedSnapshot] = useState(null); // set IDs locked in when entering "liked" filter
     const [publicSets, setPublicSets] = useState([]);
     const [mySets, setMySets] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loadingPublic, setLoadingPublic] = useState(false);
+    const [loadingMy, setLoadingMy] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
 
     const [chatFeature, setChatFeature] = useState(true);
     const [turnTimerSeconds, setTurnTimerSeconds] = useState(0);
@@ -766,7 +768,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     };
 
     const loadSets = async () => {
-        setLoading(true); setError(null);
+        setLoadingMy(true); setError(null);
         try {
             const res = await fetch("http://localhost:8080/player/set/player", {
                 method: "GET",
@@ -774,12 +776,12 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-            setMySets(data); setLoading(false);
-        } catch { setError("Network error"); }
+            setMySets(data);
+        } catch { setError("Network error"); } finally { setLoadingMy(false); }
     };
 
     const loadSetsPublic = async () => {
-        setLoading(true); setError(null);
+        setLoadingPublic(true); setError(null);
         try {
             const headers = { "Content-Type": "application/json" };
             if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
@@ -788,13 +790,14 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-            setPublicSets(data); setLoading(false);
-        } catch { setError("Network error"); }
+            setPublicSets(data);
+        } catch { setError("Network error"); } finally { setLoadingPublic(false); }
     };
 
     const handleCreateLobby = async () => {
         if (!selectedSet) { setError("Please select a set"); return; }
         setError(null);
+        setIsCreating(true);
         const randomizeSecret = !selectSecret;
         try {
             const res = await fetch("http://localhost:8080/lobby/create", {
@@ -804,13 +807,14 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             });
             const data = await res.json();
             if (res.status === 409) {
-                onConflict(data.lobbyId);  // trigger the modal
+                onConflict(data.lobbyId);
+                setIsCreating(false);
                 return;
             }
-            if (!res.ok) { setError(data.error || "Something went wrong"); return; }
+            if (!res.ok) { setError(data.error || "Something went wrong"); setIsCreating(false); return; }
             setLobby(data);
             router.push(`/lobby/${data.id}`);
-        } catch { setError("Network error"); }
+        } catch { setError("Network error"); setIsCreating(false); }
     };
 
     const filteredSets = () => {
@@ -957,7 +961,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
 
                         {/* Content */}
                         <div className="sets-grid" role="list">
-                                {loading ? (
+                                {(setView === "public" ? loadingPublic : loadingMy) ? (
                                     <div className="state-loading">
                                         <div className="spinner" aria-label="Loading" role="status" />
                                         <span>Loading sets…</span>
@@ -1276,19 +1280,16 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                         className="btn btn--primary btn--large btn--full"
                                         onClick={handleCreateLobby}
                                         disabled={
+                                            isCreating ||
                                             !selectedSet ||
                                             (charSelectMode === 'all' && (selectedSet?.characters?.length ?? 0) < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
                                             (charSelectMode === 'random' && randomPreview.length < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
                                             (charSelectMode === 'manual' && manualSelected.size < Math.max(selectedSet?.minCharacters ?? 6, 6))
                                         }
-                                        aria-disabled={
-                                            !selectedSet ||
-                                            (charSelectMode === 'all' && (selectedSet?.characters?.length ?? 0) < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
-                                            (charSelectMode === 'random' && randomPreview.length < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
-                                            (charSelectMode === 'manual' && manualSelected.size < Math.max(selectedSet?.minCharacters ?? 6, 6))
-                                        }
+                                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                                     >
-                                        Create Lobby
+                                        {isCreating && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                        {isCreating ? 'Creating…' : 'Create Lobby'}
                                     </button>
                                 </div>
                             </div>

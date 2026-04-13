@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Loader2 } from "lucide-react";
 
 const TIMER_OPTIONS = [
     { value: "",       label: "Any timer" },
@@ -39,6 +40,7 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
     const [randomFilter, setRandomFilter] = useState(null);  // null | 'random' | 'select'
     const [chatFilter, setChatFilter]   = useState(null);    // null | 'chat' | 'nochat'
     const [timerFilter, setTimerFilter] = useState("");
+    const [joiningId, setJoiningId] = useState(null);
 
     const getLobbies = async () => {
         setError(null);
@@ -196,7 +198,12 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
                             </div>
 
                             <button
-                                onClick={() => joinLobby(l.code, l.id)}
+                                onClick={async () => {
+                                    setJoiningId(l.id);
+                                    await joinLobby(l.code, l.id);
+                                    setJoiningId(null);
+                                }}
+                                disabled={joiningId !== null}
                                 style={{
                                     flexShrink: 0,
                                     height: 32,
@@ -208,13 +215,18 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
                                     fontFamily: "'DM Sans', sans-serif",
                                     fontSize: "var(--text-base)",
                                     fontWeight: 600,
-                                    cursor: "pointer",
+                                    cursor: joiningId !== null ? "not-allowed" : "pointer",
                                     transition: "background 150ms",
+                                    opacity: joiningId !== null && joiningId !== l.id ? 0.5 : 1,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.background = "var(--accent-dim)"}
+                                onMouseEnter={e => { if (!joiningId) e.currentTarget.style.background = "var(--accent-dim)"; }}
                                 onMouseLeave={e => e.currentTarget.style.background = "var(--accent)"}
                             >
-                                Join
+                                {joiningId === l.id && <Loader2 size={13} style={{ animation: "gw-spin 1s linear infinite" }} />}
+                                {joiningId === l.id ? "Joining…" : "Join"}
                             </button>
                         </li>
                     ))}

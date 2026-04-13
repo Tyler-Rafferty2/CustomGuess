@@ -80,7 +80,7 @@ const Item = styled(Paper)(({ theme, isSelected, isGuessMode, isPendingGuess }) 
     }),
 }));
 
-function GuessModal({ char, onConfirm, onCancel }) {
+function GuessModal({ char, onConfirm, onCancel, isConfirming }) {
     return (
         <div
             onClick={onCancel}
@@ -185,6 +185,7 @@ function GuessModal({ char, onConfirm, onCancel }) {
                 }}>
                     <button
                         onClick={onCancel}
+                        disabled={isConfirming}
                         style={{
                             fontFamily: "'DM Sans', sans-serif",
                             fontWeight: 600,
@@ -194,13 +195,15 @@ function GuessModal({ char, onConfirm, onCancel }) {
                             color: 'var(--text-600)',
                             border: '1px solid var(--border)',
                             borderRadius: 'var(--r)',
-                            cursor: 'pointer',
+                            cursor: isConfirming ? 'not-allowed' : 'pointer',
+                            opacity: isConfirming ? 0.5 : 1,
                         }}
                     >
                         Cancel
                     </button>
                     <button
                         onClick={onConfirm}
+                        disabled={isConfirming}
                         style={{
                             fontFamily: "'DM Sans', sans-serif",
                             fontWeight: 600,
@@ -210,10 +213,15 @@ function GuessModal({ char, onConfirm, onCancel }) {
                             color: '#fff',
                             border: 'none',
                             borderRadius: 'var(--r)',
-                            cursor: 'pointer',
+                            cursor: isConfirming ? 'not-allowed' : 'pointer',
+                            opacity: isConfirming ? 0.7 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
                         }}
                     >
-                        Confirm guess
+                        {isConfirming && <Loader2 size={13} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                        {isConfirming ? 'Confirming…' : 'Confirm guess'}
                     </button>
                 </div>
             </div>
@@ -237,6 +245,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
     const [pendingGuessId, setPendingGuessId] = useState(null);
+    const [isGuessing, setIsGuessing] = useState(false);
 
     // Clear pending guess when leaving guess mode
     useEffect(() => {
@@ -271,7 +280,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     };
 
     const makeGuess = async (charId) => {
-        setPendingGuessId(null);
+        setIsGuessing(true);
         setError(null);
         try {
             const res = await fetch(`http://localhost:8080/lobby/guess`, {
@@ -285,12 +294,18 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
             if (!res.ok) {
                 const data = await res.json();
                 setError(data.error || "Something went wrong");
+                setPendingGuessId(null);
+                setIsGuessing(false);
                 return;
             }
-            getGameState();
+            await getGameState();
+            setPendingGuessId(null);
         } catch (err) {
             console.error(err);
             setError("Network error");
+            setPendingGuessId(null);
+        } finally {
+            setIsGuessing(false);
         }
     };
 
@@ -318,7 +333,8 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                 <GuessModal
                     char={pendingChar}
                     onConfirm={() => makeGuess(pendingGuessId)}
-                    onCancel={() => setPendingGuessId(null)}
+                    onCancel={() => { if (!isGuessing) setPendingGuessId(null); }}
+                    isConfirming={isGuessing}
                 />
             )}
 

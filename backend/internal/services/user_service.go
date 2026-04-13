@@ -3,6 +3,7 @@ package services
 import (
     "errors"
     "fmt"
+    "strings"
     "time"
 
     "github.com/google/uuid"
@@ -23,6 +24,7 @@ func NewUserService(db *gorm.DB, emailSvc *EmailService, appBaseURL string) *Use
 
 // SignUp creates a new user
 func (s *UserService) SignUp(email, password, username string) (*models.User, error) {
+    email = strings.ToLower(email)
     if username == "" {
         return nil, errors.New("username is required")
     }
@@ -81,6 +83,7 @@ func (s *UserService) UpdateUsername(user *models.User, username string) (*model
 
 // Authenticate user by email and password
 func (s *UserService) Login(email, password string) (*models.User, error) {
+    email = strings.ToLower(email)
     var user models.User
     if err := s.DB.First(&user, "email = ?", email).Error; err != nil {
         return nil, errors.New("invalid credentials")
@@ -104,6 +107,7 @@ func (s *UserService) GetUserByID(id uuid.UUID) (*models.User, error) {
 
 // ForgotPassword generates a reset token and emails a reset link
 func (s *UserService) ForgotPassword(email string) error {
+    email = strings.ToLower(email)
     var user models.User
     if err := s.DB.First(&user, "email = ?", email).Error; err != nil {
         // Don't reveal whether the email exists

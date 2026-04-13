@@ -241,6 +241,8 @@ export default function LobbyPage() {
     const reconnectAttemptsRef = useRef(0);
     const reconnectTimeoutRef = useRef(null);
     const shouldReconnectRef = useRef(true);
+    const hasEverConnectedRef = useRef(false);
+
     const [isMinimized, setIsMinimized] = useState(false);
     const isMinimizedRef = useRef(isMinimized);
     const playerIdRef = useRef(playerId);
@@ -261,6 +263,7 @@ export default function LobbyPage() {
     const [rematchDeclinedToast, setRematchDeclinedToast] = useState(false);
     const [sentRematchSetName, setSentRematchSetName] = useState(null);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+    const [isReadying, setIsReadying] = useState(false);
     const [opponentDisconnected, setOpponentDisconnected] = useState(false);
     const opponentDisconnectedRef = useRef(false);
     const [disconnectCountdown, setDisconnectCountdown] = useState(120);
@@ -447,6 +450,7 @@ export default function LobbyPage() {
     useEffect(() => {
         if (!lobbyID || !username) return;
         shouldReconnectRef.current = true;
+        let plannedClose = false;
 
         const connect = () => {
             if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
@@ -457,6 +461,7 @@ export default function LobbyPage() {
 
             websocket.onopen = () => {
                 setIsConnected(true);
+                hasEverConnectedRef.current = true;
                 reconnectAttemptsRef.current = 0;
                 console.log('Connected to WebSocket');
             };
@@ -589,10 +594,9 @@ export default function LobbyPage() {
             websocket.onerror = (error) => { console.error('WebSocket error:', error); };
 
             websocket.onclose = () => {
-                setIsConnected(false);
-                // Only clear the ref if it still points to this connection.
-                // If playerId changed and triggered a new connection, don't overwrite it.
                 if (wsRef.current === websocket) wsRef.current = null;
+                if (plannedClose) return; // planned close — leave isConnected alone
+                setIsConnected(false);
                 if (!shouldReconnectRef.current) return;
                 const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
                 reconnectAttemptsRef.current++;
@@ -606,6 +610,7 @@ export default function LobbyPage() {
         connect();
 
         return () => {
+            plannedClose = true;
             shouldReconnectRef.current = false;
             clearTimeout(reconnectTimeoutRef.current);
             if (wsRef.current) {
@@ -622,6 +627,8 @@ export default function LobbyPage() {
             }
         };
     }, [lobbyID, username, playerId]);
+
+    // Debounce the reconnecting banner so brief reconnects (e.g. playerId resolving) don't flash it
 
     useEffect(() => {
         if (lobby?.players) { console.log(`Player count changed: ${lobby.players.length}`); }
@@ -1364,6 +1371,7 @@ export default function LobbyPage() {
         const leaveLobby = () => setShowLeaveConfirm(true);
 
         const setReady = async () => {
+            setIsReadying(true);
             try {
                 await fetch(`http://localhost:8080/lobby/ready`, {
                     method: "POST",
@@ -1372,10 +1380,13 @@ export default function LobbyPage() {
                 });
             } catch (err) {
                 console.error("Ready error:", err);
+            } finally {
+                setIsReadying(false);
             }
         };
 
         const setUnready = async () => {
+            setIsReadying(true);
             try {
                 await fetch(`http://localhost:8080/lobby/unready`, {
                     method: "POST",
@@ -1384,6 +1395,8 @@ export default function LobbyPage() {
                 });
             } catch (err) {
                 console.error("Unready error:", err);
+            } finally {
+                setIsReadying(false);
             }
         };
 
@@ -1475,18 +1488,22 @@ export default function LobbyPage() {
 
                         {iAmReady ? (
                             <button
-                                style={{ width: '100%', height: 44, justifyContent: 'center', display: 'flex', alignItems: 'center', background: '#FDF0EA', border: '1px solid #F2C5B4', borderRadius: 'var(--r)', fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 15, color: '#B84422', cursor: 'pointer', transition: 'background 75ms' }}
+                                style={{ width: '100%', height: 44, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 8, background: '#FDF0EA', border: '1px solid #F2C5B4', borderRadius: 'var(--r)', fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 15, color: '#B84422', cursor: isReadying ? 'not-allowed' : 'pointer', transition: 'background 75ms', opacity: isReadying ? 0.6 : 1 }}
                                 onClick={setUnready}
+                                disabled={isReadying}
                             >
+                                {isReadying && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
                                 Unready
                             </button>
                         ) : (
                             <button
                                 className="gw-btn-primary"
-                                style={{ width: '100%', height: 44, justifyContent: 'center' }}
+                                style={{ width: '100%', height: 44, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 8, opacity: isReadying ? 0.6 : 1 }}
                                 onClick={setReady}
+                                disabled={isReadying}
                             >
-                                Ready Up
+                                {isReadying && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                {isReadying ? 'Readying…' : 'Ready Up'}
                             </button>
                         )}
                         <button
@@ -1519,7 +1536,7 @@ export default function LobbyPage() {
             <StyleInjector />
             {conflictModal}
             <Navbar />
-            {!isConnected && (
+            {!isConnected && hasEverConnectedRef.current && (
                 <div style={{
                     background: '#7A5C1E',
                     color: '#fff',
