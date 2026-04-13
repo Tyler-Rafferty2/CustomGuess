@@ -7,9 +7,9 @@ import (
 
 type Player struct {
     ID        uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
-    LobbyID   uuid.UUID  `gorm:"type:uuid;not null" json:"lobbyId"`   // FK → Lobby.ID
-    UserID    uuid.UUID  `gorm:"type:uuid;" json:"userId"`    // No FK constraint
-    GuestID   uuid.UUID  `gorm:"type:uuid" json:"guestId"`
+    LobbyID   uuid.UUID  `gorm:"type:uuid;not null;index" json:"lobbyId"`   // FK → Lobby.ID
+    UserID    uuid.UUID  `gorm:"type:uuid;index" json:"userId"`    // No FK constraint
+    GuestID   uuid.UUID  `gorm:"type:uuid;index" json:"guestId"`
     Name      string     `gorm:"not null" json:"name"`                // display name in this game
     Ready     bool       `gorm:"default:false" json:"ready"`
     GameState  GameState  `gorm:"constraint:OnDelete:CASCADE;" json:"gameState"`

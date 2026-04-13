@@ -80,7 +80,6 @@ func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
     
     if err := s.DB.Preload("Players").
         Preload("CharacterSet").
-        Preload("LobbyCharacters").
         First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
         return nil, err
     }
@@ -327,7 +326,6 @@ func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
     err := s.DB.
         Preload("User").
         Preload("CharacterSet").
-        Preload("LobbyCharacters").
         Where("user_id != ?", user.ID).
         Where("id IN (?)", lobbiesWithOnePlayer).
         Where("id NOT IN (?)", userLobbies).
@@ -461,24 +459,20 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
     if allReady {
         now := time.Now()
         var lobby models.Lobby
-        lobbyNotStarted := s.DB.First(&lobby, "id = ? AND game_started_at IS NULL", lobbyID).Error == nil
-        if lobbyNotStarted {
-            if err := s.DB.Model(&models.Lobby{}).
-                Where("id = ?", lobbyID).
-                Updates(map[string]interface{}{"game_started_at": now, "turn_started_at": now}).Error; err != nil {
-                log.Printf("warn: could not set GameStartedAt: %v", err)
-            }
-            s.DB.Model(&models.CharacterSet{}).
-                Where("id = ?", lobby.CharacterSetID).
-                UpdateColumn("play_count", gorm.Expr("play_count + 1"))
-        }
-        // Start turn timer for first player if enabled
-        if s.Hub != nil {
-            var lobby models.Lobby
-            if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err == nil {
-                if lobby.TurnTimerSeconds > 0 && lobby.TurnID != nil {
-                    s.Hub.StartTurnTimer(lobbyID.String(), lobby.TurnID.String(), time.Duration(lobby.TurnTimerSeconds)*time.Second)
+        if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err == nil {
+            if lobby.GameStartedAt == nil {
+                if err := s.DB.Model(&models.Lobby{}).
+                    Where("id = ?", lobbyID).
+                    Updates(map[string]interface{}{"game_started_at": now, "turn_started_at": now}).Error; err != nil {
+                    log.Printf("warn: could not set GameStartedAt: %v", err)
                 }
+                s.DB.Model(&models.CharacterSet{}).
+                    Where("id = ?", lobby.CharacterSetID).
+                    UpdateColumn("play_count", gorm.Expr("play_count + 1"))
+            }
+            // Start turn timer for first player if enabled
+            if s.Hub != nil && lobby.TurnTimerSeconds > 0 && lobby.TurnID != nil {
+                s.Hub.StartTurnTimer(lobbyID.String(), lobby.TurnID.String(), time.Duration(lobby.TurnTimerSeconds)*time.Second)
             }
         }
     }
@@ -500,42 +494,43 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
     }
 
     var lobby models.Lobby
-    if err := s.DB.First(&lobby, "id = ?", lobbyID).Error; err != nil {
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err != nil {
         return nil, err
     }
 
     now := time.Now()
 
-    var allPlayers []models.Player
-    s.DB.Where("lobby_id = ?", lobbyID).Find(&allPlayers)
+    var otherPlayer *models.Player
+    for i := range lobby.Players {
+        if lobby.Players[i].ID != player.ID {
+            otherPlayer = &lobby.Players[i]
+            break
+        }
+    }
+
+    lobby.GameOver = true
+    lobby.GameOverAt = &now
 
     if gameState.SecretCharacter.ID.String() == characterID {
-        lobby.GameOver = true
-        lobby.GameOverAt = &now
         winnerID := player.ID
         lobby.Winner = &winnerID
         if err := s.DB.Save(&lobby).Error; err != nil {
             return nil, err
         }
-        s.writeGameRecords(&lobby, allPlayers, player.ID, false)
-        s.broadcastLobbyUpdate(lobbyID.String())
-        return &lobby, nil
+        s.writeGameRecords(&lobby, lobby.Players, player.ID, false)
     } else {
-        var otherPlayer models.Player
-        if err := s.DB.Where("lobby_id = ? AND id != ?", lobbyID, player.ID).First(&otherPlayer).Error; err != nil {
-            return nil, err
+        if otherPlayer == nil {
+            return nil, errors.New("opponent not found in lobby")
         }
-
-        lobby.GameOver = true
-        lobby.GameOverAt = &now
         lobby.Winner = &otherPlayer.ID
         if err := s.DB.Save(&lobby).Error; err != nil {
             return nil, err
         }
-        s.writeGameRecords(&lobby, allPlayers, otherPlayer.ID, false)
-        s.broadcastLobbyUpdate(lobbyID.String())
-        return &lobby, nil
+        s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, false)
     }
+
+    s.broadcastLobbyUpdate(lobbyID.String())
+    return &lobby, nil
 }
 
 type LobbyStatus struct {
@@ -547,18 +542,18 @@ type LobbyStatus struct {
 
 func (s *LobbyService) GetLobbyStatus(lobbyId string) (*LobbyStatus, error) {
     var lobby models.Lobby
-
-    // Load lobby with players to get count
-    if err := s.DB.
-        Preload("Players").
-        First(&lobby, "id = ?", lobbyId).Error; err != nil {
+    if err := s.DB.Select("id", "game_started_at").First(&lobby, "id = ?", lobbyId).Error; err != nil {
         return nil, err
     }
 
+    var count int64
+    s.DB.Model(&models.Player{}).Where("lobby_id = ?", lobbyId).Count(&count)
+
     return &LobbyStatus{
         Exists:      true,
-        PlayerCount: len(lobby.Players),
-        IsFull:      len(lobby.Players) >= 2,
+        PlayerCount: int(count),
+        IsFull:      count >= 2,
+        GameStarted: lobby.GameStartedAt != nil,
     }, nil
 }
 
@@ -1029,27 +1024,28 @@ func (s *LobbyService) AcceptResume(playerID, lobbyID string) error {
 }
 
 func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*models.Lobby, error) {
-    var player models.Player
-    if err := s.DB.Where("lobby_id = ? AND (user_id = ? OR guest_id = ?)", lobbyID, user.ID, user.ID).First(&player).Error; err != nil {
-        return nil, err
-    }
-
-    var otherPlayer models.Player
-    otherErr := s.DB.Where("lobby_id = ? AND id != ?", lobbyID, player.ID).First(&otherPlayer).Error
-    if otherErr != nil && !errors.Is(otherErr, gorm.ErrRecordNotFound) {
-        return nil, otherErr
-    }
-
     var lobby models.Lobby
-    if err := s.DB.First(&lobby, "id = ?", lobbyID).Error; err != nil {
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err != nil {
         return nil, err
+    }
+
+    var forfeitingPlayer, otherPlayer *models.Player
+    for i := range lobby.Players {
+        p := &lobby.Players[i]
+        if p.UserID == user.ID || p.GuestID == user.ID {
+            forfeitingPlayer = p
+        } else {
+            otherPlayer = p
+        }
+    }
+    if forfeitingPlayer == nil {
+        return nil, errors.New("player not found in lobby")
     }
 
     now := time.Now()
     lobby.GameOver = true
     lobby.GameOverAt = &now
-
-    if otherErr == nil {
+    if otherPlayer != nil {
         lobby.Winner = &otherPlayer.ID
     }
 
@@ -1057,8 +1053,8 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
         return nil, err
     }
 
-    if otherErr == nil {
-        s.writeGameRecords(&lobby, []models.Player{player, otherPlayer}, otherPlayer.ID, true)
+    if otherPlayer != nil {
+        s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, true)
     }
 
     s.broadcastLobbyUpdate(lobbyID.String())

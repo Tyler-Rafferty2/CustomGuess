@@ -8,8 +8,8 @@ import (
 
 type GameState struct {
     ID                   uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-    PlayerID             uuid.UUID      `gorm:"type:uuid;not null" json:"playerId"` 
-    LobbyID              uuid.UUID      `gorm:"type:uuid;not null" json:"lobbyId"`
+    PlayerID             uuid.UUID      `gorm:"type:uuid;not null;index" json:"playerId"`
+    LobbyID              uuid.UUID      `gorm:"type:uuid;not null;index" json:"lobbyId"`
     SecretCharacterID    *uuid.UUID       `gorm:"type:uuid" json:"secretCharacterId"` // pointer so it can be null
     SecretCharacter      *LobbyCharacter  `gorm:"foreignKey:SecretCharacterID" json:"secretCharacter"` // pointer to allow nil
     EliminatedCharacters datatypes.JSON `gorm:"type:jsonb;default:'[]'" json:"eliminatedCharacters"`
