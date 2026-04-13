@@ -1212,8 +1212,22 @@ export default function LobbyPage() {
         );
     }
 
+    /* ── GAME STATE LOADING ── */
+    if (!gameState) {
+        return (
+            <>
+                <StyleInjector />
+                {conflictModal}
+                <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 'var(--s4)' }}>
+                    <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: 'var(--text-600)' }}>Loading game…</p>
+                </div>
+            </>
+        );
+    }
+
     /* ── CHARACTER SELECTION ── */
-    if (gameState?.secretCharacter === undefined) {
+    if (gameState.secretCharacter === undefined) {
         if (conflictLobbyId) {
             return (
                 <>

@@ -716,8 +716,8 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
         }
         if newLobby.RandomSecret && len(lobbyChars) > 0 {
             c := lobbyChars[rand.Intn(len(lobbyChars))]
-            p.GameState.SecretCharacter = &c
-            p.GameState.SecretCharacterID = &c.ID
+            cID := c.ID
+            p.GameState.SecretCharacterID = &cID
         }
         return p
     }
