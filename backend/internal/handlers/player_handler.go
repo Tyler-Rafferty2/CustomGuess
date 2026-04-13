@@ -122,8 +122,10 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
         })
     }
 
+    minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
+
     // Call the service
-    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL)
+    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL, minCharacters)
     if err != nil {
         http.Error(w, "Failed to create set", http.StatusInternalServerError)
         return
@@ -267,7 +269,8 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
     for _, kc := range keepChars {
         nameUpdates[kc.ID] = kc.Name
     }
-    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates)
+    minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
+    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates, minCharacters)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return

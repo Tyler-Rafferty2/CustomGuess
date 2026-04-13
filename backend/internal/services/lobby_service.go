@@ -121,7 +121,7 @@ func (e *LobbyError) Error() string {
 }
 
 // create a new lobby with the first player
-func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool, turnTimerSeconds int) (*models.Lobby, error) {
+func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool, turnTimerSeconds int, characterIDs []uuid.UUID) (*models.Lobby, error) {
 
     existing, err := s.GetPlayerByUser(user)
     if err != nil {
@@ -142,6 +142,28 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
     }
     if len(setCharacters) == 0 {
         return nil, fmt.Errorf("no characters found for this set")
+    }
+
+    // Filter to requested character IDs if provided
+    if len(characterIDs) > 0 {
+        allowed := make(map[uuid.UUID]bool, len(characterIDs))
+        for _, id := range characterIDs {
+            allowed[id] = true
+        }
+        filtered := setCharacters[:0]
+        for _, c := range setCharacters {
+            if allowed[c.ID] {
+                filtered = append(filtered, c)
+            }
+        }
+        setCharacters = filtered
+        minRequired := charSet.MinCharacters
+        if minRequired < 6 {
+            minRequired = 6
+        }
+        if len(setCharacters) < minRequired {
+            return nil, fmt.Errorf("this set requires at least %d characters", minRequired)
+        }
     }
 
     log.Printf("Is it chatFeature: %t", chatFeature)

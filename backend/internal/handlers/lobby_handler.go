@@ -35,15 +35,16 @@ func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request
     user := middleware.GetUserFromContext(r)
 
     var req struct {
-        SetID            uuid.UUID `json:"setId"`
-        Private          bool      `json:"isPrivate"`
-        RandomSecret     bool      `json:"randomizeSecret"`
-        ChatFeature      bool      `json:"chatFeature"`
-        TurnTimerSeconds int       `json:"turnTimerSeconds"`
+        SetID            uuid.UUID   `json:"setId"`
+        Private          bool        `json:"isPrivate"`
+        RandomSecret     bool        `json:"randomizeSecret"`
+        ChatFeature      bool        `json:"chatFeature"`
+        TurnTimerSeconds int         `json:"turnTimerSeconds"`
+        CharacterIDs     []uuid.UUID `json:"characterIds"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
-    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature, req.TurnTimerSeconds)
+    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature, req.TurnTimerSeconds, req.CharacterIDs)
     if err != nil {
         var lobbyErr *services.LobbyError
         if errors.As(err, &lobbyErr) {

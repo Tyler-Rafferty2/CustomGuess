@@ -609,6 +609,80 @@ const DESIGN_TOKENS = `
 
   .settings-stack { display: flex; flex-direction: column; gap: var(--s3); }
 
+  /* ── Character selection ── */
+  .char-mode-bar {
+    display: flex;
+    gap: 3px;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 3px;
+  }
+  .char-mode-pill {
+    flex: 1;
+    height: 30px;
+    border-radius: calc(var(--r) - 1px);
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-600);
+    transition: background 0.12s, color 0.12s;
+  }
+  .char-mode-pill:hover:not(.char-mode-pill--active) { background: var(--surface-2); }
+  .char-mode-pill--active { background: var(--surface-0); color: var(--text-900); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .char-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: var(--s2);
+    max-height: 240px;
+    overflow-y: auto;
+    padding: var(--s1);
+  }
+  .char-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    position: relative;
+    border-radius: var(--r);
+  }
+  .char-picker-item__img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: var(--r);
+    border: 2px solid transparent;
+    background: var(--surface-1);
+    transition: opacity 0.12s, border-color 0.12s;
+  }
+  .char-picker-item--off .char-picker-item__img { opacity: 0.28; border-color: transparent; }
+  .char-picker-item--on  .char-picker-item__img { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+  .char-picker-item__check {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+  }
+  .char-picker-item__name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-600);
+    text-align: center;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
   .panel-right__cta {
     margin-top: auto;
     padding-top: var(--s6);
@@ -634,6 +708,10 @@ const DESIGN_TOKENS = `
     .sets-grid { grid-template-columns: 1fr; }
     .tab-btn span { display: none; }
   }
+
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .no-spinner { -moz-appearance: textfield; }
 `;
 
 export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, onConflict }) {
@@ -641,6 +719,12 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [selectedSet, setSelectedSet] = useState(null);
     const [selectSecret, setSelectSecret] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);
+
+    const [charSelectMode, setCharSelectMode] = useState('all'); // 'all' | 'random' | 'manual'
+    const [randomCount, setRandomCount] = useState(null);
+    const [randomCountDraft, setRandomCountDraft] = useState('');
+    const [randomPreview, setRandomPreview] = useState([]);
+    const [manualSelected, setManualSelected] = useState(new Set());
 
     const [setView, setSetView] = useState("public");
     const [searchQuery, setSearchQuery] = useState("");
@@ -656,6 +740,30 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
 
     useEffect(() => { if (user !== undefined) loadSetsPublic(); }, [user?.id]);
     useEffect(() => { if (user?.isGuest == false) loadSets(); }, [user]);
+
+    useEffect(() => {
+        if (!selectedSet) return;
+        setCharSelectMode('all');
+        const total = selectedSet.characters?.length ?? 0;
+        const min = Math.max(selectedSet.minCharacters ?? 6, 6);
+        const count = Math.max(min, total);
+        setRandomCount(count);
+        setRandomCountDraft(String(count));
+        setManualSelected(new Set((selectedSet.characters || []).map(c => c.id)));
+        setRandomPreview([]);
+    }, [selectedSet?.id]);
+
+    useEffect(() => {
+        if (charSelectMode !== 'random' || !selectedSet?.characters) return;
+        const shuffled = [...selectedSet.characters].sort(() => Math.random() - 0.5);
+        setRandomPreview(shuffled.slice(0, randomCount));
+    }, [charSelectMode]);
+
+    const getCharacterIds = () => {
+        if (charSelectMode === 'all') return [];
+        if (charSelectMode === 'random') return randomPreview.map(c => c.id);
+        return Array.from(manualSelected);
+    };
 
     const loadSets = async () => {
         setLoading(true); setError(null);
@@ -692,7 +800,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const res = await fetch("http://localhost:8080/lobby/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
-                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds }),
+                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds, characterIds: getCharacterIds() }),
             });
             const data = await res.json();
             if (res.status === 409) {
@@ -951,6 +1059,123 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                     </div>
                                 )}
 
+                                {selectedSet && (
+                                    <div style={{ marginBottom: 'var(--s4)' }}>
+                                        <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-400)', marginBottom: 'var(--s2)' }}>
+                                            Characters
+                                        </div>
+                                        <div className="char-mode-bar" style={{ marginBottom: 'var(--s3)' }}>
+                                            {[
+                                                { key: 'all',    label: `All (${selectedSet.characters?.length ?? 0})` },
+                                                { key: 'random', label: 'Random' },
+                                                { key: 'manual', label: 'Manual' },
+                                            ].map(m => (
+                                                <button
+                                                    key={m.key}
+                                                    className={`char-mode-pill${charSelectMode === m.key ? ' char-mode-pill--active' : ''}`}
+                                                    onClick={() => setCharSelectMode(m.key)}
+                                                >
+                                                    {m.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {charSelectMode === 'random' && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                                                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-600)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    Include
+                                                    <input
+                                                        type="text"
+                                                        value={randomCountDraft}
+                                                        onChange={e => setRandomCountDraft(e.target.value)}
+                                                        onBlur={() => {
+                                                            const min = Math.max(selectedSet.minCharacters ?? 6, 6);
+                                                            const max = selectedSet.characters?.length ?? 6;
+                                                            const n = Math.min(Math.max(parseInt(randomCountDraft, 10) || min, min), max);
+                                                            setRandomCount(n);
+                                                            setRandomCountDraft(String(n));
+                                                            const shuffled = [...selectedSet.characters].sort(() => Math.random() - 0.5);
+                                                            setRandomPreview(shuffled.slice(0, n));
+                                                        }}
+                                                        style={{ width: 44, padding: '2px 6px', fontSize: 'var(--text-sm)', fontFamily: "'DM Sans', sans-serif", fontWeight: 600, border: '1px solid var(--border)', borderRadius: 'var(--r)', background: 'var(--surface-0)', color: 'var(--text-900)', textAlign: 'center' }}
+                                                    />
+                                                    of {selectedSet.characters?.length} characters
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min={Math.max(selectedSet.minCharacters ?? 6, 6)}
+                                                    max={Math.max(selectedSet.minCharacters ?? 6, selectedSet.characters?.length ?? 6)}
+                                                    value={randomCount ?? selectedSet.characters?.length}
+                                                    onChange={e => {
+                                                        const n = Number(e.target.value);
+                                                        setRandomCount(n);
+                                                        setRandomCountDraft(String(n));
+                                                        const shuffled = [...selectedSet.characters].sort(() => Math.random() - 0.5);
+                                                        setRandomPreview(shuffled.slice(0, n));
+                                                    }}
+                                                    style={{ accentColor: 'var(--accent)', width: '100%' }}
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        const shuffled = [...selectedSet.characters].sort(() => Math.random() - 0.5);
+                                                        setRandomPreview(shuffled.slice(0, randomCount));
+                                                    }}
+                                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 30, padding: '0 12px', fontSize: 'var(--text-sm)', fontWeight: 600, fontFamily: "'DM Sans', sans-serif", background: 'var(--surface-1)', border: '1px solid var(--border)', borderRadius: 'var(--r)', cursor: 'pointer', color: 'var(--text-600)', width: 'fit-content' }}
+                                                >
+                                                    <Shuffle size={12} /> Re-randomize
+                                                </button>
+                                                {randomPreview.length > 0 && (
+                                                    <div className="char-picker-grid">
+                                                        {randomPreview.map(c => (
+                                                            <div key={c.id} className="char-picker-item char-picker-item--on">
+                                                                <img src={imgUrl(c.image)} alt={c.name} className="char-picker-item__img" />
+                                                                <span className="char-picker-item__name">{c.name}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {charSelectMode === 'manual' && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                                                <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-600)' }}>
+                                                    {manualSelected.size} of {selectedSet.characters?.length} selected
+                                                </div>
+                                                <div className="char-picker-grid">
+                                                    {(selectedSet.characters || []).map(c => {
+                                                        const on = manualSelected.has(c.id);
+                                                        return (
+                                                            <div
+                                                                key={c.id}
+                                                                className={`char-picker-item ${on ? 'char-picker-item--on' : 'char-picker-item--off'}`}
+                                                                onClick={() => setManualSelected(prev => {
+                                                                    const next = new Set(prev);
+                                                                    const min = Math.max(selectedSet.minCharacters ?? 6, 6);
+                                                                    if (next.has(c.id)) {
+                                                                        if (next.size > min) next.delete(c.id);
+                                                                    } else {
+                                                                        next.add(c.id);
+                                                                    }
+                                                                    return next;
+                                                                })}
+                                                            >
+                                                                <img src={imgUrl(c.image)} alt={c.name} className="char-picker-item__img" />
+                                                                {on && (
+                                                                    <span className="char-picker-item__check">
+                                                                        <Check size={9} strokeWidth={3} />
+                                                                    </span>
+                                                                )}
+                                                                <span className="char-picker-item__name">{c.name}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="settings-stack">
                                     <label className="toggle-row" htmlFor="select-secret">
                                         <div className="toggle-row__left">
@@ -1050,8 +1275,18 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                     <button
                                         className="btn btn--primary btn--large btn--full"
                                         onClick={handleCreateLobby}
-                                        disabled={!selectedSet}
-                                        aria-disabled={!selectedSet}
+                                        disabled={
+                                            !selectedSet ||
+                                            (charSelectMode === 'all' && (selectedSet?.characters?.length ?? 0) < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
+                                            (charSelectMode === 'random' && randomPreview.length < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
+                                            (charSelectMode === 'manual' && manualSelected.size < Math.max(selectedSet?.minCharacters ?? 6, 6))
+                                        }
+                                        aria-disabled={
+                                            !selectedSet ||
+                                            (charSelectMode === 'all' && (selectedSet?.characters?.length ?? 0) < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
+                                            (charSelectMode === 'random' && randomPreview.length < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
+                                            (charSelectMode === 'manual' && manualSelected.size < Math.max(selectedSet?.minCharacters ?? 6, 6))
+                                        }
                                     >
                                         Create Lobby
                                     </button>

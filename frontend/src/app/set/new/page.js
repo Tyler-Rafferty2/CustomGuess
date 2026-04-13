@@ -32,6 +32,7 @@ export default function NewSetPage() {
     const [coverCropBox, setCoverCropBox] = useState({ x: 50, y: 50, width: 200, height: 200 });
     const [coverDragging, setCoverDragging] = useState(null);
     const [images, setImages] = useState([]);
+    const [minCharacters, setMinCharacters] = useState(2);
     const [tags, setTags] = useState([]);
     const [tagInput, setTagInput] = useState("");
     const [saving, setSaving] = useState(false);
@@ -129,6 +130,7 @@ export default function NewSetPage() {
         formData.append("name", name.trim());
         formData.append("description", description);
         formData.append("public", isPublic);
+        formData.append("minCharacters", Math.min(minCharacters, images.length));
         if (coverFile) formData.append("coverImage", coverFile);
 
         images.forEach((img, i) => {
@@ -265,6 +267,25 @@ export default function NewSetPage() {
                         </span>
                     </div>
                     <ImageCropperIntegration images={images} setImages={setImages} />
+
+                    {images.length >= MIN_CHARACTERS && (
+                        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                            <label style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: T.text600, whiteSpace: "nowrap" }}>
+                                Minimum to play
+                            </label>
+                            <input
+                                type="range"
+                                min={MIN_CHARACTERS}
+                                max={images.length}
+                                value={Math.min(Math.max(minCharacters, MIN_CHARACTERS), images.length)}
+                                onChange={e => setMinCharacters(Number(e.target.value))}
+                                style={{ flex: 1, accentColor: T.accent }}
+                            />
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: T.text900, minWidth: 24, textAlign: "right" }}>
+                                {Math.min(Math.max(minCharacters, MIN_CHARACTERS), images.length)}
+                            </span>
+                        </div>
+                    )}
                 </section>
 
                 {/* Actions */}

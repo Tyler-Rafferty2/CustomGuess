@@ -13,8 +13,9 @@ type CharacterSet struct {
     CoverImage string      `json:"coverImageName"`
     // CoverImageName string      `json:"coverImageName"`
     // CoverImagePath string      `json:"coverImagePath"`
-    Public    bool        `gorm:"default:false" json:"public"`
-    PlayCount int         `gorm:"default:0" json:"playCount"`
+    Public        bool `gorm:"default:false" json:"public"`
+    PlayCount     int  `gorm:"default:0" json:"playCount"`
+    MinCharacters int  `gorm:"default:2" json:"minCharacters"`
     Characters  []Character `gorm:"foreignKey:SetID;constraint:OnDelete:CASCADE;" json:"characters"`
 }
 

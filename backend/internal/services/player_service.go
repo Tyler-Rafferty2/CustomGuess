@@ -109,17 +109,24 @@ func (s *PlayerService) GetPlayers(user *models.User) ([]models.Player, error) {
 }
 
 //create a set
-func (s *PlayerService) CreateSet(user *models.User, name, description string, public bool, characters []models.Character, coverImage string) (*models.CharacterSet, error) {
+func (s *PlayerService) CreateSet(user *models.User, name, description string, public bool, characters []models.Character, coverImage string, minCharacters int) (*models.CharacterSet, error) {
     if len(characters) < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
     }
+    if minCharacters < 6 {
+        minCharacters = 6
+    }
+    if minCharacters > len(characters) {
+        minCharacters = len(characters)
+    }
     set := &models.CharacterSet{
-        ID:          uuid.New(),
-        UserID:      user.ID,
-        Name:        name,
-        Public:      public,
-        Description: description,
-        CoverImage:  coverImage,
+        ID:            uuid.New(),
+        UserID:        user.ID,
+        Name:          name,
+        Public:        public,
+        Description:   description,
+        CoverImage:    coverImage,
+        MinCharacters: minCharacters,
     }
 
     // Assign SetID to each character
@@ -150,9 +157,16 @@ func (s *PlayerService) GetSets(user *models.User) ([]CharacterSetResponse, erro
     return s.attachLikes(sets, &user.ID), nil
 }
 
-func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character, nameUpdates map[uuid.UUID]string) (*models.CharacterSet, error) {
-    if len(keepCharacterIDs)+len(newCharacters) < 6 {
+func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character, nameUpdates map[uuid.UUID]string, minCharacters int) (*models.CharacterSet, error) {
+    totalCount := len(keepCharacterIDs) + len(newCharacters)
+    if totalCount < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
+    }
+    if minCharacters < 6 {
+        minCharacters = 6
+    }
+    if minCharacters > totalCount {
+        minCharacters = totalCount
     }
     var set models.CharacterSet
     if err := s.DB.Where("id = ? AND user_id = ?", setID, user.ID).First(&set).Error; err != nil {
@@ -162,6 +176,7 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     set.Name = name
     set.Description = description
     set.Public = public
+    set.MinCharacters = minCharacters
     if coverImage != "" {
         set.CoverImage = coverImage
     }

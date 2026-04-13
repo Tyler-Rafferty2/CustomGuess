@@ -41,6 +41,8 @@ export default function EditSetPage() {
     const [coverPreview, setCoverPreview] = useState(null);
     const [coverFile, setCoverFile] = useState(null);
 
+    const [minCharacters, setMinCharacters] = useState(2);
+
     // Existing characters from the server (kept or removed)
     const [existingChars, setExistingChars] = useState([]);
     // New characters added via the cropper
@@ -77,6 +79,7 @@ export default function EditSetPage() {
                 setIsPublic(found.public ?? false);
                 setCoverPreview(found.coverImageName ? imgUrl(found.coverImageName) : null);
                 setExistingChars((found.characters ?? []).map(c => ({ id: c.id, name: c.name, image: c.image })));
+                setMinCharacters(found.minCharacters ?? 2);
                 setLoading(false);
             })
             .catch(() => { setError("Failed to load set."); setLoading(false); });
@@ -228,6 +231,7 @@ export default function EditSetPage() {
         formData.append("name", name.trim());
         formData.append("description", description);
         formData.append("public", isPublic);
+        formData.append("minCharacters", Math.min(minCharacters, totalCount));
         if (coverFile) formData.append("coverImage", coverFile);
 
         existingChars.forEach((c, i) => {
@@ -426,6 +430,25 @@ export default function EditSetPage() {
                         )}
                         <ImageCropperIntegration images={newImages} setImages={setNewImages} triggerEdit={cropTrigger} />
                     </div>
+
+                    {totalCount >= MIN_CHARACTERS && (
+                        <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                            <label style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: T.text600, whiteSpace: "nowrap" }}>
+                                Minimum to play
+                            </label>
+                            <input
+                                type="range"
+                                min={MIN_CHARACTERS}
+                                max={totalCount}
+                                value={Math.min(Math.max(minCharacters, MIN_CHARACTERS), totalCount)}
+                                onChange={e => setMinCharacters(Number(e.target.value))}
+                                style={{ flex: 1, accentColor: T.accent }}
+                            />
+                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, color: T.text900, minWidth: 24, textAlign: "right" }}>
+                                {Math.min(Math.max(minCharacters, MIN_CHARACTERS), totalCount)}
+                            </span>
+                        </div>
+                    )}
                 </section>
 
                 {/* Actions */}
