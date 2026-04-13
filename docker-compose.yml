@@ -23,30 +23,17 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=db
+      - DB_HOST=db.dfikabshrqezrolrknxk.supabase.co
       - DB_PORT=5432
       - DB_USER=postgres
-      - DB_PASSWORD=example
-      - DB_NAME=mydb
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=postgres
+      - DB_SSLMODE=require
       - RESEND_API_KEY=${RESEND_API_KEY}
       - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3080}
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
-    depends_on:
-      - db
-
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: example
-      POSTGRES_DB: mydb
-    ports:
-      - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
 
 volumes:
-  db_data:
   node_modules_cache:

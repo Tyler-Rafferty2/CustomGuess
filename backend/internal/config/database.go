@@ -3,6 +3,7 @@ package config
 import (
     "fmt"
     "log"
+    "os"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
     "github.com/tyler-rafferty2/GuessWho/internal/models"
@@ -10,8 +11,22 @@ import (
 
 var DB *gorm.DB
 
+func getEnv(key, fallback string) string {
+    if v := os.Getenv(key); v != "" {
+        return v
+    }
+    return fallback
+}
+
 func ConnectDB() {
-    dsn := "host=db user=postgres password=example dbname=mydb port=5432 sslmode=disable"
+    host     := getEnv("DB_HOST", "db")
+    user     := getEnv("DB_USER", "postgres")
+    password := getEnv("DB_PASSWORD", "example")
+    dbname   := getEnv("DB_NAME", "mydb")
+    port     := getEnv("DB_PORT", "5432")
+    sslmode  := getEnv("DB_SSLMODE", "disable")
+
+    dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", host, user, password, dbname, port, sslmode)
     db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
     if err != nil {
         log.Fatal("Failed to connect to database:", err)
