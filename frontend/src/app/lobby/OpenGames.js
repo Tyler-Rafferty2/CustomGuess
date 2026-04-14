@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 
 const TIMER_OPTIONS = [
-    { value: "",       label: "Any timer" },
-    { value: "none",   label: "No timer" },
-    { value: "30",     label: "30s" },
-    { value: "60",     label: "60s" },
-    { value: "90",     label: "90s" },
-    { value: "120",    label: "120s" },
-    { value: "180",    label: "180s" },
+    { value: "", label: "Any timer" },
+    { value: "none", label: "No timer" },
+    { value: "30", label: "30s" },
+    { value: "60", label: "60s" },
+    { value: "90", label: "90s" },
+    { value: "120", label: "120s" },
+    { value: "180", label: "180s" },
 ];
 
 function FilterChip({ label, active, onClick }) {
@@ -36,13 +36,15 @@ function FilterChip({ label, active, onClick }) {
 }
 
 export default function OpenGames({ user, setError, lobbies, setLobbies, joinLobby }) {
-    const [search, setSearch]           = useState("");
+    const [search, setSearch] = useState("");
     const [randomFilter, setRandomFilter] = useState(null);  // null | 'random' | 'select'
-    const [chatFilter, setChatFilter]   = useState(null);    // null | 'chat' | 'nochat'
+    const [chatFilter, setChatFilter] = useState(null);    // null | 'chat' | 'nochat'
     const [timerFilter, setTimerFilter] = useState("");
     const [joiningId, setJoiningId] = useState(null);
+    const [refreshing, setRefreshing] = useState(false);
 
     const getLobbies = async () => {
+        setRefreshing(true);
         setError(null);
         try {
             const res = await fetch(`http://localhost:8080/lobby/find`, {
@@ -50,11 +52,17 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
             const data = await res.json();
+            console.log("[OpenGames] /lobby/find response:", data);
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
+            data.forEach((l, i) => {
+                console.log(`[OpenGames] lobby[${i}] id=${l.id} lobbyCharacters=`, l.lobbyCharacters, `length=${l.lobbyCharacters?.length}`);
+            });
             setLobbies(data);
         } catch (err) {
             console.error(err);
             setError("Network error");
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -66,7 +74,7 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
         if (search.trim()) {
             const q = search.trim().toLowerCase();
             const matchesHost = l.user?.email?.toLowerCase().includes(q) || l.user?.username?.toLowerCase().includes(q);
-            const matchesSet  = l.characterSet?.name?.toLowerCase().includes(q);
+            const matchesSet = l.characterSet?.name?.toLowerCase().includes(q);
             if (!matchesHost && !matchesSet) return false;
         }
         if (randomFilter === "random" && !l.randomizeSecret) return false;
@@ -105,40 +113,70 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
                     onBlur={e => e.target.style.borderColor = "var(--border)"}
                 />
 
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", alignItems: "center" }}>
-                    {/* Random / Select */}
-                    <FilterChip label="Random" active={randomFilter === "random"} onClick={() => setRandomFilter(p => p === "random" ? null : "random")} />
-                    <FilterChip label="Select" active={randomFilter === "select"} onClick={() => setRandomFilter(p => p === "select" ? null : "select")} />
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", alignItems: "center" }}>
+                        {/* Random / Select */}
+                        <FilterChip label="Random" active={randomFilter === "random"} onClick={() => setRandomFilter(p => p === "random" ? null : "random")} />
+                        <FilterChip label="Select" active={randomFilter === "select"} onClick={() => setRandomFilter(p => p === "select" ? null : "select")} />
 
-                    <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 var(--s1)" }} />
+                        <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 var(--s1)" }} />
 
-                    {/* Chat / No chat */}
-                    <FilterChip label="Chat"    active={chatFilter === "chat"}   onClick={() => setChatFilter(p => p === "chat"   ? null : "chat")} />
-                    <FilterChip label="No chat" active={chatFilter === "nochat"} onClick={() => setChatFilter(p => p === "nochat" ? null : "nochat")} />
+                        {/* Chat / No chat */}
+                        <FilterChip label="Chat" active={chatFilter === "chat"} onClick={() => setChatFilter(p => p === "chat" ? null : "chat")} />
+                        <FilterChip label="No chat" active={chatFilter === "nochat"} onClick={() => setChatFilter(p => p === "nochat" ? null : "nochat")} />
 
-                    <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 var(--s1)" }} />
+                        <div style={{ width: 1, height: 20, background: "var(--border)", margin: "0 var(--s1)" }} />
 
-                    {/* Timer dropdown */}
-                    <select
-                        value={timerFilter}
-                        onChange={e => setTimerFilter(e.target.value)}
+                        {/* Timer dropdown */}
+                        <select
+                            value={timerFilter}
+                            onChange={e => setTimerFilter(e.target.value)}
+                            style={{
+                                fontFamily: "'DM Sans', sans-serif",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                padding: "4px 10px",
+                                borderRadius: "var(--r)",
+                                border: "1px solid var(--border)",
+                                background: "var(--surface-0)",
+                                color: "var(--text-600)",
+                                cursor: "pointer",
+                                outline: "none",
+                            }}
+                        >
+                            {TIMER_OPTIONS.map(o => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <button
+                        onClick={getLobbies}
+                        disabled={refreshing}
                         style={{
+                            flexShrink: 0,
+                            height: 32,
+                            padding: "0 var(--s3)",
+                            background: "var(--surface-0)",
+                            color: "var(--text-600)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "var(--r)",
                             fontFamily: "'DM Sans', sans-serif",
                             fontSize: 12,
                             fontWeight: 600,
-                            padding: "4px 10px",
-                            borderRadius: "var(--r)",
-                            border: "1px solid var(--border)",
-                            background: "var(--surface-0)",
-                            color: "var(--text-600)",
-                            cursor: "pointer",
-                            outline: "none",
+                            cursor: refreshing ? "not-allowed" : "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            transition: "border-color 150ms, background 150ms",
+                            opacity: refreshing ? 0.6 : 1,
                         }}
+                        onMouseEnter={e => { if (!refreshing) { e.currentTarget.style.background = "var(--surface-1)"; e.currentTarget.style.borderColor = "var(--border-strong)"; } }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "var(--surface-0)"; e.currentTarget.style.borderColor = "var(--border)"; }}
                     >
-                        {TIMER_OPTIONS.map(o => (
-                            <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                    </select>
+                        <RefreshCw size={13} style={{ animation: refreshing ? "gw-spin 1s linear infinite" : "none" }} />
+                        Refresh
+                    </button>
                 </div>
             </div>
 

@@ -337,10 +337,12 @@ func (s *LobbyService) FindLobby(user *models.User) ([]models.Lobby, error) {
     err := s.DB.
         Preload("User").
         Preload("CharacterSet").
+        Preload("LobbyCharacters").
         Where("user_id != ?", user.ID).
         Where("id IN (?)", lobbiesWithOnePlayer).
         Where("id NOT IN (?)", userLobbies).
         Where("private = ?", false).
+        Where("game_over = ?", false).
         Find(&lobbies).Error
     
     if err != nil {
