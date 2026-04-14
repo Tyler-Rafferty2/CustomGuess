@@ -64,13 +64,11 @@ export default function EditSetPage() {
 
     useEffect(() => {
         if (!setId || !user?.id) return;
-        fetch(`http://localhost:8080/player/set/player`, {
+        fetch(`http://localhost:8080/player/set/${setId}`, {
             headers: { "X-User-ID": user.id },
         })
-            .then(r => r.json())
-            .then(data => {
-                const found = Array.isArray(data) ? data.find(s => s.id === setId) : null;
-                if (!found) { setError("Set not found."); setLoading(false); return; }
+            .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
+            .then(found => {
                 setSet(found);
                 setName(found.name ?? "");
                 setDescription(found.description ?? "");

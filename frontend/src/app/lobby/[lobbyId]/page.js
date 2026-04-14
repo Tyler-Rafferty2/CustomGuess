@@ -258,8 +258,13 @@ export default function LobbyPage() {
     const [rematchWaiting, setRematchWaiting] = useState(false);
     const [incomingRematch, setIncomingRematch] = useState(null); // { characterSetName }
     const [selectedRematchSet, setSelectedRematchSet] = useState(null);
+    const REMATCH_PAGE_SIZE = 12;
     const [rematchPublicSets, setRematchPublicSets] = useState([]);
     const [rematchMySets, setRematchMySets] = useState([]);
+    const [rematchPublicTotal, setRematchPublicTotal] = useState(0);
+    const [rematchMyTotal, setRematchMyTotal] = useState(0);
+    const [rematchPublicPage, setRematchPublicPage] = useState(1);
+    const [rematchMyPage, setRematchMyPage] = useState(1);
     const [rematchSetView, setRematchSetView] = useState("public");
     const [rematchDeclinedToast, setRematchDeclinedToast] = useState(false);
     const [sentRematchSetName, setSentRematchSetName] = useState(null);
@@ -764,22 +769,45 @@ export default function LobbyPage() {
         if (lobby?.gameOver) { getGameState(); }
     }, [lobby?.gameOver]);
 
+    const loadRematchPublic = (page) => {
+        const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE, sort: "most-popular" });
+        const headers = { "Content-Type": "application/json" };
+        if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
+        fetch(`http://localhost:8080/player/set/public?${params}`, { headers })
+            .then(r => r.json())
+            .then(data => { setRematchPublicSets(data.sets ?? []); setRematchPublicTotal(data.total ?? 0); })
+            .catch(() => { });
+    };
+
+    const loadRematchMy = (page) => {
+        if (!user || user.isGuest) return;
+        const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE });
+        fetch(`http://localhost:8080/player/set/player?${params}`, {
+            headers: { "X-User-ID": user.id }
+        })
+            .then(r => r.json())
+            .then(data => { setRematchMySets(data.sets ?? []); setRematchMyTotal(data.total ?? 0); })
+            .catch(() => { });
+    };
+
     // Fetch character sets for rematch when game ends
     useEffect(() => {
         if (!lobby?.gameOver) return;
-        fetch("http://localhost:8080/player/set/public")
-            .then(r => r.json())
-            .then(data => setRematchPublicSets(Array.isArray(data) ? data : []))
-            .catch(() => { });
-        if (user && !user.isGuest) {
-            fetch("http://localhost:8080/player/set/player", {
-                headers: { "X-User-ID": user.id }
-            })
-                .then(r => r.json())
-                .then(data => setRematchMySets(Array.isArray(data) ? data : []))
-                .catch(() => { });
-        }
+        loadRematchPublic(1);
+        loadRematchMy(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lobby?.gameOver]);
+
+    // Rematch page navigation
+    useEffect(() => {
+        if (lobby?.gameOver) loadRematchPublic(rematchPublicPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rematchPublicPage]);
+
+    useEffect(() => {
+        if (lobby?.gameOver) loadRematchMy(rematchMyPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rematchMyPage]);
 
     const conflictModal = conflictLobbyId && (
         <>
@@ -1057,7 +1085,7 @@ export default function LobbyPage() {
                                         ))}
                                     </div>
                                     {/* Set grid */}
-                                    <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', overflowY: 'auto', flex: 1 }}>
                                         {(rematchSetView === 'public' ? rematchPublicSets : rematchMySets).map(set => (
                                             <div key={set.id} onClick={() => setSelectedRematchSet(set)} style={{ background: 'var(--surface-0)', border: `2px solid ${selectedRematchSet?.id === set.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: 'var(--s3)', cursor: 'pointer', transition: 'border-color 150ms' }}>
                                                 <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 80, borderRadius: 4, marginBottom: 'var(--s2)' }} />
@@ -1065,6 +1093,23 @@ export default function LobbyPage() {
                                             </div>
                                         ))}
                                     </div>
+                                    {/* Rematch pagination */}
+                                    {(() => {
+                                        const total = rematchSetView === 'public' ? rematchPublicTotal : rematchMyTotal;
+                                        const page = rematchSetView === 'public' ? rematchPublicPage : rematchMyPage;
+                                        const setPage = rematchSetView === 'public' ? setRematchPublicPage : setRematchMyPage;
+                                        const pages = Math.ceil(total / REMATCH_PAGE_SIZE);
+                                        if (pages <= 1) return null;
+                                        return (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
+                                                <button onClick={() => setPage(page - 1)} disabled={page === 1} style={{ padding: '4px 10px', borderRadius: 'var(--r)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>←</button>
+                                                {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
+                                                    <button key={p} onClick={() => setPage(p)} style={{ padding: '4px 8px', minWidth: 28, borderRadius: 'var(--r)', border: '1px solid', borderColor: p === page ? 'var(--accent)' : 'var(--border)', background: p === page ? 'var(--accent)' : 'var(--bg)', color: p === page ? '#fff' : 'var(--text)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: p === page ? 600 : 400, cursor: p === page ? 'default' : 'pointer' }}>{p}</button>
+                                                ))}
+                                                <button onClick={() => setPage(page + 1)} disabled={page === pages} style={{ padding: '4px 10px', borderRadius: 'var(--r)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, cursor: page === pages ? 'not-allowed' : 'pointer', opacity: page === pages ? 0.4 : 1 }}>→</button>
+                                            </div>
+                                        );
+                                    })()}
                                     <button className="gw-btn-primary" style={{ marginTop: 'var(--s5)', height: 44 }} disabled={!selectedRematchSet} onClick={sendRematchRequest}>
                                         Send Rematch Request
                                     </button>

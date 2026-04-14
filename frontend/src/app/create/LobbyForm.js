@@ -726,12 +726,18 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [randomPreview, setRandomPreview] = useState([]);
     const [manualSelected, setManualSelected] = useState(new Set());
 
+    const PAGE_SIZE = 12;
+
     const [setView, setSetView] = useState("public");
+    const [searchDraft, setSearchDraft] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOrder, setSortOrder] = useState("most-popular");
-    const [likedSnapshot, setLikedSnapshot] = useState(null); // set IDs locked in when entering "liked" filter
     const [publicSets, setPublicSets] = useState([]);
     const [mySets, setMySets] = useState([]);
+    const [publicPage, setPublicPage] = useState(1);
+    const [myPage, setMyPage] = useState(1);
+    const [publicTotal, setPublicTotal] = useState(0);
+    const [myTotal, setMyTotal] = useState(0);
     const [loadingPublic, setLoadingPublic] = useState(false);
     const [loadingMy, setLoadingMy] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -740,8 +746,63 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [turnTimerSeconds, setTurnTimerSeconds] = useState(0);
     const [previewSet, setPreviewSet] = useState(null);
 
-    useEffect(() => { if (user !== undefined) loadSetsPublic(); }, [user?.id]);
-    useEffect(() => { if (user?.isGuest == false) loadSets(); }, [user]);
+    // Debounce searchDraft → searchQuery
+    useEffect(() => {
+        const timer = setTimeout(() => setSearchQuery(searchDraft), 300);
+        return () => clearTimeout(timer);
+    }, [searchDraft]);
+
+    // Public sets: initial load + user identity change
+    useEffect(() => {
+        if (user === undefined) return;
+        setPublicPage(1);
+        loadSetsPublic(1, sortOrder, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id]);
+
+    // Public sets: sort change → reset to page 1
+    useEffect(() => {
+        if (user === undefined) return;
+        setPublicPage(1);
+        loadSetsPublic(1, sortOrder, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sortOrder]);
+
+    // Both tabs: debounced search change → reset to page 1
+    useEffect(() => {
+        if (user === undefined) return;
+        setPublicPage(1);
+        loadSetsPublic(1, sortOrder, searchQuery);
+        if (user?.isGuest === false) {
+            setMyPage(1);
+            loadSets(1, searchQuery);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    // Public sets: page navigation (skip 1 to avoid double-fetch with above)
+    useEffect(() => {
+        if (user === undefined || publicPage === 1) return;
+        loadSetsPublic(publicPage, sortOrder, searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [publicPage]);
+
+    // My sets: initial load + user change
+    useEffect(() => {
+        if (user?.isGuest === false) {
+            setMyPage(1);
+            loadSets(1, searchQuery);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user?.id, user?.isGuest]);
+
+    // My sets: page navigation
+    useEffect(() => {
+        if (user?.isGuest === false && myPage > 1) {
+            loadSets(myPage, searchQuery);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [myPage]);
 
     useEffect(() => {
         if (!selectedSet) return;
@@ -767,30 +828,34 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         return Array.from(manualSelected);
     };
 
-    const loadSets = async () => {
+    const loadSets = async (page, search) => {
         setLoadingMy(true); setError(null);
         try {
-            const res = await fetch("http://localhost:8080/player/set/player", {
+            const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, search: search || "" });
+            const res = await fetch(`http://localhost:8080/player/set/player?${params}`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-            setMySets(data);
+            setMySets(data.sets ?? []);
+            setMyTotal(data.total ?? 0);
         } catch { setError("Network error"); } finally { setLoadingMy(false); }
     };
 
-    const loadSetsPublic = async () => {
+    const loadSetsPublic = async (page, sort, search) => {
         setLoadingPublic(true); setError(null);
         try {
             const headers = { "Content-Type": "application/json" };
             if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
-            const res = await fetch("http://localhost:8080/player/set/public", {
+            const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, sort: sort || "most-popular", search: search || "" });
+            const res = await fetch(`http://localhost:8080/player/set/public?${params}`, {
                 method: "GET", headers,
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-            setPublicSets(data);
+            setPublicSets(data.sets ?? []);
+            setPublicTotal(data.total ?? 0);
         } catch { setError("Network error"); } finally { setLoadingPublic(false); }
     };
 
@@ -817,27 +882,25 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         } catch { setError("Network error"); setIsCreating(false); }
     };
 
-    const filteredSets = () => {
-        let sets = setView === "public" ? publicSets : mySets;
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase();
-            sets = sets.filter(set =>
-                set.name.toLowerCase().includes(q) ||
-                set.description?.toLowerCase().includes(q) ||
-                set.creator?.toLowerCase().includes(q)
-            );
+    const currentSets = () => setView === "public" ? publicSets : mySets;
+    const currentTotal = () => setView === "public" ? publicTotal : myTotal;
+    const currentPage = () => setView === "public" ? publicPage : myPage;
+    const setCurrentPage = (p) => setView === "public" ? setPublicPage(p) : setMyPage(p);
+    const totalPages = () => Math.ceil(currentTotal() / PAGE_SIZE);
+
+    const getPageNumbers = () => {
+        const total = totalPages();
+        if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+        const cur = currentPage();
+        const pages = new Set([1, total]);
+        for (let i = Math.max(2, cur - 2); i <= Math.min(total - 1, cur + 2); i++) pages.add(i);
+        const sorted = [...pages].sort((a, b) => a - b);
+        const result = [];
+        for (let i = 0; i < sorted.length; i++) {
+            if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push("...");
+            result.push(sorted[i]);
         }
-        if (setView === "public") {
-            if (sortOrder === "liked") {
-                const snap = likedSnapshot;
-                sets = snap ? sets.filter(s => snap.has(s.id)) : sets.filter(s => s.likedByMe);
-            } else if (sortOrder === "most-liked") {
-                sets = [...sets].sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
-            } else if (sortOrder === "most-popular") {
-                sets = [...sets].sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0));
-            }
-        }
-        return sets;
+        return result;
     };
 
     const handleToggleLike = async (setId) => {
@@ -889,7 +952,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 role="tab"
                                 aria-selected={setView === "public"}
                                 className={`tab-btn${setView === "public" ? " tab-btn--active" : ""}`}
-                                onClick={() => { setSetView("public"); setSortOrder("most-popular"); setLikedSnapshot(null); }}
+                                onClick={() => { setSetView("public"); setSortOrder("most-popular"); }}
                             >
                                 <Search size={15} />
                                 <span>Public Sets</span>
@@ -898,7 +961,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 role="tab"
                                 aria-selected={setView === "my-sets"}
                                 className={`tab-btn${setView === "my-sets" ? " tab-btn--active" : ""}`}
-                                onClick={() => { setSetView("my-sets"); setSortOrder("default"); setLikedSnapshot(null); }}
+                                onClick={() => { setSetView("my-sets"); }}
                             >
                                 <UserCircle size={15} />
                                 <span>My Sets</span>
@@ -912,8 +975,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 type="text"
                                 className="search-input"
                                 placeholder="Search character sets…"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                value={searchDraft}
+                                onChange={(e) => setSearchDraft(e.target.value)}
                                 aria-label="Search character sets"
                             />
                         </div>
@@ -924,20 +987,12 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 <select
                                     className="sort-select"
                                     value={sortOrder}
-                                    onChange={(e) => {
-                                        const val = e.target.value;
-                                        if (val === "liked") {
-                                            setLikedSnapshot(new Set(publicSets.filter(s => s.likedByMe).map(s => s.id)));
-                                        } else {
-                                            setLikedSnapshot(null);
-                                        }
-                                        setSortOrder(val);
-                                    }}
+                                    onChange={(e) => setSortOrder(e.target.value)}
                                     aria-label="Sort or filter sets"
                                 >
                                     <option value="most-popular">Most Played</option>
                                     <option value="most-liked">Most Liked</option>
-                                    <option value="default">Newest</option>
+                                    <option value="newest">Newest</option>
                                     {!user?.isGuest && user?.id && (
                                         <option value="liked">My Liked Sets</option>
                                     )}
@@ -966,7 +1021,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                     <div className="spinner" aria-label="Loading" role="status" />
                                     <span>Loading sets…</span>
                                 </div>
-                            ) : filteredSets().length === 0 ? (
+                            ) : currentSets().length === 0 ? (
                                 setView === "my-sets" && user?.isGuest ? (
                                     <div className="guest-notice" role="alert">
                                         <svg className="guest-notice__icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -981,7 +1036,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                     <div className="state-empty">No sets found</div>
                                 )
                             ) : (
-                                filteredSets().map((set) => (
+                                currentSets().map((set) => (
                                     <div
                                         key={set.id}
                                         role="listitem"
@@ -1046,6 +1101,75 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 ))
                             )}
                         </div>
+
+                        {/* Pagination */}
+                        {totalPages() > 1 && (
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "var(--s1)", marginTop: "var(--s4)", flexWrap: "wrap" }}>
+                                <button
+                                    onClick={() => setCurrentPage(currentPage() - 1)}
+                                    disabled={currentPage() === 1}
+                                    style={{
+                                        padding: "var(--s1) var(--s3)",
+                                        borderRadius: "var(--r)",
+                                        border: "1px solid var(--border)",
+                                        background: "var(--bg)",
+                                        color: "var(--text)",
+                                        fontFamily: "var(--font-ui)",
+                                        fontSize: "var(--text-sm)",
+                                        cursor: currentPage() === 1 ? "not-allowed" : "pointer",
+                                        opacity: currentPage() === 1 ? 0.4 : 1,
+                                    }}
+                                    aria-label="Previous page"
+                                >
+                                    ←
+                                </button>
+                                {getPageNumbers().map((p, i) =>
+                                    p === "..." ? (
+                                        <span key={`ellipsis-${i}`} style={{ color: "var(--text-400)", fontSize: "var(--text-sm)", padding: "0 2px" }}>…</span>
+                                    ) : (
+                                        <button
+                                            key={p}
+                                            onClick={() => setCurrentPage(p)}
+                                            style={{
+                                                padding: "var(--s1) var(--s2)",
+                                                minWidth: 32,
+                                                borderRadius: "var(--r)",
+                                                border: "1px solid",
+                                                borderColor: p === currentPage() ? "var(--accent)" : "var(--border)",
+                                                background: p === currentPage() ? "var(--accent)" : "var(--bg)",
+                                                color: p === currentPage() ? "#fff" : "var(--text)",
+                                                fontFamily: "var(--font-ui)",
+                                                fontSize: "var(--text-sm)",
+                                                fontWeight: p === currentPage() ? 600 : 400,
+                                                cursor: p === currentPage() ? "default" : "pointer",
+                                            }}
+                                            aria-label={`Page ${p}`}
+                                            aria-current={p === currentPage() ? "page" : undefined}
+                                        >
+                                            {p}
+                                        </button>
+                                    )
+                                )}
+                                <button
+                                    onClick={() => setCurrentPage(currentPage() + 1)}
+                                    disabled={currentPage() === totalPages()}
+                                    style={{
+                                        padding: "var(--s1) var(--s3)",
+                                        borderRadius: "var(--r)",
+                                        border: "1px solid var(--border)",
+                                        background: "var(--bg)",
+                                        color: "var(--text)",
+                                        fontFamily: "var(--font-ui)",
+                                        fontSize: "var(--text-sm)",
+                                        cursor: currentPage() === totalPages() ? "not-allowed" : "pointer",
+                                        opacity: currentPage() === totalPages() ? 0.4 : 1,
+                                    }}
+                                    aria-label="Next page"
+                                >
+                                    →
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Panel — Game Settings */}

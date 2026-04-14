@@ -95,11 +95,11 @@ export default function Profile() {
 
     useEffect(() => {
         if (!user?.id || user?.isGuest) { setSetsLoading(false); return; }
-        fetch("http://localhost:8080/player/set/player", {
+        fetch("http://localhost:8080/player/set/player?page=1&pageSize=100", {
             headers: { "X-User-ID": user.id },
         })
             .then(r => r.json())
-            .then(data => { setMySets(Array.isArray(data) ? data : []); setSetsLoading(false); })
+            .then(data => { setMySets(Array.isArray(data.sets) ? data.sets : []); setSetsLoading(false); })
             .catch(() => setSetsLoading(false));
     }, [user?.id]);
 

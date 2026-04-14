@@ -105,6 +105,7 @@ func MountRoutes(r chi.Router) {
             r.Get("/stats", playerHandler.GetStatsHandler)
             r.Post("/set/create", playerHandler.CreateSetHandler)
             r.Get("/set/player", playerHandler.GetSetFromPlayerHandler)
+            r.Get("/set/{setId}", playerHandler.GetSetByIDHandler)
             r.Put("/set/{setId}", playerHandler.UpdateSetHandler)
             r.Delete("/set/{setId}", playerHandler.DeleteSetHandler)
             r.Post("/set/{setId}/like", playerHandler.ToggleLikeHandler)
