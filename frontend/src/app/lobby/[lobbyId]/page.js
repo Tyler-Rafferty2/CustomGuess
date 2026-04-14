@@ -251,6 +251,7 @@ export default function LobbyPage() {
     const [isCopied, setIsCopied] = useState(false);
     const [conflictLobbyId, setConflictLobbyId] = useState(null);
     const conflictLobbyIdRef = useRef(null);
+    const leavingRef = useRef(false);
 
     // Rematch state
     const [rematchModalOpen, setRematchModalOpen] = useState(false);
@@ -271,6 +272,8 @@ export default function LobbyPage() {
     const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
     const [preGameDisconnected, setPreGameDisconnected] = useState(false);
     const [preGameCountdown, setPreGameCountdown] = useState(30);
+    const [preGameDisconnectedIsHost, setPreGameDisconnectedIsHost] = useState(false);
+    const [lobbyCancelled, setLobbyCancelled] = useState(false);
     const preGameIntervalRef = useRef(null);
     const lobbyRef = useRef(null);
 
@@ -499,6 +502,23 @@ export default function LobbyPage() {
                             disconnectIntervalRef.current = null;
                         }
                     }
+                    // If the joiner was removed (lobby back to 1 player, game not over),
+                    // clear any pre-game disconnect countdown — they're officially gone.
+                    if (!message.lobby?.gameOver && !message.lobby?.gameStartedAt) {
+                        const playerCount = message.lobby?.players?.length ?? 0;
+                        if (playerCount < 2) {
+                            setPreGameDisconnected(false);
+                            setPreGameCountdown(30);
+                            setPreGameDisconnectedIsHost(false);
+                            if (preGameIntervalRef.current) {
+                                clearInterval(preGameIntervalRef.current);
+                                preGameIntervalRef.current = null;
+                            }
+                        }
+                    }
+                } else if (message.channel === "lobby_cancelled") {
+                    setLobbyCancelled(true);
+                    setTimeout(() => router.push('/'), 2500);
                 } else if (message.channel === "rematch_request") {
                     if (message.SenderId !== playerIdRef.current) {
                         setIncomingRematch({ characterSetName: message.content });
@@ -519,6 +539,12 @@ export default function LobbyPage() {
                             setIncomingRematch(null);
                         } else if (!lobbyRef.current?.gameStartedAt) {
                             // Pre-game phase (character pick / ready-up) — 30s countdown
+                            // Determine if the disconnected player is the host so we can show accurate text.
+                            const disconnectedPlayer = lobbyRef.current?.players?.find(p => p.id === message.SenderId);
+                            const isHostDisconnect =
+                                (disconnectedPlayer?.userId && disconnectedPlayer.userId === lobbyRef.current?.userId)
+                                || (disconnectedPlayer?.guestId && disconnectedPlayer.guestId === lobbyRef.current?.guestId);
+                            setPreGameDisconnectedIsHost(!!isHostDisconnect);
                             setPreGameDisconnected(true);
                             setPreGameCountdown(30);
                             if (preGameIntervalRef.current) clearInterval(preGameIntervalRef.current);
@@ -556,6 +582,7 @@ export default function LobbyPage() {
                         setDisconnectCountdown(120);
                         setPreGameDisconnected(false);
                         setPreGameCountdown(30);
+                        setPreGameDisconnectedIsHost(false);
                         if (preGameIntervalRef.current) {
                             clearInterval(preGameIntervalRef.current);
                             preGameIntervalRef.current = null;
@@ -665,6 +692,7 @@ export default function LobbyPage() {
     }, [lobby?.turnStartedAt, lobby?.turnTimerPaused, lobby?.turnRemainingMs, lobby?.turnTimerSeconds, lobby?.gameOver]);
 
     const confirmLeave = async () => {
+        leavingRef.current = true;
         setShowLeaveConfirm(false);
         try {
             await fetch(`http://localhost:8080/lobby/forfeit`, {
@@ -717,7 +745,8 @@ export default function LobbyPage() {
             !lobby.players.some(player => player.userId === user?.id) &&
             lobby.code &&
             lobby.id &&
-            !conflictLobbyIdRef.current  // use ref — synchronous check
+            !conflictLobbyIdRef.current &&  // use ref — synchronous check
+            !leavingRef.current             // don't rejoin if we're intentionally leaving
         ) {
             joinLobby(lobby.code);
         }
@@ -1304,12 +1333,17 @@ export default function LobbyPage() {
             }
         };
 
+        const meInPicker = lobby?.players?.find(p => p.userId === user?.id || p.guestId === user?.id);
+        const iAmHostInPicker = (meInPicker?.userId && meInPicker.userId === lobby?.userId)
+            || (meInPicker?.guestId && meInPicker.guestId === lobby?.guestId);
         const leaveConfirmModal = showLeaveConfirm && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                 <div className="gw-card" style={{ width: '100%', maxWidth: 360, padding: 'var(--s6)' }}>
                     <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: 'var(--text-900)', marginBottom: 'var(--s2)' }}>Leave Lobby?</h2>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s6)' }}>
-                        Your opponent will be notified and the lobby will end.
+                        {iAmHostInPicker
+                            ? 'Leaving will cancel the lobby and remove your opponent.'
+                            : 'Leaving will remove you from the lobby.'}
                     </p>
                     <div style={{ display: 'flex', gap: 'var(--s3)' }}>
                         <button className="gw-btn-ghost" style={{ flex: 1, height: 40 }} onClick={() => setShowLeaveConfirm(false)}>
@@ -1331,9 +1365,18 @@ export default function LobbyPage() {
                 {leaveConfirmModal}
                 {preGameDisconnected && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: preGameCountdown === 0 ? 'var(--state-out)' : '#7A5C1E', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '8px var(--s4)', letterSpacing: '0.02em' }}>
-                        {preGameCountdown > 0
-                            ? `Opponent disconnected — returning in ${preGameCountdown}s`
-                            : 'Opponent left. Returning to home…'}
+                        {preGameDisconnectedIsHost
+                            ? preGameCountdown > 0
+                                ? `Host disconnected — lobby will be cancelled in ${preGameCountdown}s`
+                                : 'Host left. Returning to home…'
+                            : preGameCountdown > 0
+                                ? `Opponent disconnected — they'll be removed in ${preGameCountdown}s`
+                                : 'Opponent removed. Lobby is reopening…'}
+                    </div>
+                )}
+                {lobbyCancelled && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--state-out)', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '8px var(--s4)', letterSpacing: '0.02em' }}>
+                        The lobby was cancelled — redirecting…
                     </div>
                 )}
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', padding: 'var(--s12) var(--s6)' }}>
@@ -1414,12 +1457,16 @@ export default function LobbyPage() {
             }
         };
 
+        const iAmHost = (me?.userId && me.userId === lobby?.userId)
+            || (me?.guestId && me.guestId === lobby?.guestId);
         const leaveConfirmModal = showLeaveConfirm && (
             <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                 <div className="gw-card" style={{ width: '100%', maxWidth: 360, padding: 'var(--s6)' }}>
                     <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: 'var(--text-900)', marginBottom: 'var(--s2)' }}>Leave Lobby?</h2>
                     <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s6)' }}>
-                        Your opponent will be notified and the lobby will end.
+                        {iAmHost
+                            ? 'Leaving will cancel the lobby and remove your opponent.'
+                            : 'Leaving will remove you from the lobby.'}
                     </p>
                     <div style={{ display: 'flex', gap: 'var(--s3)' }}>
                         <button className="gw-btn-ghost" style={{ flex: 1, height: 40 }} onClick={() => setShowLeaveConfirm(false)}>
@@ -1440,9 +1487,18 @@ export default function LobbyPage() {
                 {leaveConfirmModal}
                 {preGameDisconnected && (
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: preGameCountdown === 0 ? 'var(--state-out)' : '#7A5C1E', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '8px var(--s4)', letterSpacing: '0.02em' }}>
-                        {preGameCountdown > 0
-                            ? `Opponent disconnected — returning in ${preGameCountdown}s`
-                            : 'Opponent left. Returning to home…'}
+                        {preGameDisconnectedIsHost
+                            ? preGameCountdown > 0
+                                ? `Host disconnected — lobby will be cancelled in ${preGameCountdown}s`
+                                : 'Host left. Returning to home…'
+                            : preGameCountdown > 0
+                                ? `Opponent disconnected — they'll be removed in ${preGameCountdown}s`
+                                : 'Opponent removed. Lobby is reopening…'}
+                    </div>
+                )}
+                {lobbyCancelled && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, background: 'var(--state-out)', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, textAlign: 'center', padding: '8px var(--s4)', letterSpacing: '0.02em' }}>
+                        The lobby was cancelled — redirecting…
                     </div>
                 )}
                 <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '8vh', padding: 'var(--s6)', paddingTop: '8vh', overflow: 'hidden' }}>

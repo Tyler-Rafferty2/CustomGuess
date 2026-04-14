@@ -11,7 +11,7 @@ type Lobby struct {
     CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
     LastActive time.Time `gorm:"autoUpdateTime" json:"lastActive"`
     UserID   uuid.UUID  `gorm:"type:uuid;" json:"userId"`
-    GuestID   uuid.UUID  `gorm:"type:uuid;" json:"userId"`
+    GuestID  uuid.UUID  `gorm:"type:uuid;" json:"guestId"`
     User     User       `gorm:"foreignKey:UserID" json:"user"`
     Code    string    `gorm:"unique;not null" json:"code"`
     Private bool    `gorm:"default:false" json:"isPrivate"`

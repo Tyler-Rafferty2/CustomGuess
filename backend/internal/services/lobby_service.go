@@ -71,6 +71,17 @@ func (s *LobbyService) broadcastLobbyUpdate(lobbyID string) {
     s.Hub.BroadcastMessage(message)
 }
 
+func (s *LobbyService) broadcastLobbyCancelled(lobbyID string) {
+    if s.Hub == nil {
+        return
+    }
+    s.Hub.BroadcastMessage(models.Message{
+        Type:    "lobby_cancelled",
+        LobbyID: lobbyID,
+        Channel: "lobby_cancelled",
+    })
+}
+
 func (s *LobbyService) getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
     var lobby models.Lobby
     lobbyUUID, err := uuid.Parse(lobbyID)
@@ -865,26 +876,37 @@ func (s *LobbyService) PreGameForfeitByPlayerID(playerID, lobbyID string) {
         return
     }
 
-    var otherPlayer *models.Player
+    var leavingPlayer *models.Player
     for i := range lobby.Players {
-        if lobby.Players[i].ID != playerUUID {
-            otherPlayer = &lobby.Players[i]
+        if lobby.Players[i].ID == playerUUID {
+            leavingPlayer = &lobby.Players[i]
         }
     }
-
-    now := time.Now()
-    lobby.GameOver = true
-    lobby.GameOverAt = &now
-    if otherPlayer != nil {
-        lobby.Winner = &otherPlayer.ID
-    }
-
-    if err := s.DB.Save(&lobby).Error; err != nil {
-        log.Printf("PreGameForfeitByPlayerID: failed to save lobby: %v", err)
+    if leavingPlayer == nil {
+        log.Printf("PreGameForfeitByPlayerID: player %s not in lobby", playerID)
         return
     }
 
-    s.broadcastLobbyUpdate(lobbyID)
+    isCreator := leavingPlayer.UserID == lobby.UserID || leavingPlayer.GuestID == lobby.GuestID
+
+    if isCreator {
+        // Kill the lobby — no winner, no stats
+        now := time.Now()
+        lobby.GameOver = true
+        lobby.GameOverAt = &now
+        if err := s.DB.Save(&lobby).Error; err != nil {
+            log.Printf("PreGameForfeitByPlayerID: failed to save lobby: %v", err)
+            return
+        }
+        s.broadcastLobbyCancelled(lobbyID)
+    } else {
+        // Remove joiner and reopen lobby
+        if err := s.DB.Delete(leavingPlayer).Error; err != nil {
+            log.Printf("PreGameForfeitByPlayerID: failed to delete player: %v", err)
+            return
+        }
+        s.broadcastLobbyUpdate(lobbyID)
+    }
 }
 
 // RequestPause lets a player request a timer pause. Broadcasts the updated lobby.
@@ -1042,6 +1064,34 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
         return nil, errors.New("player not found in lobby")
     }
 
+    // ── PRE-GAME LEAVE (no stats) ─────────────────────────────────────────
+    if lobby.GameStartedAt == nil {
+        isCreator := forfeitingPlayer.UserID == lobby.UserID || forfeitingPlayer.GuestID == lobby.GuestID
+
+        if isCreator {
+            // Kill the lobby — no winner, no stats
+            now := time.Now()
+            lobby.GameOver = true
+            lobby.GameOverAt = &now
+            if err := s.DB.Save(&lobby).Error; err != nil {
+                return nil, err
+            }
+            s.broadcastLobbyCancelled(lobbyID.String())
+        } else {
+            // Joiner leaves — suppress the imminent WS disconnect notification so
+            // the creator never sees a countdown, then remove the player and reopen.
+            if s.Hub != nil {
+                s.Hub.SuppressNextDisconnect(forfeitingPlayer.ID.String(), lobbyID.String())
+            }
+            if err := s.DB.Delete(forfeitingPlayer).Error; err != nil {
+                return nil, err
+            }
+            s.broadcastLobbyUpdate(lobbyID.String())
+        }
+        return &lobby, nil
+    }
+
+    // ── IN-GAME FORFEIT (existing logic, stats recorded) ─────────────────
     now := time.Now()
     lobby.GameOver = true
     lobby.GameOverAt = &now

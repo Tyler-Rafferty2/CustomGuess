@@ -26,17 +26,32 @@ type Hub struct {
 	turnTimerMu sync.Mutex
 	// TurnExpiredHandler is called when a player's turn timer runs out.
 	TurnExpiredHandler func(playerID, lobbyID string)
+
+	// suppressDisconnect holds playerID:lobbyID keys for intentional leaves so the
+	// next WS disconnect for that player is silent (no opponent_disconnected, no timer).
+	suppressDisconnect map[string]bool
+	suppressMu         sync.Mutex
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		lobbies:          make(map[string]map[string]*models.Client),
-		broadcast:        make(chan models.Message),
-		register:         make(chan *models.Client),
-		unregister:       make(chan *models.Client),
-		disconnectTimers: make(map[string]*time.Timer),
-		turnTimers:       make(map[string]*time.Timer),
+		lobbies:            make(map[string]map[string]*models.Client),
+		broadcast:          make(chan models.Message),
+		register:           make(chan *models.Client),
+		unregister:         make(chan *models.Client),
+		disconnectTimers:   make(map[string]*time.Timer),
+		turnTimers:         make(map[string]*time.Timer),
+		suppressDisconnect: make(map[string]bool),
 	}
+}
+
+// SuppressNextDisconnect marks a player's next WS disconnect as intentional so the
+// hub skips the opponent_disconnected broadcast and grace-period timer.
+func (h *Hub) SuppressNextDisconnect(playerID, lobbyID string) {
+	key := playerID + ":" + lobbyID
+	h.suppressMu.Lock()
+	h.suppressDisconnect[key] = true
+	h.suppressMu.Unlock()
 }
 
 // StartTurnTimer (re-)starts the per-lobby turn timer for playerID with the given duration.
@@ -141,6 +156,20 @@ func (h *Hub) Run() {
 			// Pre-game: 30 seconds. In-game: 2 minutes.
 			if client.PlayerId != "" {
 				timerKey := client.PlayerId + ":" + client.LobbyID
+
+				// If this disconnect was intentional (player left via button), skip
+				// the opponent_disconnected broadcast and grace-period timer entirely.
+				h.suppressMu.Lock()
+				suppressed := h.suppressDisconnect[timerKey]
+				if suppressed {
+					delete(h.suppressDisconnect, timerKey)
+				}
+				h.suppressMu.Unlock()
+				if suppressed {
+					log.Printf("Suppressing disconnect notification for player %s (intentional leave)", client.PlayerId)
+					continue
+				}
+
 				go func(lobbyID, playerID string) {
 					h.broadcast <- models.Message{
 						Type:     "opponent_disconnected",
