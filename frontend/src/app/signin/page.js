@@ -114,7 +114,7 @@ export default function Signin() {
 
                 {/* --text-sm (14px), --text-600 (#5C5047) */}
                 <p className="text-center text-[#5C5047] text-[14px] mt-6">
-                    Don't have an account?{" "}
+                    Don&apos;t have an account?{" "}
                     {/* --accent (#D9572B) link */}
                     <Link
                         href="/signup"

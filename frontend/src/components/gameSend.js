@@ -243,7 +243,7 @@ export default function GameSend({
         body = (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s3)' }}>
                 <div style={{ height: 40, display: 'flex', alignItems: 'center' }}>
-                    <p style={metaText}>Waiting for opponent's response…</p>
+                    <p style={metaText}>Waiting for opponent&apos;s response…</p>
                 </div>
                 {/* Placeholder to maintain height */}
                 <div style={{ height: 40 }} />
@@ -304,8 +304,8 @@ export default function GameSend({
                 <span style={turnLabel}>
                     {turn && !waitingReponse ? 'Your Turn — Ask a Question'
                         : turn && waitingReponse ? 'Your Turn — Waiting for Response'
-                        : !turn && receivedMessage !== '' ? 'Your Turn — Answer the Question'
-                        : "Opponent's Turn"}
+                            : !turn && receivedMessage !== '' ? 'Your Turn — Answer the Question'
+                                : "Opponent's Turn"}
                 </span>
                 {hasTimer && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>

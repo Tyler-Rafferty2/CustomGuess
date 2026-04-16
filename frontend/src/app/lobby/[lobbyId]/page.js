@@ -1177,7 +1177,7 @@ export default function LobbyPage() {
                 <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
                     <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
                         <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 32, color: 'var(--text-900)', letterSpacing: '-0.02em', marginBottom: 'var(--s3)' }}>Lobby not found</h1>
-                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>This lobby doesn't exist or has expired.</p>
+                        <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>This lobby doesn&apos;t exist or has expired.</p>
                         <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>Create New Game</button>
                     </div>
                 </div>
