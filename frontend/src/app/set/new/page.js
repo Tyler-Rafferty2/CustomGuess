@@ -1,7 +1,7 @@
 "use client";
 import { API_URL } from '@/lib/api';
 
-import { useState, useRef, useContext, useEffect } from "react";
+import { useState, useRef, useContext, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
 import { ArrowLeft, Plus, Loader2, Globe, Lock, Check, Crop, Move, X } from "lucide-react";
