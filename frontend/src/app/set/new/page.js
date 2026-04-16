@@ -16,7 +16,7 @@ const T = {
 
 const MIN_CHARACTERS = 6;
 
-export default function NewSetPage() {
+function NewSetForm() {
     const { user } = useContext(UserContext);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -384,3 +384,15 @@ const label = { display: "block", fontFamily: "'DM Sans', sans-serif", fontSize:
 const input = { width: "100%", height: 40, padding: "0 12px", background: "#FFFFFF", border: "1px solid #DDD5CA", borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "#1A1510", outline: "none", boxSizing: "border-box" };
 const ghostBtn = { display: "inline-flex", alignItems: "center", gap: 6, height: 36, padding: "0 16px", background: "transparent", border: "1px solid #DDD5CA", borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: "#5C5047", cursor: "pointer" };
 const primaryBtn = { display: "inline-flex", alignItems: "center", height: 40, padding: "0 20px", background: "#D9572B", border: "none", borderRadius: 6, fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: "#fff", cursor: "pointer" };
+
+export default function NewSetPage() {
+    return (
+        <Suspense fallback={
+            <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F3EE" }}>
+                <Loader2 size={32} style={{ animation: "spin 1s linear infinite", color: "#D9572B" }} />
+            </div>
+        }>
+            <NewSetForm />
+        </Suspense>
+    );
+}
