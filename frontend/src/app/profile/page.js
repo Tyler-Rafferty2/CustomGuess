@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/lib/api';
 
 import Navbar from "@/components/navbar";
 import SetCover from "@/components/SetCover";
@@ -95,17 +96,17 @@ export default function Profile() {
 
     useEffect(() => {
         if (!user?.id || user?.isGuest) { setSetsLoading(false); return; }
-        fetch("http://localhost:8080/player/set/player", {
+        fetch(`${API_URL}/player/set/player?page=1&pageSize=100`, {
             headers: { "X-User-ID": user.id },
         })
             .then(r => r.json())
-            .then(data => { setMySets(Array.isArray(data) ? data : []); setSetsLoading(false); })
+            .then(data => { setMySets(Array.isArray(data.sets) ? data.sets : []); setSetsLoading(false); })
             .catch(() => setSetsLoading(false));
     }, [user?.id]);
 
     useEffect(() => {
         if (!user?.id) return;
-        fetch("http://localhost:8080/player/stats", {
+        fetch(`${API_URL}/player/stats`, {
             headers: { "X-User-ID": user.id },
         })
             .then(r => r.json())
@@ -122,7 +123,7 @@ export default function Profile() {
         setUsernameSaved(false);
         setUsernameSaving(true);
         try {
-            const res = await fetch("http://localhost:8080/users/username", {
+            const res = await fetch(`${API_URL}/users/username`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", "X-User-ID": user.id },
                 body: JSON.stringify({ username: usernameInput }),
@@ -146,7 +147,7 @@ export default function Profile() {
             return { ...s, likedByMe: !wasLiked, likeCount: (s.likeCount ?? 0) + (wasLiked ? -1 : 1) };
         }));
         try {
-            const res = await fetch(`http://localhost:8080/player/set/${setId}/like`, {
+            const res = await fetch(`${API_URL}/player/set/${setId}/like`, {
                 method: "POST",
                 headers: { "X-User-ID": user.id },
             });
@@ -166,7 +167,7 @@ export default function Profile() {
         setDeleteConfirmId(null);
         setDeletingId(setId);
         try {
-            await fetch(`http://localhost:8080/player/set/${setId}`, {
+            await fetch(`${API_URL}/player/set/${setId}`, {
                 method: "DELETE",
                 headers: { "X-User-ID": user.id },
             });

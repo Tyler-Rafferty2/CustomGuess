@@ -21,3 +21,10 @@ designScehma.txt
 CLAUDE.md
 
 notes/
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/*.tfstate
+terraform/*.tfstate.backup

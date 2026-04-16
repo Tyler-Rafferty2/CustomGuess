@@ -742,11 +742,15 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
         return nil, err
     }
 
+    // Fetch the new lobby so clients can skip the CONNECTING screen on navigation
+    newLobbyData, _ := s.getLobbyFromDB(newLobby.ID.String())
+
     s.Hub.BroadcastMessage(models.Message{
         Type:    "rematch_ready",
         LobbyID: oldLobby.ID.String(),
         Channel: "rematch_ready",
         Content: newLobby.ID.String(),
+        Lobby:   newLobbyData,
     })
     return newLobby, nil
 }

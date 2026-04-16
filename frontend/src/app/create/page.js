@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/lib/api';
 
 import { useState, useContext } from "react";
 import { UserContext } from "@/context/UserContext";
@@ -21,7 +22,7 @@ export default function LobbyPage() {
         setError(null);
 
         try {
-            const res = await fetch(`http://localhost:8080/player/`, {
+            const res = await fetch(`${API_URL}/player/`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -47,7 +48,7 @@ export default function LobbyPage() {
         setError(null);
 
         try {
-            const res = await fetch(`http://localhost:8080/lobby/join`, {
+            const res = await fetch(`${API_URL}/lobby/join`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -73,7 +74,7 @@ export default function LobbyPage() {
 
     const forfeitAndCreate = async () => {
         try {
-            await fetch(`http://localhost:8080/lobby/forfeit`, {
+            await fetch(`${API_URL}/lobby/forfeit`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -171,7 +172,7 @@ export default function LobbyPage() {
                                 <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                             </svg>
                         </div>
-                        <div className="conflict-modal__title">You're already in a game</div>
+                        <div className="conflict-modal__title">You&apos;re already in a game</div>
                         <div className="conflict-modal__sub">
                             You have an active game in progress. Would you like to rejoin it, or forfeit and start a new one?
                         </div>

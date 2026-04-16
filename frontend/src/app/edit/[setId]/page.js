@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/lib/api';
 
 import { useState, useEffect, useContext, useRef } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -64,13 +65,11 @@ export default function EditSetPage() {
 
     useEffect(() => {
         if (!setId || !user?.id) return;
-        fetch(`http://localhost:8080/player/set/player`, {
+        fetch(`${API_URL}/player/set/${setId}`, {
             headers: { "X-User-ID": user.id },
         })
-            .then(r => r.json())
-            .then(data => {
-                const found = Array.isArray(data) ? data.find(s => s.id === setId) : null;
-                if (!found) { setError("Set not found."); setLoading(false); return; }
+            .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
+            .then(found => {
                 setSet(found);
                 setName(found.name ?? "");
                 setDescription(found.description ?? "");
@@ -202,7 +201,7 @@ export default function EditSetPage() {
     const handleDelete = async () => {
         setDeleting(true);
         try {
-            await fetch(`http://localhost:8080/player/set/${setId}`, {
+            await fetch(`${API_URL}/player/set/${setId}`, {
                 method: "DELETE",
                 headers: { "X-User-ID": user?.id },
             });
@@ -241,7 +240,7 @@ export default function EditSetPage() {
         });
 
         try {
-            const res = await fetch(`http://localhost:8080/player/set/${setId}`, {
+            const res = await fetch(`${API_URL}/player/set/${setId}`, {
                 method: "PUT",
                 headers: { "X-User-ID": user?.id },
                 body: formData,

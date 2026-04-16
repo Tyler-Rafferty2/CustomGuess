@@ -1,0 +1,25 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it (contains secrets).
+
+aws_region    = "us-east-1"
+instance_type = "t3.micro"  # free-tier eligible for 12 months
+key_name      = "my-key-pair"  # name of your EC2 key pair in AWS
+
+# Supabase PostgreSQL
+db_host     = "aws-1-eu-west-3.pooler.supabase.com"
+db_user     = "postgres.your-project-id"
+db_password = "your-supabase-password"
+db_name     = "postgres"
+db_sslmode  = "require"
+
+# Resend (email)
+resend_api_key = "re_your_key_here"
+
+# Cloudflare R2
+r2_account_id        = "your-account-id"
+r2_access_key_id     = "your-access-key-id"
+r2_secret_access_key = "your-secret-access-key"
+
+# URLs — fill these in after you have your domain and Vercel URL
+allowed_origins = "https://your-app.vercel.app"
+app_base_url    = "https://your-subdomain.duckdns.org"

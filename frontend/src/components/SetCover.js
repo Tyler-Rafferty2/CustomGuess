@@ -1,3 +1,4 @@
+import { API_URL } from '@/lib/api';
 const DEFAULT_STYLE = { width: "100%", height: 120, display: "block" };
 
 function DefaultCover({ style }) {
@@ -54,11 +55,12 @@ export default function SetCover({ coverImageName, alt = "", style = {} }) {
     if (coverImageName) {
         const src = coverImageName.startsWith("http")
             ? coverImageName
-            : `http://localhost:8080${coverImageName}`;
+            : `${API_URL}${coverImageName}`;
         return (
             <img
                 src={src}
                 alt={alt}
+                loading="lazy"
                 style={{ ...merged, objectFit: "cover" }}
             />
         );

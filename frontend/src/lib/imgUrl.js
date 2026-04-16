@@ -1,4 +1,5 @@
+import { API_URL } from './api';
 export function imgUrl(path) {
     if (!path) return null;
-    return path.startsWith("http") ? path : `http://localhost:8080${path}`;
+    return path.startsWith("http") ? path : `${API_URL}${path}`;
 }

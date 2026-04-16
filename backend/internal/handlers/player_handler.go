@@ -127,6 +127,10 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
     // Call the service
     set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL, minCharacters)
     if err != nil {
+        if err.Error() == "set limit reached" {
+            http.Error(w, "You have reached the maximum number of sets (100)", http.StatusForbidden)
+            return
+        }
         http.Error(w, "Failed to create set", http.StatusInternalServerError)
         return
     }
@@ -297,16 +301,45 @@ func (h *PlayerHandler) DeleteSetHandler(w http.ResponseWriter, r *http.Request)
     w.WriteHeader(http.StatusNoContent)
 }
 
+// GET /set/{setId}
+func (h *PlayerHandler) GetSetByIDHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    setID, err := uuid.Parse(chi.URLParam(r, "setId"))
+    if err != nil {
+        http.Error(w, "invalid setId", http.StatusBadRequest)
+        return
+    }
+    set, err := h.Service.GetSetByID(user, setID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusNotFound)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(set)
+}
+
 // GET /set/player
 func (h *PlayerHandler) GetSetFromPlayerHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)
-    sets, err := h.Service.GetSets(user)
+
+    page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+    pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
+    if pageSize == 0 {
+        pageSize = 12
+    }
+    params := services.SetListParams{
+        Page:     page,
+        PageSize: pageSize,
+        Search:   r.URL.Query().Get("search"),
+    }
+
+    result, err := h.Service.GetSets(user, params)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(sets)
+    json.NewEncoder(w).Encode(result)
 }
 
 // GET /set/public
@@ -317,13 +350,30 @@ func (h *PlayerHandler) GetSetFromPublicHandler(w http.ResponseWriter, r *http.R
             callerID = &id
         }
     }
-    sets, err := h.Service.GetPublicSets(callerID)
+
+    page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+    pageSize, _ := strconv.Atoi(r.URL.Query().Get("pageSize"))
+    if pageSize == 0 {
+        pageSize = 12
+    }
+    sort := r.URL.Query().Get("sort")
+    if sort == "" {
+        sort = "most-popular"
+    }
+    params := services.SetListParams{
+        Page:     page,
+        PageSize: pageSize,
+        Sort:     sort,
+        Search:   r.URL.Query().Get("search"),
+    }
+
+    result, err := h.Service.GetPublicSets(callerID, params)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
     }
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(sets)
+    json.NewEncoder(w).Encode(result)
 }
 
 // POST /set/{setId}/like

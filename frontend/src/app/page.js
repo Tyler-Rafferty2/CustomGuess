@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/lib/api';
 
 import Navbar from "../components/navbar";
 import { useContext, useState } from "react";
@@ -138,7 +139,7 @@ export default function Home() {
     setError(null);
     setJoining(true);
     try {
-      const res = await fetch("http://localhost:8080/lobby/join", {
+      const res = await fetch(`${API_URL}/lobby/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
         body: JSON.stringify({ code: lobbyCode }),
@@ -269,7 +270,7 @@ export default function Home() {
                 fontSize: 15, fontWeight: 400, lineHeight: 1.6,
                 color: T.text600, marginTop: 12,
               }}>
-                Ask questions. Eliminate suspects. Identify your opponent's hidden character before they find yours.
+                Ask questions. Eliminate suspects. Identify your opponent&apos;s hidden character before they find yours.
               </p>
             </div>
 

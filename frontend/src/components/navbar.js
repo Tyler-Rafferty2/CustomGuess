@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/lib/api';
 
 import { useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -114,7 +115,7 @@ export default function Navbar() {
             setActiveLobbyId(null);
             return;
         }
-        fetch("http://localhost:8080/lobby/active", {
+        fetch(`${API_URL}/lobby/active`, {
             headers: { "X-User-ID": user.id },
         })
             .then(r => r.ok ? r.json() : null)
@@ -126,7 +127,7 @@ export default function Navbar() {
         setShowLeaveConfirm(false);
         if (lobbyID) {
             try {
-                await fetch(`http://localhost:8080/lobby/forfeit`, {
+                await fetch(`${API_URL}/lobby/forfeit`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -279,28 +280,55 @@ export default function Navbar() {
 
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         {activeLobbyId && (
-                            <motion.button
-                                onClick={() => router.push(`/lobby/${activeLobbyId}`)}
-                                style={{
-                                    display: "flex", alignItems: "center", gap: 6,
-                                    height: 32, padding: "0 14px",
-                                    background: T.accent,
-                                    border: `1px solid ${T.accent}`,
-                                    borderRadius: "6px",
-                                    color: "#fff",
-                                    fontFamily: "'DM Sans', sans-serif",
-                                    fontSize: 13, fontWeight: 600,
-                                    cursor: "pointer", outline: "none",
-                                    letterSpacing: "0.01em",
-                                }}
-                                whileHover={{ background: T.accentDim, borderColor: T.accentDim }}
-                                whileTap={{ scale: 0.97 }}
-                                animate={{ scale: [1, 1.03, 1] }}
-                                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                            >
-                                <Swords size={13} strokeWidth={2} />
-                                Rejoin Game
-                            </motion.button>
+                            <div style={{ position: "relative", display: "inline-flex" }}>
+                                <motion.button
+                                    onClick={() => router.push(`/lobby/${activeLobbyId}`)}
+                                    style={{
+                                        display: "flex", alignItems: "center", gap: 6,
+                                        height: 32, padding: "0 14px",
+                                        background: T.accent,
+                                        border: `1px solid ${T.accent}`,
+                                        borderRadius: "6px",
+                                        color: "#fff",
+                                        fontFamily: "'DM Sans', sans-serif",
+                                        fontSize: 13, fontWeight: 600,
+                                        cursor: "pointer", outline: "none",
+                                        letterSpacing: "0.01em",
+                                    }}
+                                    whileHover={{ background: T.accentDim, borderColor: T.accentDim }}
+                                    whileTap={{ scale: 0.97 }}
+                                    animate={{ scale: [1, 1.03, 1] }}
+                                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                >
+                                    <Swords size={13} strokeWidth={2} />
+                                    Rejoin Game
+                                </motion.button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await fetch(`${API_URL}/lobby/forfeit`, {
+                                                method: "POST",
+                                                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                                                body: JSON.stringify({ lobbyId: activeLobbyId }),
+                                            });
+                                        } catch (err) {
+                                            console.error("Forfeit error:", err);
+                                        }
+                                        setActiveLobbyId(null);
+                                    }}
+                                    aria-label="Leave game"
+                                    style={{
+                                        position: "absolute", top: -7, right: -7,
+                                        width: 18, height: 18, borderRadius: "50%",
+                                        background: T.text900, color: "#fff",
+                                        border: `2px solid ${T.surface0}`,
+                                        display: "flex", alignItems: "center", justifyContent: "center",
+                                        cursor: "pointer", padding: 0,
+                                    }}
+                                >
+                                    <X size={9} strokeWidth={3} />
+                                </button>
+                            </div>
                         )}
                         {user && user.email !== "guest" ? (
                             <div style={{ position: "relative" }}>
@@ -663,7 +691,7 @@ function HowToPlayModal({ open, onClose }) {
                         }}>
                             <p style={{ fontSize: 14, color: T.text600, margin: 0, lineHeight: 1.6 }}>
                                 <strong style={{ color: T.text900, fontWeight: 600 }}>1. Ask questions. </strong>
-                                Take turns asking yes or no questions about your opponent's mystery character.
+                                Take turns asking yes or no questions about your opponent&apos;s mystery character.
                             </p>
 
                             <p style={{ fontSize: 14, color: T.text600, margin: 0, lineHeight: 1.6 }}>
@@ -673,7 +701,7 @@ function HowToPlayModal({ open, onClose }) {
 
                             <p style={{ fontSize: 14, color: T.text600, margin: 0, lineHeight: 1.6 }}>
                                 <strong style={{ color: T.text900, fontWeight: 600 }}>3. Guess to win. </strong>
-                                Confidently identify your opponent's secret character before they guess yours.
+                                Confidently identify your opponent&apos;s secret character before they guess yours.
                             </p>
                         </div>
 

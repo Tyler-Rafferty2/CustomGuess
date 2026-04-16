@@ -1,12 +1,13 @@
 package services
 
 import (
-	"gorm.io/gorm"
     "fmt"
+    "strings"
     "time"
 
-    "github.com/tyler-rafferty2/GuessWho/internal/models"
     "github.com/google/uuid"
+    "github.com/tyler-rafferty2/GuessWho/internal/models"
+    "gorm.io/gorm"
 )
 
 type PlayerService struct {
@@ -18,6 +19,18 @@ type CharacterSetResponse struct {
     LikeCount   int    `json:"likeCount"`
     LikedByMe   bool   `json:"likedByMe"`
     CreatorName string `json:"creator"`
+}
+
+type SetListParams struct {
+    Page     int    // 1-indexed
+    PageSize int
+    Sort     string // "most-popular" | "most-liked" | "newest" | "liked"
+    Search   string
+}
+
+type SetListResult struct {
+    Sets  []CharacterSetResponse `json:"sets"`
+    Total int64                  `json:"total"`
 }
 
 func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.UUID) []CharacterSetResponse {
@@ -110,8 +123,18 @@ func (s *PlayerService) GetPlayers(user *models.User) ([]models.Player, error) {
 
 //create a set
 func (s *PlayerService) CreateSet(user *models.User, name, description string, public bool, characters []models.Character, coverImage string, minCharacters int) (*models.CharacterSet, error) {
+    var count int64
+    if err := s.DB.Model(&models.CharacterSet{}).Where("user_id = ?", user.ID).Count(&count).Error; err != nil {
+        return nil, fmt.Errorf("failed to check set count")
+    }
+    if count >= 100 {
+        return nil, fmt.Errorf("set limit reached")
+    }
     if len(characters) < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
+    }
+    if len(characters) > 50 {
+        return nil, fmt.Errorf("a set can have at most 50 characters")
     }
     if minCharacters < 6 {
         minCharacters = 6
@@ -143,24 +166,57 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, p
     return set, nil
 }
 
-func (s *PlayerService) GetSets(user *models.User) ([]CharacterSetResponse, error) {
-    var sets []models.CharacterSet
-
-    err := s.DB.Where("user_id = ?", user.ID).
+func (s *PlayerService) GetSetByID(user *models.User, setID uuid.UUID) (*CharacterSetResponse, error) {
+    var set models.CharacterSet
+    err := s.DB.Where("id = ? AND user_id = ?", setID, user.ID).
         Preload("Characters").
-        Find(&sets).Error
-
+        First(&set).Error
     if err != nil {
-        return nil, fmt.Errorf("failed to get character sets: %w", err)
+        return nil, fmt.Errorf("set not found: %w", err)
+    }
+    results := s.attachLikes([]models.CharacterSet{set}, &user.ID)
+    return &results[0], nil
+}
+
+func (s *PlayerService) GetSets(user *models.User, params SetListParams) (SetListResult, error) {
+    if params.Page < 1 {
+        params.Page = 1
+    }
+    if params.PageSize < 1 {
+        params.PageSize = 12
     }
 
-    return s.attachLikes(sets, &user.ID), nil
+    base := s.DB.Model(&models.CharacterSet{}).Where("user_id = ?", user.ID)
+    if params.Search != "" {
+        like := "%" + strings.ToLower(params.Search) + "%"
+        base = base.Where("LOWER(name) LIKE ? OR LOWER(description) LIKE ?", like, like)
+    }
+
+    var total int64
+    if err := base.Count(&total).Error; err != nil {
+        return SetListResult{}, fmt.Errorf("failed to count sets: %w", err)
+    }
+
+    var sets []models.CharacterSet
+    err := base.Order("created_at DESC").
+        Limit(params.PageSize).
+        Offset((params.Page-1)*params.PageSize).
+        Preload("Characters").
+        Find(&sets).Error
+    if err != nil {
+        return SetListResult{}, fmt.Errorf("failed to get character sets: %w", err)
+    }
+
+    return SetListResult{Sets: s.attachLikes(sets, &user.ID), Total: total}, nil
 }
 
 func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character, nameUpdates map[uuid.UUID]string, minCharacters int) (*models.CharacterSet, error) {
     totalCount := len(keepCharacterIDs) + len(newCharacters)
     if totalCount < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
+    }
+    if totalCount > 50 {
+        return nil, fmt.Errorf("a set can have at most 50 characters")
     }
     if minCharacters < 6 {
         minCharacters = 6
@@ -229,18 +285,55 @@ func (s *PlayerService) DeleteSet(user *models.User, setID uuid.UUID) error {
     return nil
 }
 
-func (s *PlayerService) GetPublicSets(callerID *uuid.UUID) ([]CharacterSetResponse, error) {
-    var sets []models.CharacterSet
-
-    err := s.DB.Where("public = ?", true).
-        Preload("Characters").
-        Find(&sets).Error
-
-    if err != nil {
-        return nil, fmt.Errorf("failed to get character sets: %w", err)
+func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams) (SetListResult, error) {
+    if params.Page < 1 {
+        params.Page = 1
+    }
+    if params.PageSize < 1 {
+        params.PageSize = 12
     }
 
-    return s.attachLikes(sets, callerID), nil
+    base := s.DB.Model(&models.CharacterSet{}).Where("character_sets.public = ?", true)
+
+    if params.Search != "" {
+        like := "%" + strings.ToLower(params.Search) + "%"
+        base = base.Where("LOWER(character_sets.name) LIKE ? OR LOWER(character_sets.description) LIKE ?", like, like)
+    }
+
+    if params.Sort == "liked" && callerID != nil {
+        base = base.Where("character_sets.id IN (SELECT set_id FROM set_likes WHERE user_id = ?)", *callerID)
+    }
+
+    // For most-liked we need to join like counts
+    if params.Sort == "most-liked" {
+        base = base.Joins("LEFT JOIN (SELECT set_id, COUNT(*) AS cnt FROM set_likes GROUP BY set_id) lc ON lc.set_id = character_sets.id")
+    }
+
+    var total int64
+    if err := base.Count(&total).Error; err != nil {
+        return SetListResult{}, fmt.Errorf("failed to count sets: %w", err)
+    }
+
+    switch params.Sort {
+    case "most-liked":
+        base = base.Order("COALESCE(lc.cnt, 0) DESC, character_sets.id")
+    case "newest":
+        base = base.Order("character_sets.created_at DESC, character_sets.id")
+    default: // "most-popular" and fallback
+        base = base.Order("character_sets.play_count DESC, character_sets.id")
+    }
+
+    var sets []models.CharacterSet
+    err := base.
+        Limit(params.PageSize).
+        Offset((params.Page-1)*params.PageSize).
+        Preload("Characters").
+        Find(&sets).Error
+    if err != nil {
+        return SetListResult{}, fmt.Errorf("failed to get character sets: %w", err)
+    }
+
+    return SetListResult{Sets: s.attachLikes(sets, callerID), Total: total}, nil
 }
 
 func (s *PlayerService) ToggleLike(userID, setID uuid.UUID) (likeCount int, likedByMe bool, err error) {

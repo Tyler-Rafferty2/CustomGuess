@@ -1,4 +1,5 @@
 "use client";
+import { API_URL } from '@/lib/api';
 
 import { useState, useContext } from "react";
 import { UserContext } from "@/context/UserContext";
@@ -18,7 +19,7 @@ export default function LobbyPage() {
     const joinLobby = async (lobbyCode, lobbyID) => {
         setError(null);
         try {
-            const res = await fetch(`http://localhost:8080/lobby/join`, {
+            const res = await fetch(`${API_URL}/lobby/join`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ code: lobbyCode }),

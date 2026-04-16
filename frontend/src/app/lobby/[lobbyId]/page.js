@@ -1,4 +1,5 @@
 "use client";
+import { API_URL, WS_URL } from '@/lib/api';
 
 import { useState, useContext, useEffect, useRef } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -222,6 +223,10 @@ function StyleInjector() {
     return null;
 }
 
+// Module-level cache: stores lobby data from rematch_ready so the new page
+// can populate lobby state immediately on mount without waiting for WS.
+const _rematchLobbyCache = {};
+
 export default function LobbyPage() {
 
     const { user } = useContext(UserContext);
@@ -258,8 +263,13 @@ export default function LobbyPage() {
     const [rematchWaiting, setRematchWaiting] = useState(false);
     const [incomingRematch, setIncomingRematch] = useState(null); // { characterSetName }
     const [selectedRematchSet, setSelectedRematchSet] = useState(null);
+    const REMATCH_PAGE_SIZE = 12;
     const [rematchPublicSets, setRematchPublicSets] = useState([]);
     const [rematchMySets, setRematchMySets] = useState([]);
+    const [rematchPublicTotal, setRematchPublicTotal] = useState(0);
+    const [rematchMyTotal, setRematchMyTotal] = useState(0);
+    const [rematchPublicPage, setRematchPublicPage] = useState(1);
+    const [rematchMyPage, setRematchMyPage] = useState(1);
     const [rematchSetView, setRematchSetView] = useState("public");
     const [rematchDeclinedToast, setRematchDeclinedToast] = useState(false);
     const [sentRematchSetName, setSentRematchSetName] = useState(null);
@@ -299,7 +309,7 @@ export default function LobbyPage() {
 
     const forfeitAndRejoin = async () => {
         try {
-            await fetch(`http://localhost:8080/lobby/forfeit`, {
+            await fetch(`${API_URL}/lobby/forfeit`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ lobbyId: conflictLobbyId }),
@@ -317,7 +327,7 @@ export default function LobbyPage() {
     const sendRematchRequest = async () => {
         if (!selectedRematchSet) return;
         try {
-            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch`, {
+            await fetch(`${API_URL}/lobby/${lobbyID}/rematch`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ characterSetId: selectedRematchSet.id }),
@@ -332,7 +342,7 @@ export default function LobbyPage() {
 
     const acceptRematch = async () => {
         try {
-            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch/accept`, {
+            await fetch(`${API_URL}/lobby/${lobbyID}/rematch/accept`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
@@ -344,7 +354,7 @@ export default function LobbyPage() {
 
     const declineRematch = async () => {
         try {
-            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch/decline`, {
+            await fetch(`${API_URL}/lobby/${lobbyID}/rematch/decline`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
@@ -356,7 +366,7 @@ export default function LobbyPage() {
 
     const cancelRematch = async () => {
         try {
-            await fetch(`http://localhost:8080/lobby/${lobbyID}/rematch/decline`, {
+            await fetch(`${API_URL}/lobby/${lobbyID}/rematch/decline`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
@@ -370,7 +380,7 @@ export default function LobbyPage() {
     const joinLobby = async (lobbyCode) => {
         setError(null);
         try {
-            const res = await fetch(`http://localhost:8080/lobby/join`, {
+            const res = await fetch(`${API_URL}/lobby/join`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ code: lobbyCode }),
@@ -401,7 +411,7 @@ export default function LobbyPage() {
     const checkLobbyStatus = async () => {
         if (!lobbyID) return;
         try {
-            const res = await fetch(`http://localhost:8080/lobby/${lobbyID}/status`, {
+            const res = await fetch(`${API_URL}/lobby/${lobbyID}/status`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
             });
@@ -416,7 +426,7 @@ export default function LobbyPage() {
     const getGameState = async () => {
         setError(null);
         try {
-            const res = await fetch(`http://localhost:8080/lobby/${lobbyID}`, {
+            const res = await fetch(`${API_URL}/lobby/${lobbyID}`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
@@ -459,7 +469,7 @@ export default function LobbyPage() {
             if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) return;
 
             const websocket = new WebSocket(
-                `ws://localhost:8080/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyID)}&playerId=${encodeURIComponent(playerId || '')}`
+                `${WS_URL}/ws?username=${encodeURIComponent(username)}&lobbyId=${encodeURIComponent(lobbyID)}&playerId=${encodeURIComponent(playerId || '')}`
             );
 
             websocket.onopen = () => {
@@ -524,6 +534,9 @@ export default function LobbyPage() {
                         setIncomingRematch({ characterSetName: message.content });
                     }
                 } else if (message.channel === "rematch_ready") {
+                    if (message.lobby) {
+                        _rematchLobbyCache[message.content] = message.lobby;
+                    }
                     router.push(`/lobby/${message.content}`);
                 } else if (message.channel === "rematch_declined") {
                     if (message.SenderId !== playerIdRef.current) {
@@ -695,7 +708,7 @@ export default function LobbyPage() {
         leavingRef.current = true;
         setShowLeaveConfirm(false);
         try {
-            await fetch(`http://localhost:8080/lobby/forfeit`, {
+            await fetch(`${API_URL}/lobby/forfeit`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                 body: JSON.stringify({ lobbyId: lobbyID }),
@@ -707,6 +720,14 @@ export default function LobbyPage() {
     };
 
     useEffect(() => { checkLobbyStatus(); }, [lobbyID]);
+    // Consume pre-loaded lobby data from a rematch_ready message (skips CONNECTING screen)
+    useEffect(() => {
+        const cached = _rematchLobbyCache[lobbyID];
+        if (cached) {
+            setLobby(cached);
+            delete _rematchLobbyCache[lobbyID];
+        }
+    }, [lobbyID]);
     useEffect(() => { lobbyRef.current = lobby; }, [lobby]);
     useEffect(() => {
         if (preGameCountdown === 0 && preGameDisconnected) {
@@ -717,7 +738,7 @@ export default function LobbyPage() {
 
     useEffect(() => {
         if (!lobbyID || !playerId) return;
-        fetch(`http://localhost:8080/lobby/${lobbyID}/messages`)
+        fetch(`${API_URL}/lobby/${lobbyID}/messages`)
             .then(r => r.json())
             .then(msgs => {
                 if (!Array.isArray(msgs) || msgs.length === 0) return;
@@ -764,22 +785,45 @@ export default function LobbyPage() {
         if (lobby?.gameOver) { getGameState(); }
     }, [lobby?.gameOver]);
 
+    const loadRematchPublic = (page) => {
+        const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE, sort: "most-popular" });
+        const headers = { "Content-Type": "application/json" };
+        if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
+        fetch(`${API_URL}/player/set/public?${params}`, { headers })
+            .then(r => r.json())
+            .then(data => { setRematchPublicSets(data.sets ?? []); setRematchPublicTotal(data.total ?? 0); })
+            .catch(() => { });
+    };
+
+    const loadRematchMy = (page) => {
+        if (!user || user.isGuest) return;
+        const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE });
+        fetch(`${API_URL}/player/set/player?${params}`, {
+            headers: { "X-User-ID": user.id }
+        })
+            .then(r => r.json())
+            .then(data => { setRematchMySets(data.sets ?? []); setRematchMyTotal(data.total ?? 0); })
+            .catch(() => { });
+    };
+
     // Fetch character sets for rematch when game ends
     useEffect(() => {
         if (!lobby?.gameOver) return;
-        fetch("http://localhost:8080/player/set/public")
-            .then(r => r.json())
-            .then(data => setRematchPublicSets(Array.isArray(data) ? data : []))
-            .catch(() => { });
-        if (user && !user.isGuest) {
-            fetch("http://localhost:8080/player/set/player", {
-                headers: { "X-User-ID": user.id }
-            })
-                .then(r => r.json())
-                .then(data => setRematchMySets(Array.isArray(data) ? data : []))
-                .catch(() => { });
-        }
+        loadRematchPublic(1);
+        loadRematchMy(1);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [lobby?.gameOver]);
+
+    // Rematch page navigation
+    useEffect(() => {
+        if (lobby?.gameOver) loadRematchPublic(rematchPublicPage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rematchPublicPage]);
+
+    useEffect(() => {
+        if (lobby?.gameOver) loadRematchMy(rematchMyPage);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rematchMyPage]);
 
     const conflictModal = conflictLobbyId && (
         <>
@@ -849,7 +893,7 @@ export default function LobbyPage() {
                             <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                         </svg>
                     </div>
-                    <div className="conflict-modal__title">You're already in a game</div>
+                    <div className="conflict-modal__title">You&apos;re already in a game</div>
                     <div className="conflict-modal__sub">
                         You have an active game in progress. Forfeit it to join this one, or go back to your existing game.
                     </div>
@@ -1057,7 +1101,7 @@ export default function LobbyPage() {
                                         ))}
                                     </div>
                                     {/* Set grid */}
-                                    <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', overflowY: 'auto', flex: 1 }}>
                                         {(rematchSetView === 'public' ? rematchPublicSets : rematchMySets).map(set => (
                                             <div key={set.id} onClick={() => setSelectedRematchSet(set)} style={{ background: 'var(--surface-0)', border: `2px solid ${selectedRematchSet?.id === set.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: 'var(--s3)', cursor: 'pointer', transition: 'border-color 150ms' }}>
                                                 <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 80, borderRadius: 4, marginBottom: 'var(--s2)' }} />
@@ -1065,6 +1109,23 @@ export default function LobbyPage() {
                                             </div>
                                         ))}
                                     </div>
+                                    {/* Rematch pagination */}
+                                    {(() => {
+                                        const total = rematchSetView === 'public' ? rematchPublicTotal : rematchMyTotal;
+                                        const page = rematchSetView === 'public' ? rematchPublicPage : rematchMyPage;
+                                        const setPage = rematchSetView === 'public' ? setRematchPublicPage : setRematchMyPage;
+                                        const pages = Math.ceil(total / REMATCH_PAGE_SIZE);
+                                        if (pages <= 1) return null;
+                                        return (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 'var(--s3)', flexWrap: 'wrap' }}>
+                                                <button onClick={() => setPage(page - 1)} disabled={page === 1} style={{ padding: '4px 10px', borderRadius: 'var(--r)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>←</button>
+                                                {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
+                                                    <button key={p} onClick={() => setPage(p)} style={{ padding: '4px 8px', minWidth: 28, borderRadius: 'var(--r)', border: '1px solid', borderColor: p === page ? 'var(--accent)' : 'var(--border)', background: p === page ? 'var(--accent)' : 'var(--bg)', color: p === page ? '#fff' : 'var(--text)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: p === page ? 600 : 400, cursor: p === page ? 'default' : 'pointer' }}>{p}</button>
+                                                ))}
+                                                <button onClick={() => setPage(page + 1)} disabled={page === pages} style={{ padding: '4px 10px', borderRadius: 'var(--r)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'DM Sans', sans-serif", fontSize: 13, cursor: page === pages ? 'not-allowed' : 'pointer', opacity: page === pages ? 0.4 : 1 }}>→</button>
+                                            </div>
+                                        );
+                                    })()}
                                     <button className="gw-btn-primary" style={{ marginTop: 'var(--s5)', height: 44 }} disabled={!selectedRematchSet} onClick={sendRematchRequest}>
                                         Send Rematch Request
                                     </button>
@@ -1207,7 +1268,7 @@ export default function LobbyPage() {
                             style={{ width: '100%', marginTop: 'var(--s3)', justifyContent: 'center' }}
                             onClick={async () => {
                                 try {
-                                    await fetch(`http://localhost:8080/lobby/forfeit`, {
+                                    await fetch(`${API_URL}/lobby/forfeit`, {
                                         method: "POST",
                                         headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                                         body: JSON.stringify({ lobbyId: lobbyID }),
@@ -1319,7 +1380,7 @@ export default function LobbyPage() {
         const selectSecretCharacter = async (charid) => {
             setError(null);
             try {
-                const res = await fetch(`http://localhost:8080/lobby/setSecretChar`, {
+                const res = await fetch(`${API_URL}/lobby/setSecretChar`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                     body: JSON.stringify({ lobbyCode: lobby?.id, secretCharacter: charid }),
@@ -1430,7 +1491,7 @@ export default function LobbyPage() {
         const setReady = async () => {
             setIsReadying(true);
             try {
-                await fetch(`http://localhost:8080/lobby/ready`, {
+                await fetch(`${API_URL}/lobby/ready`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                     body: JSON.stringify({ lobbyId: lobbyID }),
@@ -1445,7 +1506,7 @@ export default function LobbyPage() {
         const setUnready = async () => {
             setIsReadying(true);
             try {
-                await fetch(`http://localhost:8080/lobby/unready`, {
+                await fetch(`${API_URL}/lobby/unready`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                     body: JSON.stringify({ lobbyId: lobbyID }),
