@@ -306,7 +306,7 @@ export default function Navbar() {
                                 <button
                                     onClick={async () => {
                                         try {
-                                            await fetch(`${API_URL}/lobby/forfeit`, {
+                                            await fetch("http://localhost:8080/lobby/forfeit", {
                                                 method: "POST",
                                                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                                                 body: JSON.stringify({ lobbyId: activeLobbyId }),

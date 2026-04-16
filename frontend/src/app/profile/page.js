@@ -96,7 +96,7 @@ export default function Profile() {
 
     useEffect(() => {
         if (!user?.id || user?.isGuest) { setSetsLoading(false); return; }
-        fetch(`${API_URL}/player/set/player?page=1&pageSize=100`, {
+        fetch("http://localhost:8080/player/set/player?page=1&pageSize=100", {
             headers: { "X-User-ID": user.id },
         })
             .then(r => r.json())

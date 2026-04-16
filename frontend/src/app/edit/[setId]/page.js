@@ -65,7 +65,7 @@ export default function EditSetPage() {
 
     useEffect(() => {
         if (!setId || !user?.id) return;
-        fetch(`${API_URL}/player/set/${setId}`, {
+        fetch(`http://localhost:8080/player/set/${setId}`, {
             headers: { "X-User-ID": user.id },
         })
             .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
@@ -297,24 +297,24 @@ export default function EditSetPage() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                         <h2 style={{ ...sectionHeading, margin: 0 }}>Details</h2>
                         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                        <button
-                            onClick={() => deleteConfirm ? handleDelete() : setDeleteConfirm(true)}
-                            onBlur={() => setTimeout(() => setDeleteConfirm(false), 200)}
-                            disabled={deleting}
-                            style={{ ...ghostBtn, borderColor: deleteConfirm ? T.stateOut : T.border, color: deleteConfirm ? T.stateOut : T.text600, display: "flex", alignItems: "center", gap: 6 }}
-                        >
-                            {deleting ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : null}
-                            {deleting ? "Deleting…" : deleteConfirm ? "Confirm Delete" : "Delete Set"}
-                        </button>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => isPublic ? setIsPublic(false) : setShowPublicModal(true)}>
-                            {isPublic ? <Globe size={15} color={T.accent} /> : <Lock size={15} color={T.text400} />}
-                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: isPublic ? T.accent : T.text400 }}>
-                                {isPublic ? "Public" : "Private"}
-                            </span>
-                            <div style={{ width: 32, height: 18, borderRadius: 9, background: isPublic ? T.accent : T.border, position: "relative", transition: "background 150ms", flexShrink: 0 }}>
-                                <div style={{ position: "absolute", top: 2, left: isPublic ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 150ms" }} />
+                            <button
+                                onClick={() => deleteConfirm ? handleDelete() : setDeleteConfirm(true)}
+                                onBlur={() => setTimeout(() => setDeleteConfirm(false), 200)}
+                                disabled={deleting}
+                                style={{ ...ghostBtn, borderColor: deleteConfirm ? T.stateOut : T.border, color: deleteConfirm ? T.stateOut : T.text600, display: "flex", alignItems: "center", gap: 6 }}
+                            >
+                                {deleting ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : null}
+                                {deleting ? "Deleting…" : deleteConfirm ? "Confirm Delete" : "Delete Set"}
+                            </button>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => isPublic ? setIsPublic(false) : setShowPublicModal(true)}>
+                                {isPublic ? <Globe size={15} color={T.accent} /> : <Lock size={15} color={T.text400} />}
+                                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: isPublic ? T.accent : T.text400 }}>
+                                    {isPublic ? "Public" : "Private"}
+                                </span>
+                                <div style={{ width: 32, height: 18, borderRadius: 9, background: isPublic ? T.accent : T.border, position: "relative", transition: "background 150ms", flexShrink: 0 }}>
+                                    <div style={{ position: "absolute", top: 2, left: isPublic ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left 150ms" }} />
+                                </div>
                             </div>
-                        </div>
                         </div>
                     </div>
                     <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>

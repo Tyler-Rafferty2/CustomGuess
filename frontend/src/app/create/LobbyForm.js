@@ -770,7 +770,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         if (user === undefined) return;
         setPublicPage(1);
         loadSetsPublic(1, sortOrder, searchQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     // Public sets: sort change → reset to page 1
@@ -778,7 +778,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         if (user === undefined) return;
         setPublicPage(1);
         loadSetsPublic(1, sortOrder, searchQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sortOrder]);
 
     // Both tabs: debounced search change → reset to page 1
@@ -790,14 +790,14 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             setMyPage(1);
             loadSets(1, searchQuery);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery]);
 
     // Public sets: page navigation (skip 1 to avoid double-fetch with above)
     useEffect(() => {
         if (user === undefined || publicPage === 1) return;
         loadSetsPublic(publicPage, sortOrder, searchQuery);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [publicPage]);
 
     // My sets: initial load + user change
@@ -806,7 +806,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             setMyPage(1);
             loadSets(1, searchQuery);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id, user?.isGuest]);
 
     // My sets: page navigation
@@ -814,7 +814,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         if (user?.isGuest === false && myPage > 1) {
             loadSets(myPage, searchQuery);
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [myPage]);
 
     useEffect(() => {
@@ -845,7 +845,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         setLoadingMy(true); setError(null);
         try {
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, search: search || "" });
-            const res = await fetch(`${API_URL}/player/set/player?${params}`, {
+            const res = await fetch(`http://localhost:8080/player/set/player?${params}`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
@@ -862,7 +862,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const headers = { "Content-Type": "application/json" };
             if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, sort: sort || "most-popular", search: search || "" });
-            const res = await fetch(`${API_URL}/player/set/public?${params}`, {
+            const res = await fetch(`http://localhost:8080/player/set/public?${params}`, {
                 method: "GET", headers,
             });
             const data = await res.json();
@@ -1030,22 +1030,10 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                         {/* Content */}
                         <div className="sets-grid" role="list">
                             {(setView === "public" ? loadingPublic : loadingMy) ? (
-                                <>
-                                    {Array.from({ length: 6 }).map((_, i) => (
-                                        <div key={i} className="set-card" aria-hidden="true" style={{ pointerEvents: "none" }}>
-                                            <div className="set-card__img-wrap skeleton-block" />
-                                            <div className="set-card__body">
-                                                <div className="skeleton-block" style={{ height: 18, width: "65%", marginBottom: "var(--s2)" }} />
-                                                <div className="skeleton-block" style={{ height: 13, width: "90%", marginBottom: "var(--s1)" }} />
-                                                <div className="skeleton-block" style={{ height: 13, width: "55%", marginBottom: "var(--s3)" }} />
-                                                <div style={{ display: "flex", gap: "var(--s2)" }}>
-                                                    <div className="skeleton-block" style={{ height: 20, width: 52 }} />
-                                                    <div className="skeleton-block" style={{ height: 20, width: 36 }} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </>
+                                <div className="state-loading">
+                                    <div className="spinner" aria-label="Loading" role="status" />
+                                    <span>Loading sets…</span>
+                                </div>
                             ) : currentSets().length === 0 ? (
                                 setView === "my-sets" && user?.isGuest ? (
                                     <div className="guest-notice" role="alert">

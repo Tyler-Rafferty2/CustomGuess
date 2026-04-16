@@ -789,7 +789,7 @@ export default function LobbyPage() {
         const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE, sort: "most-popular" });
         const headers = { "Content-Type": "application/json" };
         if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
-        fetch(`${API_URL}/player/set/public?${params}`, { headers })
+        fetch(`http://localhost:8080/player/set/public?${params}`, { headers })
             .then(r => r.json())
             .then(data => { setRematchPublicSets(data.sets ?? []); setRematchPublicTotal(data.total ?? 0); })
             .catch(() => { });
@@ -798,7 +798,7 @@ export default function LobbyPage() {
     const loadRematchMy = (page) => {
         if (!user || user.isGuest) return;
         const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE });
-        fetch(`${API_URL}/player/set/player?${params}`, {
+        fetch(`http://localhost:8080/player/set/player?${params}`, {
             headers: { "X-User-ID": user.id }
         })
             .then(r => r.json())
