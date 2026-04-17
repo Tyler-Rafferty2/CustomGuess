@@ -16,7 +16,7 @@ export default function LobbyPage() {
 
     const router = useRouter();
 
-    console.log("lobby user", user)
+    // console.log("lobby user", user)
 
     const getPlayers = async () => {
         setError(null);
@@ -36,10 +36,10 @@ export default function LobbyPage() {
                 setError(data.error || "Something went wrong");
                 return;
             }
-            console.log("Fetched players:", data);
+            // console.log("Fetched players:", data);
             setPlayers(data);
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
         }
     };
@@ -63,7 +63,7 @@ export default function LobbyPage() {
                 return;
             }
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
         }
         console.log(lobbyCode)

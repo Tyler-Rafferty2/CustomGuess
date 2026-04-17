@@ -53,14 +53,14 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
             const data = await res.json();
-            console.log("[OpenGames] /lobby/find response:", data);
+            // console.log("[OpenGames] /lobby/find response:", data);
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
             data.forEach((l, i) => {
-                console.log(`[OpenGames] lobby[${i}] id=${l.id} lobbyCharacters=`, l.lobbyCharacters, `length=${l.lobbyCharacters?.length}`);
+                // console.log(`[OpenGames] lobby[${i}] id=${l.id} lobbyCharacters=`, l.lobbyCharacters, `length=${l.lobbyCharacters?.length}`);
             });
             setLobbies(data);
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
         } finally {
             setRefreshing(false);

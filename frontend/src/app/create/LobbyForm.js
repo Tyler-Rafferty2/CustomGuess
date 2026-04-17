@@ -845,7 +845,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         setLoadingMy(true); setError(null);
         try {
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, search: search || "" });
-            const res = await fetch(`http://localhost:8080/player/set/player?${params}`, {
+            const res = await fetch(`${API_URL}/player/set/player?${params}`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
             });
@@ -862,7 +862,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const headers = { "Content-Type": "application/json" };
             if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, sort: sort || "most-popular", search: search || "" });
-            const res = await fetch(`http://localhost:8080/player/set/public?${params}`, {
+            const res = await fetch(`${API_URL}/player/set/public?${params}`, {
                 method: "GET", headers,
             });
             const data = await res.json();

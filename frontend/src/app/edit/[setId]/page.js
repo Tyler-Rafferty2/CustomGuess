@@ -65,7 +65,7 @@ function EditSetForm() {
 
     useEffect(() => {
         if (!setId || !user?.id) return;
-        fetch(`http://localhost:8080/player/set/${setId}`, {
+        fetch(`${API_URL}/player/set/${setId}`, {
             headers: { "X-User-ID": user.id },
         })
             .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })

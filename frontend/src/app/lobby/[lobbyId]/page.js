@@ -319,7 +319,7 @@ export default function LobbyPage() {
                 joinLobby(lobby.code, lobby.id);
             }
         } catch (err) {
-            console.error("Forfeit error:", err);
+            // console.error("Forfeit error:", err);
             setError("Network error");
         }
     };
@@ -336,7 +336,7 @@ export default function LobbyPage() {
             setRematchWaiting(true);
             setSentRematchSetName(selectedRematchSet?.name ?? null);
         } catch (err) {
-            console.error("Rematch request error:", err);
+            // console.error("Rematch request error:", err);
         }
     };
 
@@ -348,7 +348,7 @@ export default function LobbyPage() {
             });
             setIncomingRematch(null);
         } catch (err) {
-            console.error("Accept rematch error:", err);
+            // console.error("Accept rematch error:", err);
         }
     };
 
@@ -360,7 +360,7 @@ export default function LobbyPage() {
             });
             setIncomingRematch(null);
         } catch (err) {
-            console.error("Decline rematch error:", err);
+            // console.error("Decline rematch error:", err);
         }
     };
 
@@ -373,7 +373,7 @@ export default function LobbyPage() {
             setRematchWaiting(false);
             setSentRematchSetName(null);
         } catch (err) {
-            console.error("Cancel rematch error:", err);
+            // console.error("Cancel rematch error:", err);
         }
     };
 
@@ -389,7 +389,7 @@ export default function LobbyPage() {
             if (res.status === 409) {
                 const data = await res.json();
                 handleConflict(data.lobbyId);
-                console.log("found conflict with lobby", data.lobbyId);
+                // console.log("found conflict with lobby", data.lobbyId);
                 return;
             }
 
@@ -432,7 +432,7 @@ export default function LobbyPage() {
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
-            console.log("Fetched gamestate:", data);
+            // console.log("Fetched gamestate:", data);
             setGameState(data);
         } catch (err) {
             setError("Network error");
@@ -476,7 +476,7 @@ export default function LobbyPage() {
                 setIsConnected(true);
                 hasEverConnectedRef.current = true;
                 reconnectAttemptsRef.current = 0;
-                console.log('Connected to WebSocket');
+                // console.log('Connected to WebSocket');
             };
 
             websocket.onmessage = (event) => {
@@ -631,7 +631,7 @@ export default function LobbyPage() {
                 }
             };
 
-            websocket.onerror = (error) => { console.error('WebSocket error:', error); };
+            websocket.onerror = (error) => { /* console.error('WebSocket error:', error); */ };
 
             websocket.onclose = () => {
                 if (wsRef.current === websocket) wsRef.current = null;
@@ -640,7 +640,7 @@ export default function LobbyPage() {
                 if (!shouldReconnectRef.current) return;
                 const delay = Math.min(30000, 1000 * Math.pow(2, reconnectAttemptsRef.current));
                 reconnectAttemptsRef.current++;
-                console.log(`WebSocket closed. Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
+                // console.log(`WebSocket closed. Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
                 reconnectTimeoutRef.current = setTimeout(connect, delay);
             };
 
@@ -671,7 +671,7 @@ export default function LobbyPage() {
     // Debounce the reconnecting banner so brief reconnects (e.g. playerId resolving) don't flash it
 
     useEffect(() => {
-        if (lobby?.players) { console.log(`Player count changed: ${lobby.players.length}`); }
+        // if (lobby?.players) { console.log(`Player count changed: ${lobby.players.length}`); }
     }, [lobby]);
 
     // Drive the turn countdown from lobby state
@@ -714,7 +714,7 @@ export default function LobbyPage() {
                 body: JSON.stringify({ lobbyId: lobbyID }),
             });
         } catch (err) {
-            console.error("Leave error:", err);
+            // console.error("Leave error:", err);
         }
         router.push('/');
     };
@@ -789,7 +789,7 @@ export default function LobbyPage() {
         const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE, sort: "most-popular" });
         const headers = { "Content-Type": "application/json" };
         if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
-        fetch(`http://localhost:8080/player/set/public?${params}`, { headers })
+        fetch(`${API_URL}/player/set/public?${params}`, { headers })
             .then(r => r.json())
             .then(data => { setRematchPublicSets(data.sets ?? []); setRematchPublicTotal(data.total ?? 0); })
             .catch(() => { });
@@ -798,7 +798,7 @@ export default function LobbyPage() {
     const loadRematchMy = (page) => {
         if (!user || user.isGuest) return;
         const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE });
-        fetch(`http://localhost:8080/player/set/player?${params}`, {
+        fetch(`${API_URL}/player/set/player?${params}`, {
             headers: { "X-User-ID": user.id }
         })
             .then(r => r.json())
@@ -1274,7 +1274,7 @@ export default function LobbyPage() {
                                         body: JSON.stringify({ lobbyId: lobbyID }),
                                     });
                                 } catch (err) {
-                                    console.error(err);
+                                    // console.error(err);
                                 }
                                 router.push('/');
                             }}
@@ -1389,7 +1389,7 @@ export default function LobbyPage() {
                 if (!res.ok) { setError(data.error || "Something went wrong"); return; }
                 setGameState(data);
             } catch (err) {
-                console.error(err);
+                // console.error(err);
                 setError("Network error");
             }
         };
@@ -1497,7 +1497,7 @@ export default function LobbyPage() {
                     body: JSON.stringify({ lobbyId: lobbyID }),
                 });
             } catch (err) {
-                console.error("Ready error:", err);
+                // console.error("Ready error:", err);
             } finally {
                 setIsReadying(false);
             }
@@ -1512,7 +1512,7 @@ export default function LobbyPage() {
                     body: JSON.stringify({ lobbyId: lobbyID }),
                 });
             } catch (err) {
-                console.error("Unready error:", err);
+                // console.error("Unready error:", err);
             } finally {
                 setIsReadying(false);
             }

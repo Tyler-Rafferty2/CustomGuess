@@ -136,7 +136,7 @@ export default function Navbar() {
                     body: JSON.stringify({ lobbyId: lobbyID }),
                 });
             } catch (err) {
-                console.error("Forfeit error:", err);
+                // console.error("Forfeit error:", err);
             }
         }
         router.push("/");
@@ -306,13 +306,13 @@ export default function Navbar() {
                                 <button
                                     onClick={async () => {
                                         try {
-                                            await fetch("http://localhost:8080/lobby/forfeit", {
+                                            await fetch(`${API_URL}/lobby/forfeit`, {
                                                 method: "POST",
                                                 headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
                                                 body: JSON.stringify({ lobbyId: activeLobbyId }),
                                             });
                                         } catch (err) {
-                                            console.error("Forfeit error:", err);
+                                            // console.error("Forfeit error:", err);
                                         }
                                         setActiveLobbyId(null);
                                     }}
@@ -407,7 +407,7 @@ export default function Navbar() {
                                                             onClick={() => {
                                                                 if (label === "How to Play") { setShowHowToPlay(true); }
                                                                 else if (label === "Profile") { router.push("/profile") }
-                                                                else console.log(label + " clicked");
+                                                                // else console.log(label + " clicked");
                                                                 setShowUserMenu(false);
                                                             }}
                                                             style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}

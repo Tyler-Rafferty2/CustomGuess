@@ -302,7 +302,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
             await getGameState();
             setPendingGuessId(null);
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
             setPendingGuessId(null);
         } finally {

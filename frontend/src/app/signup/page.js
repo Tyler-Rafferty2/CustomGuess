@@ -100,7 +100,7 @@ export default function Signup() {
 
             router.push("/signin?registered=1");
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
         }
     };

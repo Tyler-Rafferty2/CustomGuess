@@ -35,7 +35,7 @@ export default function Signin() {
             login(data);
             router.push("/");
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
         }
     };

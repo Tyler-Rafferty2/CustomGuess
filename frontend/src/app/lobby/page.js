@@ -27,11 +27,11 @@ export default function LobbyPage() {
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
         } catch (err) {
-            console.error(err);
+            // console.error(err);
             setError("Network error");
         }
-        console.log(lobbyCode);
-        console.log(lobbies);
+        // console.log(lobbyCode);
+        // console.log(lobbies);
         router.push(`/lobby/${lobbyID}`);
     };
 
