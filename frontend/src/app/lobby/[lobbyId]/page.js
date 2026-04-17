@@ -275,6 +275,9 @@ export default function LobbyPage() {
     const [sentRematchSetName, setSentRematchSetName] = useState(null);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [isReadying, setIsReadying] = useState(false);
+    const [isSelectingSecret, setIsSelectingSecret] = useState(false);
+    const [isSendingRematch, setIsSendingRematch] = useState(false);
+    const [isRespondingRematch, setIsRespondingRematch] = useState(false);
     const [opponentDisconnected, setOpponentDisconnected] = useState(false);
     const opponentDisconnectedRef = useRef(false);
     const [disconnectCountdown, setDisconnectCountdown] = useState(120);
@@ -326,6 +329,7 @@ export default function LobbyPage() {
 
     const sendRematchRequest = async () => {
         if (!selectedRematchSet) return;
+        setIsSendingRematch(true);
         try {
             await fetch(`${API_URL}/lobby/${lobbyID}/rematch`, {
                 method: "POST",
@@ -337,10 +341,13 @@ export default function LobbyPage() {
             setSentRematchSetName(selectedRematchSet?.name ?? null);
         } catch (err) {
             // console.error("Rematch request error:", err);
+        } finally {
+            setIsSendingRematch(false);
         }
     };
 
     const acceptRematch = async () => {
+        setIsRespondingRematch(true);
         try {
             await fetch(`${API_URL}/lobby/${lobbyID}/rematch/accept`, {
                 method: "POST",
@@ -349,10 +356,13 @@ export default function LobbyPage() {
             setIncomingRematch(null);
         } catch (err) {
             // console.error("Accept rematch error:", err);
+        } finally {
+            setIsRespondingRematch(false);
         }
     };
 
     const declineRematch = async () => {
+        setIsRespondingRematch(true);
         try {
             await fetch(`${API_URL}/lobby/${lobbyID}/rematch/decline`, {
                 method: "POST",
@@ -361,6 +371,8 @@ export default function LobbyPage() {
             setIncomingRematch(null);
         } catch (err) {
             // console.error("Decline rematch error:", err);
+        } finally {
+            setIsRespondingRematch(false);
         }
     };
 
@@ -1126,8 +1138,9 @@ export default function LobbyPage() {
                                             </div>
                                         );
                                     })()}
-                                    <button className="gw-btn-primary" style={{ marginTop: 'var(--s5)', height: 44 }} disabled={!selectedRematchSet} onClick={sendRematchRequest}>
-                                        Send Rematch Request
+                                    <button className="gw-btn-primary" style={{ marginTop: 'var(--s5)', height: 44 }} disabled={!selectedRematchSet || isSendingRematch} onClick={sendRematchRequest}>
+                                        {isSendingRematch && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                        {isSendingRematch ? 'Sending…' : 'Send Rematch Request'}
                                     </button>
                                 </div>
                             </div>
@@ -1142,8 +1155,14 @@ export default function LobbyPage() {
                                         Your opponent wants a rematch with <strong>{incomingRematch.characterSetName}</strong>.
                                     </p>
                                     <div style={{ display: 'flex', gap: 'var(--s3)' }}>
-                                        <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} onClick={declineRematch}>Decline</button>
-                                        <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} onClick={acceptRematch}>Accept</button>
+                                        <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} disabled={isRespondingRematch} onClick={declineRematch}>
+                                            {isRespondingRematch && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                            {isRespondingRematch ? 'Declining…' : 'Decline'}
+                                        </button>
+                                        <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} disabled={isRespondingRematch} onClick={acceptRematch}>
+                                            {isRespondingRematch && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                            {isRespondingRematch ? 'Accepting…' : 'Accept'}
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -1378,7 +1397,9 @@ export default function LobbyPage() {
         const leaveLobbyFromPicker = () => setShowLeaveConfirm(true);
 
         const selectSecretCharacter = async (charid) => {
+            if (isSelectingSecret) return;
             setError(null);
+            setIsSelectingSecret(true);
             try {
                 const res = await fetch(`${API_URL}/lobby/setSecretChar`, {
                     method: "POST",
@@ -1391,6 +1412,8 @@ export default function LobbyPage() {
             } catch (err) {
                 // console.error(err);
                 setError("Network error");
+            } finally {
+                setIsSelectingSecret(false);
             }
         };
 
@@ -1451,20 +1474,27 @@ export default function LobbyPage() {
                                 Your opponent will try to guess who you picked.
                             </p>
                         </div>
-                        <Grid container spacing={2} justifyContent="center">
-                            {characters.map((char) => (
-                                <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
-                                    <Item onClick={() => selectSecretCharacter(char.id)} className="h-full">
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                            <img src={imgUrl(char.image)} alt={char.name} style={{ imageRendering: 'auto' }} />
-                                            <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--text-600)', marginTop: 8 }}>
-                                                {char.name}
-                                            </span>
-                                        </div>
-                                    </Item>
-                                </Grid>
-                            ))}
-                        </Grid>
+                        <div style={{ position: 'relative' }}>
+                            {isSelectingSecret && (
+                                <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(247,243,238,0.6)', borderRadius: 'var(--r)' }}>
+                                    <Loader2 size={32} color="var(--accent)" style={{ animation: 'gw-spin 1s linear infinite' }} />
+                                </div>
+                            )}
+                            <Grid container spacing={2} justifyContent="center" style={{ opacity: isSelectingSecret ? 0.5 : 1, pointerEvents: isSelectingSecret ? 'none' : undefined }}>
+                                {characters.map((char) => (
+                                    <Grid item xs={6} sm={4} md={3} lg={2} key={char.id}>
+                                        <Item onClick={() => selectSecretCharacter(char.id)} className="h-full">
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                                <img src={imgUrl(char.image)} alt={char.name} style={{ imageRendering: 'auto' }} />
+                                                <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 12, color: 'var(--text-600)', marginTop: 8 }}>
+                                                    {char.name}
+                                                </span>
+                                            </div>
+                                        </Item>
+                                    </Grid>
+                                ))}
+                            </Grid>
+                        </div>
                         <div style={{ textAlign: 'center', marginTop: 'var(--s8)' }}>
                             <button
                                 className="gw-btn-ghost"
