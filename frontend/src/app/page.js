@@ -128,7 +128,7 @@ function CharacterCard({ char, index }) {
    Page
 ───────────────────────────────────────────── */
 export default function Home() {
-  const { user } = useContext(UserContext);
+  const { user, isLoading } = useContext(UserContext);
   const router = useRouter();
   const [lobbyCode, setLobbyCode] = useState("");
   const [error, setError] = useState(null);
@@ -342,7 +342,7 @@ export default function Home() {
             <div style={{ height: 1, background: T.border }} />
 
             {/* Guest nudge */}
-            {!user && (
+            {!isLoading && !user && (
               <p style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: 13, color: T.text400, lineHeight: 1.5,
