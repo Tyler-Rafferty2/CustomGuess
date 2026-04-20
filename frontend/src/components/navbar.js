@@ -258,7 +258,7 @@ export default function Navbar() {
             }}>
                 <div style={{
                     maxWidth: 1080, margin: "0 auto", padding: "0 24px",
-                    height: 56, display: "flex", alignItems: "center", justifyContent: "space-between",
+                    height: 56, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
                 }}>
 
                     <Logo onClick={() => router.push("/")} />
@@ -277,7 +277,7 @@ export default function Navbar() {
                         })}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, justifySelf: "end" }}>
                         {activeLobbyId && (
                             <div style={{ position: "relative", display: "inline-flex" }}>
                                 <motion.button
