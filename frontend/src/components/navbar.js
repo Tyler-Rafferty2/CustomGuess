@@ -329,6 +329,7 @@ export default function Navbar() {
                                 </button>
                             </div>
                         )}
+                        <div style={{ minWidth: 148, display: "flex", justifyContent: "flex-end" }}>
                         {!isLoading && (user && !user.isGuest ? (
                             <div style={{ position: "relative" }}>
                                 {/* Trigger */}
@@ -444,6 +445,7 @@ export default function Navbar() {
                                 <PrimaryButton onClick={() => router.push("/signup")} label="Sign up" />
                             </div>
                         ))}
+                        </div>
                     </div>
 
                 </div>
