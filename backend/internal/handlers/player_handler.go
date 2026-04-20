@@ -345,10 +345,8 @@ func (h *PlayerHandler) GetSetFromPlayerHandler(w http.ResponseWriter, r *http.R
 // GET /set/public
 func (h *PlayerHandler) GetSetFromPublicHandler(w http.ResponseWriter, r *http.Request) {
     var callerID *uuid.UUID
-    if idStr := r.Header.Get("X-User-ID"); idStr != "" {
-        if id, err := uuid.Parse(idStr); err == nil {
-            callerID = &id
-        }
+    if user := middleware.GetUserFromContext(r); user != nil {
+        callerID = &user.ID
     }
 
     page, _ := strconv.Atoi(r.URL.Query().Get("page"))

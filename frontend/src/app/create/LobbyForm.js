@@ -922,8 +922,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const wasLiked = s.likedByMe;
             return { ...s, likedByMe: !wasLiked, likeCount: (s.likeCount ?? 0) + (wasLiked ? -1 : 1) };
         });
-        if (setView === "public") setPublicSets(updateSets);
-        else setMySets(updateSets);
+        setPublicSets(updateSets);
+        setMySets(updateSets);
         try {
             const res = await apiFetch(`/player/set/${setId}/like`, {
                 method: "POST",
@@ -934,8 +934,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                 const reconcile = (prev) => prev.map(s =>
                     s.id === setId ? { ...s, likedByMe: data.likedByMe, likeCount: data.likeCount } : s
                 );
-                if (setView === "public") setPublicSets(reconcile);
-                else setMySets(reconcile);
+                setPublicSets(reconcile);
+                setMySets(reconcile);
             }
         } catch {
             // revert optimistic update
@@ -944,8 +944,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                 const cur = s.likedByMe;
                 return { ...s, likedByMe: !cur, likeCount: (s.likeCount ?? 0) + (cur ? -1 : 1) };
             });
-            if (setView === "public") setPublicSets(revert);
-            else setMySets(revert);
+            setPublicSets(revert);
+            setMySets(revert);
         }
     };
 

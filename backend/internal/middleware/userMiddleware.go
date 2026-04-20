@@ -37,6 +37,25 @@ func NewUserMiddleware(sessionService *services.SessionService) func(http.Handle
 	}
 }
 
+// NewOptionalUserMiddleware sets the user in context if a valid session cookie exists, but does not reject the request.
+func NewOptionalUserMiddleware(sessionService *services.SessionService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cookie, err := r.Cookie("session_id")
+			if err == nil {
+				if user, renewed, err := sessionService.GetSessionUser(cookie.Value); err == nil {
+					if renewed {
+						SetSessionCookie(w, cookie.Value)
+					}
+					ctx := context.WithValue(r.Context(), UserContextKey, user)
+					r = r.WithContext(ctx)
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func GetUserFromContext(r *http.Request) *models.User {
 	user, ok := r.Context().Value(UserContextKey).(*models.User)
 	if !ok {
