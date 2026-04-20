@@ -93,7 +93,7 @@ function NavItem({ item, isActive, onClick }) {
    Main Navbar
 ───────────────────────────────────────────── */
 export default function Navbar() {
-    const { user, logout } = useContext(UserContext);
+    const { user, logout, isLoading } = useContext(UserContext);
     const [showSettings, setShowSettings] = useState(false);
     const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(true);
@@ -329,7 +329,7 @@ export default function Navbar() {
                                 </button>
                             </div>
                         )}
-                        {user && !user.isGuest ? (
+                        {!isLoading && (user && !user.isGuest ? (
                             <div style={{ position: "relative" }}>
                                 {/* Trigger */}
                                 <motion.button
@@ -443,7 +443,7 @@ export default function Navbar() {
                                 <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
                                 <PrimaryButton onClick={() => router.push("/signup")} label="Sign up" />
                             </div>
-                        )}
+                        ))}
                     </div>
 
                 </div>
