@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import Navbar from "@/components/navbar";
 import SetCover from "@/components/SetCover";
@@ -96,8 +96,8 @@ export default function Profile() {
 
     useEffect(() => {
         if (!user?.id || user?.isGuest) { setSetsLoading(false); return; }
-        fetch(`${API_URL}/player/set/player?page=1&pageSize=100`, {
-            headers: { "X-User-ID": user.id },
+        apiFetch(`/player/set/player?page=1&pageSize=100`, {
+            headers: {  },
         })
             .then(r => r.json())
             .then(data => { setMySets(Array.isArray(data.sets) ? data.sets : []); setSetsLoading(false); })
@@ -106,8 +106,8 @@ export default function Profile() {
 
     useEffect(() => {
         if (!user?.id) return;
-        fetch(`${API_URL}/player/stats`, {
-            headers: { "X-User-ID": user.id },
+        apiFetch(`/player/stats`, {
+            headers: {  },
         })
             .then(r => r.json())
             .then(data => { setStats(data); setStatsLoading(false); })
@@ -123,9 +123,9 @@ export default function Profile() {
         setUsernameSaved(false);
         setUsernameSaving(true);
         try {
-            const res = await fetch(`${API_URL}/users/username`, {
+            const res = await apiFetch(`/users/username`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", "X-User-ID": user.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username: usernameInput }),
             });
             const data = await res.json();
@@ -147,9 +147,9 @@ export default function Profile() {
             return { ...s, likedByMe: !wasLiked, likeCount: (s.likeCount ?? 0) + (wasLiked ? -1 : 1) };
         }));
         try {
-            const res = await fetch(`${API_URL}/player/set/${setId}/like`, {
+            const res = await apiFetch(`/player/set/${setId}/like`, {
                 method: "POST",
-                headers: { "X-User-ID": user.id },
+                headers: {  },
             });
             if (res.ok) {
                 const data = await res.json();
@@ -167,9 +167,9 @@ export default function Profile() {
         setDeleteConfirmId(null);
         setDeletingId(setId);
         try {
-            await fetch(`${API_URL}/player/set/${setId}`, {
+            await apiFetch(`/player/set/${setId}`, {
                 method: "DELETE",
-                headers: { "X-User-ID": user.id },
+                headers: {  },
             });
             setMySets(prev => prev.filter(s => s.id !== setId));
         } catch { /* silently fail */ }

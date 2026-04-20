@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
@@ -115,8 +115,8 @@ export default function Navbar() {
             setActiveLobbyId(null);
             return;
         }
-        fetch(`${API_URL}/lobby/active`, {
-            headers: { "X-User-ID": user.id },
+        apiFetch(`/lobby/active`, {
+            headers: {  },
         })
             .then(r => r.ok ? r.json() : null)
             .then(data => setActiveLobbyId(data?.lobbyId ?? null))
@@ -127,11 +127,10 @@ export default function Navbar() {
         setShowLeaveConfirm(false);
         if (lobbyID) {
             try {
-                await fetch(`${API_URL}/lobby/forfeit`, {
+                await apiFetch(`/lobby/forfeit`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "X-User-ID": user?.id,
                     },
                     body: JSON.stringify({ lobbyId: lobbyID }),
                 });
@@ -306,9 +305,9 @@ export default function Navbar() {
                                 <button
                                     onClick={async () => {
                                         try {
-                                            await fetch(`${API_URL}/lobby/forfeit`, {
+                                            await apiFetch(`/lobby/forfeit`, {
                                                 method: "POST",
-                                                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                                                headers: { "Content-Type": "application/json" },
                                                 body: JSON.stringify({ lobbyId: activeLobbyId }),
                                             });
                                         } catch (err) {
@@ -330,7 +329,7 @@ export default function Navbar() {
                                 </button>
                             </div>
                         )}
-                        {user && user.email !== "guest" ? (
+                        {user && !user.isGuest ? (
                             <div style={{ position: "relative" }}>
                                 {/* Trigger */}
                                 <motion.button

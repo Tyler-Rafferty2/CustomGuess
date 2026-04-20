@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -86,7 +86,7 @@ export default function Signup() {
         }
 
         try {
-            const res = await fetch(`${API_URL}/users/signup`, {
+            const res = await apiFetch(`/users/signup`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password, username }),

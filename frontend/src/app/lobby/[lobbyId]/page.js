@@ -1,5 +1,5 @@
 "use client";
-import { API_URL, WS_URL } from '@/lib/api';
+import { apiFetch, WS_URL } from '@/lib/api';
 
 import { useState, useContext, useEffect, useRef } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -312,9 +312,9 @@ export default function LobbyPage() {
 
     const forfeitAndRejoin = async () => {
         try {
-            await fetch(`${API_URL}/lobby/forfeit`, {
+            await apiFetch(`/lobby/forfeit`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ lobbyId: conflictLobbyId }),
             });
             clearConflict();
@@ -331,9 +331,9 @@ export default function LobbyPage() {
         if (!selectedRematchSet) return;
         setIsSendingRematch(true);
         try {
-            await fetch(`${API_URL}/lobby/${lobbyID}/rematch`, {
+            await apiFetch(`/lobby/${lobbyID}/rematch`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ characterSetId: selectedRematchSet.id }),
             });
             setRematchModalOpen(false);
@@ -349,9 +349,9 @@ export default function LobbyPage() {
     const acceptRematch = async () => {
         setIsRespondingRematch(true);
         try {
-            await fetch(`${API_URL}/lobby/${lobbyID}/rematch/accept`, {
+            await apiFetch(`/lobby/${lobbyID}/rematch/accept`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
             });
             setIncomingRematch(null);
         } catch (err) {
@@ -364,9 +364,9 @@ export default function LobbyPage() {
     const declineRematch = async () => {
         setIsRespondingRematch(true);
         try {
-            await fetch(`${API_URL}/lobby/${lobbyID}/rematch/decline`, {
+            await apiFetch(`/lobby/${lobbyID}/rematch/decline`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
             });
             setIncomingRematch(null);
         } catch (err) {
@@ -378,9 +378,9 @@ export default function LobbyPage() {
 
     const cancelRematch = async () => {
         try {
-            await fetch(`${API_URL}/lobby/${lobbyID}/rematch/decline`, {
+            await apiFetch(`/lobby/${lobbyID}/rematch/decline`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
             });
             setRematchWaiting(false);
             setSentRematchSetName(null);
@@ -392,9 +392,9 @@ export default function LobbyPage() {
     const joinLobby = async (lobbyCode) => {
         setError(null);
         try {
-            const res = await fetch(`${API_URL}/lobby/join`, {
+            const res = await apiFetch(`/lobby/join`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code: lobbyCode }),
             });
 
@@ -423,7 +423,7 @@ export default function LobbyPage() {
     const checkLobbyStatus = async () => {
         if (!lobbyID) return;
         try {
-            const res = await fetch(`${API_URL}/lobby/${lobbyID}/status`, {
+            const res = await apiFetch(`/lobby/${lobbyID}/status`, {
                 method: "GET",
                 headers: { "Content-Type": "application/json" },
             });
@@ -438,9 +438,9 @@ export default function LobbyPage() {
     const getGameState = async () => {
         setError(null);
         try {
-            const res = await fetch(`${API_URL}/lobby/${lobbyID}`, {
+            const res = await apiFetch(`/lobby/${lobbyID}`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
@@ -720,9 +720,9 @@ export default function LobbyPage() {
         leavingRef.current = true;
         setShowLeaveConfirm(false);
         try {
-            await fetch(`${API_URL}/lobby/forfeit`, {
+            await apiFetch(`/lobby/forfeit`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ lobbyId: lobbyID }),
             });
         } catch (err) {
@@ -750,7 +750,7 @@ export default function LobbyPage() {
 
     useEffect(() => {
         if (!lobbyID || !playerId) return;
-        fetch(`${API_URL}/lobby/${lobbyID}/messages`)
+        apiFetch(`/lobby/${lobbyID}/messages`)
             .then(r => r.json())
             .then(msgs => {
                 if (!Array.isArray(msgs) || msgs.length === 0) return;
@@ -800,8 +800,7 @@ export default function LobbyPage() {
     const loadRematchPublic = (page) => {
         const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE, sort: "most-popular" });
         const headers = { "Content-Type": "application/json" };
-        if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
-        fetch(`${API_URL}/player/set/public?${params}`, { headers })
+        apiFetch(`/player/set/public?${params}`, { headers })
             .then(r => r.json())
             .then(data => { setRematchPublicSets(data.sets ?? []); setRematchPublicTotal(data.total ?? 0); })
             .catch(() => { });
@@ -810,8 +809,8 @@ export default function LobbyPage() {
     const loadRematchMy = (page) => {
         if (!user || user.isGuest) return;
         const params = new URLSearchParams({ page, pageSize: REMATCH_PAGE_SIZE });
-        fetch(`${API_URL}/player/set/player?${params}`, {
-            headers: { "X-User-ID": user.id }
+        apiFetch(`/player/set/player?${params}`, {
+            headers: {  }
         })
             .then(r => r.json())
             .then(data => { setRematchMySets(data.sets ?? []); setRematchMyTotal(data.total ?? 0); })
@@ -1287,9 +1286,9 @@ export default function LobbyPage() {
                             style={{ width: '100%', marginTop: 'var(--s3)', justifyContent: 'center' }}
                             onClick={async () => {
                                 try {
-                                    await fetch(`${API_URL}/lobby/forfeit`, {
+                                    await apiFetch(`/lobby/forfeit`, {
                                         method: "POST",
-                                        headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                                        headers: { "Content-Type": "application/json" },
                                         body: JSON.stringify({ lobbyId: lobbyID }),
                                     });
                                 } catch (err) {
@@ -1401,9 +1400,9 @@ export default function LobbyPage() {
             setError(null);
             setIsSelectingSecret(true);
             try {
-                const res = await fetch(`${API_URL}/lobby/setSecretChar`, {
+                const res = await apiFetch(`/lobby/setSecretChar`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ lobbyCode: lobby?.id, secretCharacter: charid }),
                 });
                 const data = await res.json();
@@ -1521,9 +1520,9 @@ export default function LobbyPage() {
         const setReady = async () => {
             setIsReadying(true);
             try {
-                await fetch(`${API_URL}/lobby/ready`, {
+                await apiFetch(`/lobby/ready`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ lobbyId: lobbyID }),
                 });
             } catch (err) {
@@ -1536,9 +1535,9 @@ export default function LobbyPage() {
         const setUnready = async () => {
             setIsReadying(true);
             try {
-                await fetch(`${API_URL}/lobby/unready`, {
+                await apiFetch(`/lobby/unready`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ lobbyId: lobbyID }),
                 });
             } catch (err) {

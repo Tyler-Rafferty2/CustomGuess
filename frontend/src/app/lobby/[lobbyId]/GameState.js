@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useEffect, useState } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -268,9 +268,9 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
         });
 
         try {
-            await fetch(`${API_URL}/lobby/move`, {
+            await apiFetch(`/lobby/move`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ lobbyId: lobbyID, characterId: charId }),
             });
         } catch {
@@ -282,11 +282,10 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
         setIsGuessing(true);
         setError(null);
         try {
-            const res = await fetch(`${API_URL}/lobby/guess`, {
+            const res = await apiFetch(`/lobby/guess`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
                 },
                 body: JSON.stringify({ lobbyId: lobbyID, characterId: charId }),
             });

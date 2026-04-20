@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useState, useContext } from "react";
 import { UserContext } from "@/context/UserContext";
@@ -22,11 +22,10 @@ export default function LobbyPage() {
         setError(null);
 
         try {
-            const res = await fetch(`${API_URL}/player/`, {
+            const res = await apiFetch(`/player/`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
                 },
             });
 
@@ -48,11 +47,10 @@ export default function LobbyPage() {
         setError(null);
 
         try {
-            const res = await fetch(`${API_URL}/lobby/join`, {
+            const res = await apiFetch(`/lobby/join`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
                 },
                 body: JSON.stringify({ code: lobbyCode }),
             });
@@ -74,11 +72,10 @@ export default function LobbyPage() {
 
     const forfeitAndCreate = async () => {
         try {
-            await fetch(`${API_URL}/lobby/forfeit`, {
+            await apiFetch(`/lobby/forfeit`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "X-User-ID": user?.id,
                 },
                 body: JSON.stringify({ lobbyId: conflictLobbyId }),
             });

@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useState, useEffect, useContext, useRef, Suspense } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -65,8 +65,8 @@ function EditSetForm() {
 
     useEffect(() => {
         if (!setId || !user?.id) return;
-        fetch(`${API_URL}/player/set/${setId}`, {
-            headers: { "X-User-ID": user.id },
+        apiFetch(`/player/set/${setId}`, {
+            headers: {  },
         })
             .then(r => { if (!r.ok) throw new Error("not found"); return r.json(); })
             .then(found => {
@@ -201,9 +201,9 @@ function EditSetForm() {
     const handleDelete = async () => {
         setDeleting(true);
         try {
-            await fetch(`${API_URL}/player/set/${setId}`, {
+            await apiFetch(`/player/set/${setId}`, {
                 method: "DELETE",
-                headers: { "X-User-ID": user?.id },
+                headers: {  },
             });
             router.push(backTo);
         } catch {
@@ -240,9 +240,9 @@ function EditSetForm() {
         });
 
         try {
-            const res = await fetch(`${API_URL}/player/set/${setId}`, {
+            const res = await apiFetch(`/player/set/${setId}`, {
                 method: "PUT",
-                headers: { "X-User-ID": user?.id },
+                headers: {  },
                 body: formData,
             });
             if (!res.ok) {

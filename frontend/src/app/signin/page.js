@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useRouter } from "next/navigation";
 import { useState, useContext } from "react";
@@ -19,7 +19,7 @@ export default function Signin() {
         setError(null);
 
         try {
-            const res = await fetch(`${API_URL}/users/signin`, {
+            const res = await apiFetch(`/users/signin`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),

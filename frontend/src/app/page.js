@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import Navbar from "../components/navbar";
 import { useContext, useState } from "react";
@@ -139,9 +139,9 @@ export default function Home() {
     setError(null);
     setJoining(true);
     try {
-      const res = await fetch(`${API_URL}/lobby/join`, {
+      const res = await apiFetch(`/lobby/join`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: lobbyCode }),
       });
       let data;

@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useState, useEffect } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -845,9 +845,9 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         setLoadingMy(true); setError(null);
         try {
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, search: search || "" });
-            const res = await fetch(`${API_URL}/player/set/player?${params}`, {
+            const res = await apiFetch(`/player/set/player?${params}`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
             });
             const data = await res.json();
             if (!res.ok) { setError(data.error || "Something went wrong"); return; }
@@ -860,9 +860,8 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         setLoadingPublic(true); setError(null);
         try {
             const headers = { "Content-Type": "application/json" };
-            if (user?.id && !user?.isGuest) headers["X-User-ID"] = user.id;
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, sort: sort || "most-popular", search: search || "" });
-            const res = await fetch(`${API_URL}/player/set/public?${params}`, {
+            const res = await apiFetch(`/player/set/public?${params}`, {
                 method: "GET", headers,
             });
             const data = await res.json();
@@ -878,9 +877,9 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         setIsCreating(true);
         const randomizeSecret = !selectSecret;
         try {
-            const res = await fetch(`${API_URL}/lobby/create`, {
+            const res = await apiFetch(`/lobby/create`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds, characterIds: getCharacterIds() }),
             });
             const data = await res.json();
@@ -926,9 +925,9 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         if (setView === "public") setPublicSets(updateSets);
         else setMySets(updateSets);
         try {
-            const res = await fetch(`${API_URL}/player/set/${setId}/like`, {
+            const res = await apiFetch(`/player/set/${setId}/like`, {
                 method: "POST",
-                headers: { "X-User-ID": user.id },
+                headers: {  },
             });
             if (res.ok) {
                 const data = await res.json();

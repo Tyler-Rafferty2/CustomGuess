@@ -1,63 +1,50 @@
 "use client";
 import { createContext, useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
-    const [user, setUser] = useState(null); // null if not logged in
+    const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // First check for registered user
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
-            return;
-        }
-
-        // If no registered user, check for/create guest
-        let guestId = localStorage.getItem("guestId");
-        if (!guestId) {
-            guestId = crypto.randomUUID();
-            localStorage.setItem("guestId", guestId);
-        }
-
-        // Set guest user
-        setUser({
-            id: guestId,
-            email: "guest",
-            isGuest: true,
-        });
+        apiFetch("/auth/session", { method: "POST" })
+            .then(async (res) => {
+                const data = await res.json();
+                if (res.status === 401 && data.expired) {
+                    // Registered session expired — show null so navbar shows Sign In
+                    setUser(null);
+                } else {
+                    setUser(data);
+                }
+            })
+            .catch(() => setUser(null))
+            .finally(() => setIsLoading(false));
     }, []);
 
     const login = (userData) => {
-        // When logging in, remove guest data
-        localStorage.removeItem("guestId");
+        // Session cookie already set by the backend signin endpoint
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
     };
 
     const updateUser = (userData) => {
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
     };
 
-    const logout = () => {
-        // On logout, create a new guest identity
-        const guestId = crypto.randomUUID();
-        localStorage.setItem("guestId", guestId);
-
-        setUser({
-            id: guestId,
-            email: "guest",
-            isGuest: true,
-        });
-
-        localStorage.removeItem("user");
+    const logout = async () => {
+        await apiFetch("/auth/logout", { method: "POST" }).catch(() => {});
+        const res = await apiFetch("/auth/session", { method: "POST" }).catch(() => null);
+        if (res) {
+            const data = await res.json().catch(() => null);
+            setUser(data);
+        } else {
+            setUser(null);
+        }
     };
-
 
     return (
-        <UserContext.Provider value={{ user, login, logout, updateUser }}>
+        <UserContext.Provider value={{ user, isLoading, login, logout, updateUser }}>
             {children}
         </UserContext.Provider>
     );

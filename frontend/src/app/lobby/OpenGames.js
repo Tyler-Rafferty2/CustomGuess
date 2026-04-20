@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useEffect, useState, useRef } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -48,9 +48,9 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
         setRefreshing(true);
         setError(null);
         try {
-            const res = await fetch(`${API_URL}/lobby/find`, {
+            const res = await apiFetch(`/lobby/find`, {
                 method: "GET",
-                headers: { "Content-Type": "application/json", "X-User-ID": user?.id },
+                headers: { "Content-Type": "application/json" },
             });
             const data = await res.json();
             // console.log("[OpenGames] /lobby/find response:", data);

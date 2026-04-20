@@ -39,7 +39,8 @@ func validatePassword(p string) string {
 }
 
 type UserHandler struct {
-    Service *services.UserService
+	Service        *services.UserService
+	SessionService *services.SessionService
 }
 
 // POST /signup
@@ -108,23 +109,31 @@ func (h *UserHandler) UpdateUsernameHandler(w http.ResponseWriter, r *http.Reque
     json.NewEncoder(w).Encode(updated)
 }
 
-// POST /login
+// POST /users/signin
 func (h *UserHandler) SignInHandler(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        Email    string `json:"email"`
-        Password string `json:"password"`
-    }
-    json.NewDecoder(r.Body).Decode(&req)
+	var req struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	json.NewDecoder(r.Body).Decode(&req)
 
-    user, err := h.Service.Login(req.Email, req.Password)
-    if err != nil {
-        w.Header().Set("Content-Type", "application/json")
-        w.WriteHeader(http.StatusUnauthorized)
-        json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
-        return
-    }
+	user, err := h.Service.Login(req.Email, req.Password)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid credentials"})
+		return
+	}
 
-    json.NewEncoder(w).Encode(user) // could return JWT token here
+	session, err := h.SessionService.CreateSession(user.ID, false)
+	if err != nil {
+		http.Error(w, "failed to create session", http.StatusInternalServerError)
+		return
+	}
+	middleware.SetSessionCookie(w, session.ID)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
 }
 
 // POST /users/forgot-password

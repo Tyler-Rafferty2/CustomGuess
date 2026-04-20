@@ -1,5 +1,5 @@
 "use client";
-import { API_URL } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 
 import { useState, useRef, useContext, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -139,9 +139,9 @@ function NewSetForm() {
         });
 
         try {
-            const res = await fetch(`${API_URL}/player/set/create`, {
+            const res = await apiFetch(`/player/set/create`, {
                 method: "POST",
-                headers: { "X-User-ID": user?.id },
+                headers: {  },
                 body: formData,
             });
             if (!res.ok) {
