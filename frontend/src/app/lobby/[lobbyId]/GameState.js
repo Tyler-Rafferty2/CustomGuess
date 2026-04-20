@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 
 const IMAGE_SIZE = '140px';
 
-const Item = styled(Paper)(({ theme, isSelected, isGuessMode, isPendingGuess }) => ({
+const Item = styled(Paper)(({ theme, isSelected, isPendingGuess }) => ({
     ...theme.typography.body2,
     padding: theme.spacing(0.5),
     textAlign: 'center',
@@ -25,15 +25,13 @@ const Item = styled(Paper)(({ theme, isSelected, isGuessMode, isPendingGuess }) 
     flexDirection: 'column',
     border: isPendingGuess
         ? '2px solid var(--accent)'
-        : isGuessMode
-        ? '2px solid var(--accent-light)'
         : '2px solid var(--border)',
     borderRadius: 'var(--r)',
     boxShadow: isPendingGuess ? '0 0 0 3px var(--accent-light)' : 'none',
 
     '&:hover': {
         backgroundColor: 'var(--surface-1)',
-        borderColor: isPendingGuess ? 'var(--accent)' : isGuessMode ? 'var(--accent-dim)' : 'var(--border-strong)',
+        borderColor: isPendingGuess ? 'var(--accent)' : 'var(--border-strong)',
         boxShadow: isPendingGuess ? '0 0 0 3px var(--accent-light)' : '0 2px 8px rgba(0,0,0,0.10)',
     },
 
@@ -241,7 +239,7 @@ function GuessModal({ char, onConfirm, onCancel, isConfirming }) {
     );
 }
 
-export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode, getGameState }) {
+export default function Players({ user, setError, lobby, setLobby, gameState, setGameState, isGuessMode, setIsGuessMode, getGameState }) {
     const params = useParams();
     const lobbyID = params.lobbyId;
     const [selectedCharacters, setSelectedCharacters] = useState(new Set());
@@ -329,7 +327,14 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
     const pendingChar = characters.find(c => c.id === pendingGuessId);
 
     return (
-        <div>
+        <div style={{
+            background: isGuessMode ? 'var(--accent-light)' : 'transparent',
+            border: '2px solid transparent',
+            borderColor: isGuessMode ? 'var(--accent)' : 'transparent',
+            borderRadius: 'var(--r)',
+            padding: 'var(--s4)',
+            transition: 'background 200ms, border-color 200ms',
+        }}>
             {pendingChar && (
                 <GuessModal
                     char={pendingChar}
@@ -339,6 +344,7 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                 />
             )}
 
+
             <Grid container spacing={1.5} justifyContent="center">
                 {characters.map((char) => {
                     const isSelected = selectedCharacters.has(char.id);
@@ -347,7 +353,6 @@ export default function Players({ user, setError, lobby, setLobby, gameState, se
                         <Grid item key={char.id} sx={{ width: IMAGE_SIZE }}>
                             <Item
                                 isSelected={isSelected}
-                                isGuessMode={isGuessMode}
                                 isPendingGuess={isPendingGuess}
                                 onClick={() => {
                                     if (isGuessMode) {

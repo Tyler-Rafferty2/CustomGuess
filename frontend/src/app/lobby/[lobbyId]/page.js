@@ -1603,9 +1603,6 @@ export default function LobbyPage() {
                             <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 28, color: 'var(--text-900)', letterSpacing: '-0.03em', marginBottom: 'var(--s1)' }}>
                                 Your secret character
                             </h1>
-                            <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 13 }}>
-                                Remember this face. Your opponent will try to guess who you are.
-                            </p>
                         </div>
 
                         {/* Secret character preview */}
@@ -1742,7 +1739,7 @@ export default function LobbyPage() {
                     }}>
                         {gameState && gameState.secretCharacter && (
                             <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)' }}>
-                                <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your Character</span>
+                                <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s3)' }}>Your secret character</span>
                                 <img
                                     src={imgUrl(gameState.secretCharacter.image)}
                                     alt={gameState.secretCharacter.name}
@@ -1833,26 +1830,39 @@ export default function LobbyPage() {
                 <div style={{ flex: 1, padding: 'var(--s6)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                     {!lobby.chatFeature && (
                         <>
-                            {/* Top bar: secret character + guess toggle */}
+                            {/* Top bar: secret character + guess toggle (no-chat has no turns) */}
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: 'var(--s5)',
                                 marginBottom: 'var(--s5)',
                                 padding: 'var(--s4)',
-                                background: 'var(--surface-0)',
-                                border: '1px solid var(--border)',
+                                background: isGuessMode ? 'var(--surface-1)' : 'var(--surface-0)',
+                                border: isGuessMode ? '2px solid var(--border-strong)' : '1px solid var(--border)',
+                                borderLeft: isGuessMode ? '2px solid var(--border-strong)' : '1px solid var(--border)',
                                 borderRadius: 'var(--r)',
+                                transition: 'background 200ms, border-color 200ms',
                             }}>
                                 {gameState?.secretCharacter && (
                                     <>
                                         <img
                                             src={imgUrl(gameState.secretCharacter.image)}
                                             alt={gameState.secretCharacter.name}
-                                            style={{ width: 80, height: 100, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', flexShrink: 0, border: '1px solid var(--border)' }}
+                                            style={{ width: 100, height: 125, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', flexShrink: 0, border: '1px solid var(--border)' }}
                                         />
                                         <div>
-                                            <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s2)' }}>Your Character</span>
+                                            <span style={{
+                                                display: 'block',
+                                                fontFamily: "'DM Sans', sans-serif",
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                letterSpacing: '0.08em',
+                                                textTransform: 'uppercase',
+                                                color: 'var(--text-400)',
+                                                marginBottom: 'var(--s1)',
+                                            }}>
+                                                Your secret character
+                                            </span>
                                             <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)' }}>
                                                 {gameState.secretCharacter.name}
                                             </span>
@@ -1860,8 +1870,15 @@ export default function LobbyPage() {
                                     </>
                                 )}
                                 <button
-                                    className={isGuessMode ? 'gw-btn-danger' : 'gw-btn-primary'}
-                                    style={{ marginLeft: 'auto', height: 40, padding: '0 var(--s6)', justifyContent: 'center' }}
+                                    className={isGuessMode ? 'gw-btn-ghost' : 'gw-btn-primary'}
+                                    style={{
+                                        marginLeft: 'auto', height: 40, padding: '0 var(--s6)', justifyContent: 'center',
+                                        ...(isGuessMode && {
+                                            background: 'var(--surface-2)',
+                                            border: '1px solid var(--border-strong)',
+                                            color: 'var(--text-600)',
+                                        }),
+                                    }}
                                     onClick={() => setIsGuessMode(!isGuessMode)}
                                 >
                                     {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
@@ -1870,7 +1887,7 @@ export default function LobbyPage() {
                             <GameState
                                 user={user} setError={setError} lobby={lobby} setLobby={setLobby}
                                 gameState={gameState} setGameState={setGameState}
-                                isGuessMode={isGuessMode} getGameState={getGameState}
+                                isGuessMode={isGuessMode} setIsGuessMode={setIsGuessMode} getGameState={getGameState}
                             />
                         </>
                     )}
@@ -1893,7 +1910,7 @@ export default function LobbyPage() {
                             <GameState
                                 user={user} setError={setError} lobby={lobby} setLobby={setLobby}
                                 gameState={gameState} setGameState={setGameState}
-                                isGuessMode={isGuessMode} getGameState={getGameState}
+                                isGuessMode={isGuessMode} setIsGuessMode={setIsGuessMode} getGameState={getGameState}
                             />
                         </>
                     )}

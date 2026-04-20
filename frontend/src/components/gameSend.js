@@ -222,17 +222,17 @@ export default function GameSend({
                     style={{
                         ...btnBase,
                         alignSelf: 'flex-start',
-                        background: isGuessMode ? 'transparent' : 'var(--surface-1)',
-                        color: isGuessMode ? 'var(--state-out)' : 'var(--text-600)',
-                        border: isGuessMode ? '1px solid var(--accent-light)' : '1px solid var(--border)',
+                        background: isGuessMode ? 'var(--surface-2)' : 'var(--surface-1)',
+                        color: 'var(--text-600)',
+                        border: isGuessMode ? '1px solid var(--border-strong)' : '1px solid var(--border)',
                     }}
                     onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = isGuessMode ? 'var(--state-out)' : 'var(--border-strong)';
-                        e.currentTarget.style.background = isGuessMode ? '#fef2ef' : 'var(--surface-2)';
+                        e.currentTarget.style.borderColor = 'var(--border-strong)';
+                        e.currentTarget.style.background = isGuessMode ? 'var(--surface-1)' : 'var(--surface-2)';
                     }}
                     onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = isGuessMode ? 'var(--accent-light)' : 'var(--border)';
-                        e.currentTarget.style.background = isGuessMode ? 'transparent' : 'var(--surface-1)';
+                        e.currentTarget.style.borderColor = isGuessMode ? 'var(--border-strong)' : 'var(--border)';
+                        e.currentTarget.style.background = isGuessMode ? 'var(--surface-2)' : 'var(--surface-1)';
                     }}
                 >
                     {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
@@ -302,10 +302,11 @@ export default function GameSend({
             {/* ── Header: turn label + timer controls ── */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasTimer ? 'var(--s2)' : 'var(--s3)' }}>
                 <span style={turnLabel}>
-                    {turn && !waitingReponse ? 'Your Turn — Ask a Question'
-                        : turn && waitingReponse ? 'Your Turn — Waiting for Response'
-                            : !turn && receivedMessage !== '' ? 'Your Turn — Answer the Question'
-                                : "Opponent's Turn"}
+                    {turn && !waitingReponse && isGuessMode ? 'Your Turn — Selecting a Guess'
+                        : turn && !waitingReponse ? 'Your Turn — Ask a Question'
+                            : turn && waitingReponse ? 'Your Turn — Waiting for Response'
+                                : !turn && receivedMessage !== '' ? 'Your Turn — Answer the Question'
+                                    : "Opponent's Turn"}
                 </span>
                 {hasTimer && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>

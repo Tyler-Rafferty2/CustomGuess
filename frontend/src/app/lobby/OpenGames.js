@@ -209,7 +209,7 @@ export default function OpenGames({ user, setError, lobbies, setLobbies, joinLob
                                     {l.characterSet?.name ?? "Classic"}
                                 </span>
                                 <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "var(--text-sm)", fontWeight: 500, color: "var(--text-400)" }}>
-                                    hosted by {l.user?.username ?? l.user?.email}
+                                    hosted by {l.user?.username || l.user?.email || "Guest"}
                                 </span>
                             </div>
 
