@@ -717,7 +717,7 @@ const DESIGN_TOKENS = `
       border-top: none; order: -1; overflow: visible;
     }
     .panel-right__inner { padding: 0; }
-    .panel-left { padding: var(--s4); overflow-y: visible; }
+    .panel-left { padding: var(--s4); padding-bottom: 72px; overflow-y: visible; }
     .sets-grid { grid-template-columns: 1fr 1fr; }
     .create-form__row { flex-direction: column; }
     .create-form__cover { width: 100%; }
