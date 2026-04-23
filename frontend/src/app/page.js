@@ -156,7 +156,7 @@ export default function Home() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
+    <div className="home-root" style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');
 
@@ -228,6 +228,11 @@ export default function Home() {
           .hero-sub { font-size: 13px !important; }
         }
 
+        @media (max-width: 768px) {
+          .home-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow: hidden; }
+          .home-main { padding: 24px 20px !important; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
         }
@@ -235,7 +240,7 @@ export default function Home() {
 
       <Navbar />
 
-      <main style={{
+      <main className="home-main" style={{
         flex: 1,
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "48px 24px",
