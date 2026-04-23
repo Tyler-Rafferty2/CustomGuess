@@ -717,7 +717,7 @@ const DESIGN_TOKENS = `
       border-top: none; order: -1; overflow: visible;
     }
     .panel-right__inner { padding: 0; }
-    .panel-left { padding: var(--s4); }
+    .panel-left { padding: var(--s4); overflow-y: visible; }
     .sets-grid { grid-template-columns: 1fr 1fr; }
     .create-form__row { flex-direction: column; }
     .create-form__cover { width: 100%; }
@@ -728,7 +728,7 @@ const DESIGN_TOKENS = `
   }
 
   @media (max-width: 768px) {
-    body { overflow: hidden; }
+    html, body { overflow: hidden; }
     .lobby-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; }
   }
 

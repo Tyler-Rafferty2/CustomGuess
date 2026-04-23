@@ -39,7 +39,7 @@ export default function LobbyPage() {
         <div className="browse-root">
             <style>{`
                 @media (max-width: 768px) {
-                    body { overflow: hidden; }
+                    html, body { overflow: hidden; }
                     .browse-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; }
                 }
             `}</style>
