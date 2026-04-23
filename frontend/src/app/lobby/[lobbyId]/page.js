@@ -286,6 +286,7 @@ export default function LobbyPage() {
     const disconnectIntervalRef = useRef(null);
     const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
     const [isLeavingGame, setIsLeavingGame] = useState(false);
+    const [answerToast, setAnswerToast] = useState(null);
     const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
     const isMobile = useMediaQuery('(max-width: 768px)');
     const [preGameDisconnected, setPreGameDisconnected] = useState(false);
@@ -634,6 +635,7 @@ export default function LobbyPage() {
                         });
                         setReceivedMessage("");
                         setWaitingReponse(false);
+                        setAnswerToast({ answer: message.content, question: sentMessage });
                     }
                 } else if (message.channel === "pending_question") {
                     setReceivedMessage(message.content);
@@ -746,6 +748,7 @@ export default function LobbyPage() {
         }
     }, [lobbyID]);
     useEffect(() => { lobbyRef.current = lobby; }, [lobby]);
+    useEffect(() => { if (waitingReponse) setAnswerToast(null); }, [waitingReponse]);
     useEffect(() => {
         if (preGameCountdown === 0 && preGameDisconnected) {
             const t = setTimeout(() => router.push('/'), 1500);
@@ -2002,13 +2005,57 @@ export default function LobbyPage() {
 
                     {lobby.chatFeature && (
                         <>
+                            {/* Answer strip — shows question on send, flips to yes/no when answer arrives */}
+                            <div style={{ height: 44, marginBottom: 'var(--s3)' }}>
+                                {(answerToast || (waitingReponse && sentMessage)) && (() => {
+                                    const question = answerToast?.question || sentMessage;
+                                    const hasAnswer = !!answerToast;
+                                    const isYes = answerToast?.answer?.trim().toLowerCase() === 'yes';
+                                    return (
+                                        <div style={{
+                                            height: '100%',
+                                            padding: '0 var(--s4)',
+                                            borderRadius: 'var(--r)',
+                                            background: hasAnswer ? (isYes ? '#EAF6EF' : '#FEF0EE') : 'var(--surface-1)',
+                                            border: `1px solid ${hasAnswer ? (isYes ? '#2A7A5640' : '#C0392B40') : 'var(--border)'}`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 'var(--s3)',
+                                        }}>
+                                            {hasAnswer && (
+                                                <span style={{
+                                                    fontFamily: "'Fraunces', serif",
+                                                    fontWeight: 900,
+                                                    fontSize: 18,
+                                                    lineHeight: 1,
+                                                    color: isYes ? '#2A7A56' : '#C0392B',
+                                                    flexShrink: 0,
+                                                }}>
+                                                    {isYes ? 'Yes' : 'No'}
+                                                </span>
+                                            )}
+                                            <span style={{
+                                                fontFamily: "'DM Sans', sans-serif",
+                                                fontSize: 13,
+                                                color: hasAnswer ? 'var(--text-600)' : 'var(--text-900)',
+                                                overflow: 'hidden',
+                                                whiteSpace: 'nowrap',
+                                                textOverflow: 'ellipsis',
+                                            }}>
+                                                {question}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
                             <div style={{ marginBottom: 'var(--s4)' }}>
                                 {user && user.email && lobbyID && (
                                     <GameSend
                                         lobbyId={lobbyID} username={user.email} wsRef={wsRef}
                                         setIsConnected={setIsConnected} messages={messagesGame}
                                         setMessages={setMessagesGame} turn={turn}
-                                        setSentMessage={setSentMessage} receivedMessage={receivedMessage}
+                                        setSentMessage={setSentMessage} sentMessage={sentMessage}
+                                        receivedMessage={receivedMessage}
                                         waitingReponse={waitingReponse} setWaitingReponse={setWaitingReponse}
                                         setIsGuessMode={setIsGuessMode} isGuessMode={isGuessMode}
                                         turnTimeLeft={turnTimeLeft} lobby={lobby} playerId={playerId}
@@ -2027,3 +2074,4 @@ export default function LobbyPage() {
         </>
     );
 }
+

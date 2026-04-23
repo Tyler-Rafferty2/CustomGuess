@@ -3,7 +3,7 @@ import { Send } from 'lucide-react';
 
 export default function GameSend({
     lobbyId, username, wsRef, setIsConnected,
-    messages, setMessages, turn, setSentMessage,
+    messages, setMessages, turn, setSentMessage, sentMessage,
     receivedMessage, waitingReponse, setWaitingReponse,
     setIsGuessMode, isGuessMode,
     turnTimeLeft, lobby, playerId,
@@ -236,7 +236,7 @@ export default function GameSend({
                     <p style={metaText}>Waiting for opponent&apos;s response…</p>
                 </div>
                 {/* Placeholder to maintain height */}
-                <div style={{ height: 40 }} />
+                <div style={{ height: 44 }} />
             </div>
         );
     } else if (!turn && receivedMessage !== '') {
