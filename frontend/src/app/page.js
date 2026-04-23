@@ -229,6 +229,7 @@ export default function Home() {
         }
 
         @media (max-width: 768px) {
+          body { overflow: hidden; }
           .home-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow: hidden; }
           .home-main { padding: 24px 20px !important; }
         }
