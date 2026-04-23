@@ -60,3 +60,5 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes gw-spin { to { transform: rotate(360deg); } }

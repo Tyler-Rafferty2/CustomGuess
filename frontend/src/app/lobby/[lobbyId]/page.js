@@ -277,7 +277,7 @@ export default function LobbyPage() {
     const [isReadying, setIsReadying] = useState(false);
     const [isSelectingSecret, setIsSelectingSecret] = useState(false);
     const [isSendingRematch, setIsSendingRematch] = useState(false);
-    const [isRespondingRematch, setIsRespondingRematch] = useState(false);
+    const [rematchResponse, setRematchResponse] = useState(null); // 'accepting' | 'declining' | null
     const [opponentDisconnected, setOpponentDisconnected] = useState(false);
     const opponentDisconnectedRef = useRef(false);
     const [disconnectCountdown, setDisconnectCountdown] = useState(120);
@@ -347,7 +347,7 @@ export default function LobbyPage() {
     };
 
     const acceptRematch = async () => {
-        setIsRespondingRematch(true);
+        setRematchResponse('accepting');
         try {
             await apiFetch(`/lobby/${lobbyID}/rematch/accept`, {
                 method: "POST",
@@ -357,12 +357,12 @@ export default function LobbyPage() {
         } catch (err) {
             // console.error("Accept rematch error:", err);
         } finally {
-            setIsRespondingRematch(false);
+            setRematchResponse(null);
         }
     };
 
     const declineRematch = async () => {
-        setIsRespondingRematch(true);
+        setRematchResponse('declining');
         try {
             await apiFetch(`/lobby/${lobbyID}/rematch/decline`, {
                 method: "POST",
@@ -372,7 +372,7 @@ export default function LobbyPage() {
         } catch (err) {
             // console.error("Decline rematch error:", err);
         } finally {
-            setIsRespondingRematch(false);
+            setRematchResponse(null);
         }
     };
 
@@ -1154,13 +1154,13 @@ export default function LobbyPage() {
                                         Your opponent wants a rematch with <strong>{incomingRematch.characterSetName}</strong>.
                                     </p>
                                     <div style={{ display: 'flex', gap: 'var(--s3)' }}>
-                                        <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} disabled={isRespondingRematch} onClick={declineRematch}>
-                                            {isRespondingRematch && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
-                                            {isRespondingRematch ? 'Declining…' : 'Decline'}
+                                        <button className="gw-btn-ghost" style={{ flex: 1, height: 44 }} disabled={rematchResponse !== null} onClick={declineRematch}>
+                                            {rematchResponse === 'declining' && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                            {rematchResponse === 'declining' ? 'Declining…' : 'Decline'}
                                         </button>
-                                        <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} disabled={isRespondingRematch} onClick={acceptRematch}>
-                                            {isRespondingRematch && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
-                                            {isRespondingRematch ? 'Accepting…' : 'Accept'}
+                                        <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} disabled={rematchResponse !== null} onClick={acceptRematch}>
+                                            {rematchResponse === 'accepting' && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                            {rematchResponse === 'accepting' ? 'Accepting…' : 'Accept'}
                                         </button>
                                     </div>
                                 </div>
@@ -1196,7 +1196,7 @@ export default function LobbyPage() {
                     <div className="gw-card" style={{ maxWidth: 440, width: '100%', textAlign: 'center' }}>
                         <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 900, fontSize: 32, color: 'var(--text-900)', letterSpacing: '-0.02em', marginBottom: 'var(--s3)' }}>Lobby not found</h1>
                         <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s8)' }}>This lobby doesn&apos;t exist or has expired.</p>
-                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>Create New Game</button>
+                        <button className="gw-btn-primary" style={{ height: 44, padding: '0 var(--s8)' }} onClick={() => router.push('/')}>Home</button>
                     </div>
                 </div>
             </>
