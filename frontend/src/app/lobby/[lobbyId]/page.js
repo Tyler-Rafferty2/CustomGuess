@@ -283,6 +283,7 @@ export default function LobbyPage() {
     const [disconnectCountdown, setDisconnectCountdown] = useState(120);
     const disconnectIntervalRef = useRef(null);
     const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
+    const [isLeavingGame, setIsLeavingGame] = useState(false);
     const [preGameDisconnected, setPreGameDisconnected] = useState(false);
     const [preGameCountdown, setPreGameCountdown] = useState(30);
     const [preGameDisconnectedIsHost, setPreGameDisconnectedIsHost] = useState(false);
@@ -1074,8 +1075,9 @@ export default function LobbyPage() {
                                     {opponentLeftAfterGame ? "Opponent Left" : "Rematch"}
                                 </button>
                             )}
-                            <button className="gw-btn-primary" style={{ flex: 1, height: 44 }} onClick={() => router.push('/')}>
-                                Back to Home
+                            <button className="gw-btn-primary" style={{ flex: 1, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--s2)' }} onClick={() => { setIsLeavingGame(true); router.push('/'); }} disabled={isLeavingGame}>
+                                {isLeavingGame && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                {isLeavingGame ? 'Leaving…' : 'Back to Home'}
                             </button>
                         </div>
 
