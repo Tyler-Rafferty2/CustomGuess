@@ -5,8 +5,9 @@ import { useState, useEffect } from "react";
 import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
-import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2 } from "lucide-react";
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2, ChevronDown } from "lucide-react";
 import Navbar from "@/components/navbar";
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 // ─── Design Token Injection ───────────────────────────────────────────────────
 const DESIGN_TOKENS = `
@@ -711,7 +712,11 @@ const DESIGN_TOKENS = `
   /* ── Responsive ── */
   @media (max-width: 768px) {
     .lobby-body { flex-direction: column; height: auto; overflow: visible; }
-    .panel-right { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+    .panel-right {
+      width: 100%; border-left: none; border-bottom: 1px solid var(--border);
+      border-top: none; order: -1; overflow: visible;
+    }
+    .panel-right__inner { padding: 0; }
     .panel-left { padding: var(--s4); }
     .sets-grid { grid-template-columns: 1fr 1fr; }
     .create-form__row { flex-direction: column; }
@@ -722,6 +727,32 @@ const DESIGN_TOKENS = `
     .tab-btn span { display: none; }
   }
 
+  /* ── Mobile settings collapse ── */
+  .settings-collapse-header {
+    display: none;
+  }
+  .settings-collapse-body {
+    display: block;
+  }
+  @media (max-width: 768px) {
+    .settings-collapse-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--s3) var(--s4);
+      cursor: pointer;
+      user-select: none;
+      background: var(--surface-0);
+      min-height: 52px;
+    }
+    .settings-collapse-header:active { background: var(--surface-1); }
+    .settings-collapse-body--hidden { display: none; }
+    .settings-collapse-body--visible {
+      padding: var(--s4);
+      border-top: 1px solid var(--border);
+    }
+  }
+
   .no-spinner::-webkit-outer-spin-button,
   .no-spinner::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   .no-spinner { -moz-appearance: textfield; }
@@ -729,6 +760,8 @@ const DESIGN_TOKENS = `
 
 export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, onConflict }) {
     const router = useRouter();
+    const isMobile = useMediaQuery('(max-width: 768px)');
+    const [settingsExpanded, setSettingsExpanded] = useState(false);
     const [selectedSet, setSelectedSet] = useState(null);
     const [selectSecret, setSelectSecret] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);
@@ -1186,8 +1219,44 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
 
                     {/* Right Panel — Game Settings */}
                     <aside className="panel-right" aria-label="Game settings">
+                        {/* Mobile: collapsed summary header */}
+                        {(() => {
+                            const charSummary = !selectedSet ? null
+                                : charSelectMode === 'random' ? `${randomCount} random`
+                                : charSelectMode === 'manual' ? `${manualSelected.size} manual`
+                                : `All ${selectedSet.characters?.length ?? ''} chars`;
+                            const chips = [
+                                selectedSet ? charSummary : 'No set selected',
+                                chatFeature ? 'Chat on' : 'Chat off',
+                                turnTimerSeconds > 0 ? `${turnTimerSeconds >= 60 ? `${turnTimerSeconds / 60}min` : `${turnTimerSeconds}s`} timer` : 'No timer',
+                                isPrivate ? 'Private' : 'Public',
+                            ];
+                            return (
+                                <div
+                                    className="settings-collapse-header"
+                                    onClick={() => setSettingsExpanded(v => !v)}
+                                    aria-expanded={settingsExpanded}
+                                >
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-400)' }}>
+                                            Game Settings
+                                        </span>
+                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', lineHeight: 1.4 }}>
+                                            {chips.filter(Boolean).join(' · ')}
+                                        </span>
+                                    </div>
+                                    <ChevronDown
+                                        size={18}
+                                        color="var(--text-400)"
+                                        style={{ transform: settingsExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 200ms', flexShrink: 0 }}
+                                    />
+                                </div>
+                            );
+                        })()}
+
+                        <div className={`settings-collapse-body${isMobile ? (settingsExpanded ? ' settings-collapse-body--visible' : ' settings-collapse-body--hidden') : ''}`}>
                         <div className="panel-right__inner">
-                            <h2 className="panel-right__heading">Game Settings</h2>
+                            <h2 className="panel-right__heading" style={{ display: isMobile ? 'none' : undefined }}>Game Settings</h2>
 
                             {selectedSet && (
                                 <div className="selected-preview">
@@ -1411,23 +1480,26 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                 </div>
                             </div>
 
-                            <div className="panel-right__cta">
-                                <button
-                                    className="btn btn--primary btn--large btn--full"
-                                    onClick={handleCreateLobby}
-                                    disabled={
-                                        isCreating ||
-                                        !selectedSet ||
-                                        (charSelectMode === 'all' && (selectedSet?.characters?.length ?? 0) < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
-                                        (charSelectMode === 'random' && randomPreview.length < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
-                                        (charSelectMode === 'manual' && manualSelected.size < Math.max(selectedSet?.minCharacters ?? 6, 6))
-                                    }
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                                >
-                                    {isCreating && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
-                                    {isCreating ? 'Creating…' : 'Create Lobby'}
-                                </button>
-                            </div>
+                        </div>
+                        </div>{/* end settings-collapse-body */}
+
+                        {/* Create Lobby button — always visible, outside the collapse */}
+                        <div style={{ padding: isMobile ? 'var(--s3) var(--s4)' : 'var(--s6)', marginTop: isMobile ? 0 : 'auto', borderTop: isMobile ? '1px solid var(--border)' : 'none' }}>
+                            <button
+                                className="btn btn--primary btn--large btn--full"
+                                onClick={handleCreateLobby}
+                                disabled={
+                                    isCreating ||
+                                    !selectedSet ||
+                                    (charSelectMode === 'all' && (selectedSet?.characters?.length ?? 0) < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
+                                    (charSelectMode === 'random' && randomPreview.length < Math.max(selectedSet?.minCharacters ?? 6, 6)) ||
+                                    (charSelectMode === 'manual' && manualSelected.size < Math.max(selectedSet?.minCharacters ?? 6, 6))
+                                }
+                                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                            >
+                                {isCreating && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                {isCreating ? 'Creating…' : 'Create Lobby'}
+                            </button>
                         </div>
                     </aside>
                 </div>

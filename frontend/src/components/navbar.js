@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
 import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User, Swords } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 /* ─────────────────────────────────────────────
    Design tokens — v3.0 schema
@@ -102,6 +103,7 @@ export default function Navbar() {
     const [activeLobbyId, setActiveLobbyId] = useState(null);
 
     const router = useRouter();
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const handleLogout = () => logout();
 
@@ -245,6 +247,122 @@ export default function Navbar() {
     }
 
     /* ── Standard Bar ────────────────────────────── */
+
+    /* Shared user dropdown (used in both desktop and mobile top bars) */
+    const userDropdown = !isLoading && user && !user.isGuest ? (
+        <div style={{ position: "relative" }}>
+            <motion.button
+                onClick={() => setShowUserMenu(v => !v)}
+                style={{
+                    display: "flex", alignItems: "center", gap: isMobile ? 0 : 8,
+                    padding: isMobile ? 0 : "4px 8px 4px 4px",
+                    background: showUserMenu ? T.surface1 : "transparent",
+                    border: `1px solid ${showUserMenu ? T.borderStrong : (isMobile ? "transparent" : T.border)}`,
+                    borderRadius: isMobile ? "50%" : "6px",
+                    cursor: "pointer",
+                    width: isMobile ? 36 : "auto",
+                    height: isMobile ? 36 : "auto",
+                    justifyContent: "center",
+                }}
+                whileHover={{ background: T.surface1, borderColor: T.borderStrong }}
+                whileTap={{ scale: 0.97 }}
+            >
+                <div style={{
+                    width: isMobile ? 36 : 28,
+                    height: isMobile ? 36 : 28,
+                    borderRadius: isMobile ? "50%" : 4,
+                    background: T.surface2, border: `1px solid ${T.border}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: T.accent,
+                    fontSize: isMobile ? 14 : 12,
+                    fontWeight: 700,
+                    fontFamily: "'Fraunces', serif",
+                }}>
+                    {(user.username || user.email)?.[0]?.toUpperCase()}
+                </div>
+                {!isMobile && (
+                    <>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: T.text600 }}>
+                            {user.username || user.email.split("@")[0]}
+                        </span>
+                        <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                            <ChevronDown size={13} color={T.text400} />
+                        </motion.div>
+                    </>
+                )}
+            </motion.button>
+
+            <AnimatePresence>
+                {showUserMenu && (
+                    <>
+                        <motion.div
+                            style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                            onClick={() => setShowUserMenu(false)}
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        />
+                        <motion.div
+                            style={{
+                                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                                width: 260, background: T.surface0,
+                                border: `1px solid ${T.border}`, borderRadius: "6px",
+                                overflow: "hidden", zIndex: 50,
+                                boxShadow: "0 4px 24px rgba(26,21,16,0.09)",
+                            }}
+                            initial={{ opacity: 0, scale: 0.96, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.96, y: -4 }}
+                            transition={{ duration: 0.15 }}
+                        >
+                            <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}>
+                                <div style={{ width: 36, height: 36, borderRadius: 6, background: T.surface2, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, fontSize: 15, fontWeight: 700, fontFamily: "'Fraunces', serif" }}>
+                                    {(user.username || user.email)?.[0]?.toUpperCase()}
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 14, fontWeight: 600, color: T.text900 }}>{user.username || user.email.split("@")[0]}</div>
+                                    <div style={{ fontSize: 11, color: T.text400 }}>{user.email}</div>
+                                </div>
+                            </div>
+                            <div style={{ padding: 6 }}>
+                                {[
+                                    { icon: <User size={14} />, label: "Profile", sub: "View your stats & history" },
+                                    { icon: <HelpCircle size={14} />, label: "How to Play", sub: "Game rules & tips" },
+                                ].map(({ icon, label, sub }) => (
+                                    <motion.button
+                                        key={label}
+                                        onClick={() => {
+                                            if (label === "How to Play") { setShowHowToPlay(true); }
+                                            else if (label === "Profile") { router.push("/profile"); }
+                                            setShowUserMenu(false);
+                                        }}
+                                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
+                                        whileHover={{ background: T.surface1 }}
+                                    >
+                                        <div style={{ width: 28, height: 28, borderRadius: 4, background: T.surface1, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, flexShrink: 0 }}>{icon}</div>
+                                        <div>
+                                            <div style={{ fontSize: 13, fontWeight: 500, color: T.text900 }}>{label}</div>
+                                            <div style={{ fontSize: 11, color: T.text400, marginTop: 1 }}>{sub}</div>
+                                        </div>
+                                    </motion.button>
+                                ))}
+                                <div style={{ height: 1, background: T.border, margin: "4px 6px" }} />
+                                <motion.button
+                                    onClick={() => { handleLogout(); setShowUserMenu(false); }}
+                                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
+                                    whileHover={{ background: "#FEF0EE" }}
+                                >
+                                    <div style={{ width: 28, height: 28, borderRadius: 4, background: "#FEF0EE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                        <LogOut size={14} color={T.stateOut} />
+                                    </div>
+                                    <div style={{ fontSize: 13, fontWeight: 500, color: T.stateOut }}>Log out</div>
+                                </motion.button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+        </div>
+    ) : null;
+
     return (
         <>
             <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');`}</style>
@@ -256,204 +374,108 @@ export default function Navbar() {
                 borderBottom: `1px solid ${T.border}`,
                 fontFamily: "'DM Sans', sans-serif",
             }}>
-                <div style={{
-                    maxWidth: 1080, margin: "0 auto", padding: "0 24px",
-                    height: 56, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
-                }}>
-
-                    <Logo onClick={() => router.push("/")} />
-
-                    <div style={{ display: "flex", gap: 2 }}>
-                        {NAV_ITEMS.map((item) => {
-                            const isActive = item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
-                            return (
-                                <NavItem
-                                    key={item.href}
-                                    item={item}
-                                    isActive={isActive}
-                                    onClick={() => router.push(item.href)}
-                                />
-                            );
-                        })}
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, justifySelf: "end" }}>
-                        {activeLobbyId && (
-                            <div style={{ position: "relative", display: "inline-flex" }}>
-                                <motion.button
-                                    onClick={() => router.push(`/lobby/${activeLobbyId}`)}
-                                    style={{
-                                        display: "flex", alignItems: "center", gap: 6,
-                                        height: 32, padding: "0 14px",
-                                        background: T.accent,
-                                        border: `1px solid ${T.accent}`,
-                                        borderRadius: "6px",
-                                        color: "#fff",
-                                        fontFamily: "'DM Sans', sans-serif",
-                                        fontSize: 13, fontWeight: 600,
-                                        cursor: "pointer", outline: "none",
-                                        letterSpacing: "0.01em",
-                                    }}
-                                    whileHover={{ background: T.accentDim, borderColor: T.accentDim }}
-                                    whileTap={{ scale: 0.97 }}
-                                    animate={{ scale: [1, 1.03, 1] }}
-                                    transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                                >
-                                    <Swords size={13} strokeWidth={2} />
-                                    Rejoin Game
-                                </motion.button>
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            await apiFetch(`/lobby/forfeit`, {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ lobbyId: activeLobbyId }),
-                                            });
-                                        } catch (err) {
-                                            // console.error("Forfeit error:", err);
-                                        }
-                                        setActiveLobbyId(null);
-                                    }}
-                                    aria-label="Leave game"
-                                    style={{
-                                        position: "absolute", top: -7, right: -7,
-                                        width: 18, height: 18, borderRadius: "50%",
-                                        background: T.text900, color: "#fff",
-                                        border: `2px solid ${T.surface0}`,
-                                        display: "flex", alignItems: "center", justifyContent: "center",
-                                        cursor: "pointer", padding: 0,
-                                    }}
-                                >
-                                    <X size={9} strokeWidth={3} />
-                                </button>
-                            </div>
+                {isMobile ? (
+                    /* ── Mobile top bar: Logo + user only ── */
+                    <div style={{
+                        padding: "0 16px",
+                        height: 56,
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                    }}>
+                        <Logo onClick={() => router.push("/")} />
+                        {!isLoading && (
+                            user && !user.isGuest
+                                ? userDropdown
+                                : <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
                         )}
-                        <div style={{ minWidth: 148, display: "flex", justifyContent: "flex-end" }}>
-                        {!isLoading && (user && !user.isGuest ? (
-                            <div style={{ position: "relative" }}>
-                                {/* Trigger */}
-                                <motion.button
-                                    onClick={() => setShowUserMenu(v => !v)}
-                                    style={{
-                                        display: "flex", alignItems: "center", gap: 8,
-                                        padding: "4px 8px 4px 4px",
-                                        background: showUserMenu ? T.surface1 : "transparent",
-                                        border: `1px solid ${showUserMenu ? T.borderStrong : T.border}`,
-                                        borderRadius: "6px", cursor: "pointer",
-                                    }}
-                                    whileHover={{ background: T.surface1, borderColor: T.borderStrong }}
-                                    whileTap={{ scale: 0.97 }}
-                                >
-                                    <div style={{
-                                        width: 28, height: 28, borderRadius: 4,
-                                        background: T.surface2, border: `1px solid ${T.border}`,
-                                        display: "flex", alignItems: "center", justifyContent: "center",
-                                        color: T.accent, fontSize: 12, fontWeight: 700,
-                                        fontFamily: "'Fraunces', serif",
-                                    }}>
-                                        {(user.username || user.email)?.[0]?.toUpperCase()}
-                                    </div>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: T.text600 }}>
-                                        {user.username || user.email.split("@")[0]}
-                                    </span>
-                                    <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                                        <ChevronDown size={13} color={T.text400} />
-                                    </motion.div>
-                                </motion.button>
+                    </div>
+                ) : (
+                    /* ── Desktop top bar: unchanged ── */
+                    <div style={{
+                        maxWidth: 1080, margin: "0 auto", padding: "0 24px",
+                        height: 56, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
+                    }}>
+                        <Logo onClick={() => router.push("/")} />
 
-                                {/* Overlay to close */}
-                                <AnimatePresence>
-                                    {showUserMenu && (
-                                        <>
-                                            <motion.div
-                                                style={{ position: "fixed", inset: 0, zIndex: 40 }}
-                                                onClick={() => setShowUserMenu(false)}
-                                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                            />
-                                            <motion.div
-                                                style={{
-                                                    position: "absolute", top: "calc(100% + 8px)", right: 0,
-                                                    width: 260, background: T.surface0,
-                                                    border: `1px solid ${T.border}`, borderRadius: "6px",
-                                                    overflow: "hidden", zIndex: 50,
-                                                    boxShadow: "0 4px 24px rgba(26,21,16,0.09)",
-                                                }}
-                                                initial={{ opacity: 0, scale: 0.96, y: -4 }}
-                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                exit={{ opacity: 0, scale: 0.96, y: -4 }}
-                                                transition={{ duration: 0.15 }}
-                                            >
-                                                {/* Header */}
-                                                <div style={{ padding: "14px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <div style={{ width: 36, height: 36, borderRadius: 6, background: T.surface2, border: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, fontSize: 15, fontWeight: 700, fontFamily: "'Fraunces', serif" }}>
-                                                        {(user.username || user.email)?.[0]?.toUpperCase()}
-                                                    </div>
-                                                    <div>
-                                                        <div style={{ fontSize: 14, fontWeight: 600, color: T.text900 }}>{user.username || user.email.split("@")[0]}</div>
-                                                        <div style={{ fontSize: 11, color: T.text400 }}>{user.email}</div>
-                                                    </div>
-                                                </div>
+                        <div style={{ display: "flex", gap: 2 }}>
+                            {NAV_ITEMS.map((item) => {
+                                const isActive = item.href === "/" ? pathname === "/" : pathname?.startsWith(item.href);
+                                return (
+                                    <NavItem
+                                        key={item.href}
+                                        item={item}
+                                        isActive={isActive}
+                                        onClick={() => router.push(item.href)}
+                                    />
+                                );
+                            })}
+                        </div>
 
-                                                {/* Menu rows */}
-                                                <div style={{ padding: 6 }}>
-                                                    {[
-                                                        { icon: <User size={14} />, label: "Profile", sub: "View your stats & history" },
-                                                        // { icon: <Settings size={14} />, label: "Settings", sub: "Preferences & account" },
-                                                        { icon: <HelpCircle size={14} />, label: "How to Play", sub: "Game rules & tips" },
-                                                    ].map(({ icon, label, sub }) => (
-                                                        <motion.button
-                                                            key={label}
-                                                            onClick={() => {
-                                                                if (label === "How to Play") { setShowHowToPlay(true); }
-                                                                else if (label === "Profile") { router.push("/profile") }
-                                                                // else console.log(label + " clicked");
-                                                                setShowUserMenu(false);
-                                                            }}
-                                                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
-                                                            whileHover={{ background: T.surface1 }}
-                                                        >
-                                                            <div style={{ width: 28, height: 28, borderRadius: 4, background: T.surface1, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, flexShrink: 0 }}>{icon}</div>
-                                                            <div>
-                                                                <div style={{ fontSize: 13, fontWeight: 500, color: T.text900 }}>{label}</div>
-                                                                <div style={{ fontSize: 11, color: T.text400, marginTop: 1 }}>{sub}</div>
-                                                            </div>
-                                                        </motion.button>
-                                                    ))}
-
-                                                    <div style={{ height: 1, background: T.border, margin: "4px 6px" }} />
-
-                                                    <motion.button
-                                                        onClick={() => { handleLogout(); setShowUserMenu(false); }}
-                                                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 10px", background: "transparent", border: "none", borderRadius: 4, cursor: "pointer", textAlign: "left" }}
-                                                        whileHover={{ background: "#FEF0EE" }}
-                                                    >
-                                                        <div style={{ width: 28, height: 28, borderRadius: 4, background: "#FEF0EE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                                            <LogOut size={14} color={T.stateOut} />
-                                                        </div>
-                                                        <div style={{ fontSize: 13, fontWeight: 500, color: T.stateOut }}>Log out</div>
-                                                    </motion.button>
-                                                </div>
-                                            </motion.div>
-                                        </>
-                                    )}
-                                </AnimatePresence>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, justifySelf: "end" }}>
+                            {activeLobbyId && (
+                                <div style={{ position: "relative", display: "inline-flex" }}>
+                                    <motion.button
+                                        onClick={() => router.push(`/lobby/${activeLobbyId}`)}
+                                        style={{
+                                            display: "flex", alignItems: "center", gap: 6,
+                                            height: 32, padding: "0 14px",
+                                            background: T.accent, border: `1px solid ${T.accent}`,
+                                            borderRadius: "6px", color: "#fff",
+                                            fontFamily: "'DM Sans', sans-serif",
+                                            fontSize: 13, fontWeight: 600,
+                                            cursor: "pointer", outline: "none", letterSpacing: "0.01em",
+                                        }}
+                                        whileHover={{ background: T.accentDim, borderColor: T.accentDim }}
+                                        whileTap={{ scale: 0.97 }}
+                                        animate={{ scale: [1, 1.03, 1] }}
+                                        transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                                    >
+                                        <Swords size={13} strokeWidth={2} />
+                                        Rejoin Game
+                                    </motion.button>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await apiFetch(`/lobby/forfeit`, {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({ lobbyId: activeLobbyId }),
+                                                });
+                                            } catch (err) {}
+                                            setActiveLobbyId(null);
+                                        }}
+                                        aria-label="Leave game"
+                                        style={{
+                                            position: "absolute", top: -7, right: -7,
+                                            width: 18, height: 18, borderRadius: "50%",
+                                            background: T.text900, color: "#fff",
+                                            border: `2px solid ${T.surface0}`,
+                                            display: "flex", alignItems: "center", justifyContent: "center",
+                                            cursor: "pointer", padding: 0,
+                                        }}
+                                    >
+                                        <X size={9} strokeWidth={3} />
+                                    </button>
+                                </div>
+                            )}
+                            <div style={{ minWidth: 148, display: "flex", justifyContent: "flex-end" }}>
+                                {!isLoading && (user && !user.isGuest
+                                    ? userDropdown
+                                    : (
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                            <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
+                                            <PrimaryButton onClick={() => router.push("/signup")} label="Sign up" />
+                                        </div>
+                                    )
+                                )}
                             </div>
-                        ) : (
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
-                                <PrimaryButton onClick={() => router.push("/signup")} label="Sign up" />
-                            </div>
-                        ))}
                         </div>
                     </div>
+                )}
 
-                </div>
-                <HowToPlayModal
-                    open={showHowToPlay}
-                    onClose={() => setShowHowToPlay(false)}
-                />
-            </nav >
+                <HowToPlayModal open={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
+            </nav>
+
+            {isMobile && <BottomTabBar pathname={pathname} onNavigate={(href) => router.push(href)} />}
         </>
     );
 }
@@ -631,6 +653,51 @@ function LeaveModal({ open, onCancel, onConfirm }) {
                 </motion.div>
             )}
         </AnimatePresence>
+    );
+}
+
+function BottomTabBar({ pathname, onNavigate }) {
+    const tabs = [
+        { label: "Home",   href: "/",       Icon: Home },
+        { label: "Create", href: "/create", Icon: PlusSquare },
+        { label: "Browse", href: "/lobby",  Icon: Users },
+    ];
+    return (
+        <nav style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            height: 56,
+            background: T.surface0,
+            borderTop: `1px solid ${T.border}`,
+            display: "flex",
+            zIndex: 100,
+            paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+            {tabs.map(({ label, href, Icon }) => {
+                const isActive = href === "/" ? pathname === "/" : pathname?.startsWith(href);
+                return (
+                    <button
+                        key={href}
+                        onClick={() => onNavigate(href)}
+                        style={{
+                            flex: 1,
+                            display: "flex", flexDirection: "column",
+                            alignItems: "center", justifyContent: "center",
+                            gap: 3,
+                            background: "transparent", border: "none",
+                            cursor: "pointer",
+                            color: isActive ? T.accent : T.text400,
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontSize: 10,
+                            fontWeight: isActive ? 600 : 400,
+                            transition: "color 150ms",
+                        }}
+                    >
+                        <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+                        {label}
+                    </button>
+                );
+            })}
+        </nav>
     );
 }
 

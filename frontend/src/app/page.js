@@ -223,6 +223,11 @@ export default function Home() {
           .content-col { max-width: 520px !important; }
         }
 
+        @media (max-width: 640px) {
+          .hero-title { font-size: 32px !important; }
+          .hero-sub { font-size: 13px !important; }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
         }
@@ -250,7 +255,7 @@ export default function Home() {
           >
             {/* Headline */}
             <div>
-              <p style={{
+              <p className="hero-sub" style={{
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: 11, fontWeight: 600, letterSpacing: "0.1em",
                 textTransform: "uppercase", color: T.accent,
@@ -258,7 +263,7 @@ export default function Home() {
               }}>
                 Multiplayer · Real-time
               </p>
-              <h1 style={{
+              <h1 className="hero-title" style={{
                 fontFamily: "'Fraunces', serif",
                 fontSize: 52, fontWeight: 900, lineHeight: 1.0,
                 color: T.text900, letterSpacing: "-0.03em",

@@ -17,6 +17,8 @@ import { motion } from "framer-motion";
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
+import Drawer from '@mui/material/Drawer';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 const fontLink = typeof document !== 'undefined' && (() => {
     if (!document.getElementById('gw-fonts')) {
@@ -284,6 +286,8 @@ export default function LobbyPage() {
     const disconnectIntervalRef = useRef(null);
     const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
     const [isLeavingGame, setIsLeavingGame] = useState(false);
+    const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const [preGameDisconnected, setPreGameDisconnected] = useState(false);
     const [preGameCountdown, setPreGameCountdown] = useState(30);
     const [preGameDisconnectedIsHost, setPreGameDisconnectedIsHost] = useState(false);
@@ -1084,7 +1088,7 @@ export default function LobbyPage() {
                         {/* Rematch set picker modal */}
                         {rematchModalOpen && (
                             <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
-                                <div className="gw-card" style={{ width: '100%', maxWidth: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: 'var(--s6)' }}>
+                                <div className="gw-card" style={{ width: '100%', maxWidth: 'min(520px, calc(100vw - 32px))', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: 'var(--s6)' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s5)' }}>
                                         <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)', margin: 0 }}>Choose Character Set</h2>
                                         <button onClick={() => setRematchModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-400)', fontSize: 20, lineHeight: 1, padding: 'var(--s1)' }}>✕</button>
@@ -1114,7 +1118,7 @@ export default function LobbyPage() {
                                         ))}
                                     </div>
                                     {/* Set grid */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', overflowY: 'auto', flex: 1 }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 'var(--s3)', overflowY: 'auto', flex: 1 }}>
                                         {(rematchSetView === 'public' ? rematchPublicSets : rematchMySets).map(set => (
                                             <div key={set.id} onClick={() => setSelectedRematchSet(set)} style={{ background: 'var(--surface-0)', border: `2px solid ${selectedRematchSet?.id === set.id ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 'var(--r)', padding: 'var(--s3)', cursor: 'pointer', transition: 'border-color 150ms' }}>
                                                 <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 80, borderRadius: 4, marginBottom: 'var(--s2)' }} />
@@ -1150,7 +1154,7 @@ export default function LobbyPage() {
                         {/* Incoming rematch modal */}
                         {incomingRematch && (
                             <div style={{ position: 'fixed', inset: 0, background: 'rgba(26,21,16,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--s6)' }}>
-                                <div className="gw-card" style={{ width: '100%', maxWidth: 380, padding: 'var(--s8)', textAlign: 'center' }}>
+                                <div className="gw-card" style={{ width: '100%', maxWidth: 'min(380px, calc(100vw - 32px))', padding: 'var(--s8)', textAlign: 'center' }}>
                                     <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 22, color: 'var(--text-900)', marginBottom: 'var(--s3)' }}>Rematch?</h2>
                                     <p style={{ fontFamily: "'DM Sans', sans-serif", color: 'var(--text-600)', fontSize: 14, marginBottom: 'var(--s6)' }}>
                                         Your opponent wants a rematch with <strong>{incomingRematch.characterSetName}</strong>.
@@ -1593,7 +1597,7 @@ export default function LobbyPage() {
                         The lobby was cancelled — redirecting…
                     </div>
                 )}
-                <div style={{ height: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '8vh', padding: 'var(--s6)', paddingTop: '8vh', overflow: 'hidden' }}>
+                <div style={{ minHeight: 'calc(100vh - 56px)', background: 'var(--bg)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 'var(--s6)', paddingTop: '8vh', overflowY: 'auto' }}>
                     <motion.div
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1724,7 +1728,7 @@ export default function LobbyPage() {
                 </div>
             )}
             <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
-                {lobby.chatFeature && (
+                {lobby.chatFeature && !isMobile && (
                     <div style={{
                         width: 256,
                         flexShrink: 0,
@@ -1827,8 +1831,111 @@ export default function LobbyPage() {
                         </div>
                     </div>
                 )}
+                {lobby.chatFeature && isMobile && (
+                    <>
+                        <button
+                            onClick={() => setMobilePanelOpen(true)}
+                            aria-label="Open question log"
+                            style={{
+                                position: 'fixed',
+                                bottom: 24,
+                                right: 24,
+                                zIndex: 200,
+                                width: 52,
+                                height: 52,
+                                borderRadius: '50%',
+                                background: 'var(--accent)',
+                                color: '#fff',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                            }}
+                        >
+                            <MessageSquare size={22} />
+                        </button>
+                        <Drawer
+                            anchor="bottom"
+                            open={mobilePanelOpen}
+                            onClose={() => setMobilePanelOpen(false)}
+                            PaperProps={{
+                                style: {
+                                    background: 'var(--surface-0)',
+                                    borderRadius: '12px 12px 0 0',
+                                    maxHeight: '70vh',
+                                    padding: 'var(--s4)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    overflow: 'hidden',
+                                },
+                            }}
+                        >
+                            <div style={{ width: 40, height: 4, background: 'var(--border-strong)', borderRadius: 2, margin: '0 auto var(--s4)' }} />
+                            {gameState && gameState.secretCharacter && (
+                                <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)', display: 'flex', alignItems: 'center', gap: 'var(--s3)' }}>
+                                    <img
+                                        src={imgUrl(gameState.secretCharacter.image)}
+                                        alt={gameState.secretCharacter.name}
+                                        style={{ width: 48, height: 60, objectFit: 'cover', borderRadius: 'calc(var(--r) - 2px)', imageRendering: 'auto', flexShrink: 0 }}
+                                    />
+                                    <div>
+                                        <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s1)' }}>Your secret character</span>
+                                        <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', margin: 0 }}>
+                                            {gameState.secretCharacter.name}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)', marginBottom: 'var(--s3)' }}>
+                                <MessageSquare size={13} color="var(--text-400)" />
+                                <span className="gw-label">Question Log</span>
+                                {questionLog.length > 0 && (
+                                    <span style={{ marginLeft: 'auto', fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: 'var(--text-400)' }}>
+                                        {questionLog.length}
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 'var(--s2)', paddingRight: 2 }}>
+                                {questionLog.length === 0 ? (
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-400)', textAlign: 'center', paddingTop: 'var(--s8)', margin: 0 }}>
+                                        No questions yet
+                                    </p>
+                                ) : (
+                                    [...questionLog].reverse().map((msg, index) => {
+                                        const isAnswered = msg.answer !== null && msg.answer !== undefined;
+                                        const answerText = isAnswered ? msg.answer.trim().toLowerCase() : null;
+                                        const isYes = answerText === 'yes';
+                                        const answerColor = isYes ? 'var(--state-live)' : 'var(--state-out)';
+                                        const answerBg = isYes ? '#EAF6EF' : '#FEF0EE';
+                                        return (
+                                            <div key={index} style={{ background: 'var(--surface-0)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 'var(--s3)', display: 'flex', flexDirection: 'column', gap: 'var(--s2)' }}>
+                                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-900)', margin: 0, lineHeight: 1.5, fontWeight: 500 }}>
+                                                    {msg.question || msg.content}
+                                                </p>
+                                                {isAnswered ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s2)' }}>
+                                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: answerColor, background: answerBg, border: `1px solid ${answerColor}44`, borderRadius: 4, padding: '2px 8px' }}>
+                                                            {msg.answer}
+                                                        </span>
+                                                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: 'var(--text-400)' }}>{msg.time}</span>
+                                                    </div>
+                                                ) : (
+                                                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: 'var(--text-400)', letterSpacing: '0.04em' }}>
+                                                        Waiting for answer…
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </Drawer>
+                    </>
+                )}
 
-                <div style={{ flex: 1, padding: 'var(--s6)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+                <div style={{ flex: 1, padding: isMobile ? 'var(--s4)' : 'var(--s6)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                     {!lobby.chatFeature && (
                         <>
                             {/* Top bar: secret character + guess toggle (no-chat has no turns) */}

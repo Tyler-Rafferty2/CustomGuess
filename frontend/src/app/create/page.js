@@ -189,7 +189,7 @@ export default function LobbyPage() {
     }
 
     return (
-        <div className="h-screen w-full overflow-hidden">
+        <div>
             {conflictLobbyId && (
                 <ConflictModal
                     lobbyId={conflictLobbyId}

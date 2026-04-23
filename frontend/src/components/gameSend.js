@@ -93,7 +93,7 @@ export default function GameSend({
         border: '1px solid var(--border)',
         borderRadius: 'var(--r)',
         padding: '0 var(--s4)',
-        height: 40,
+        height: 44,
         outline: 'none',
         transition: 'border-color 150ms',
     };
@@ -102,7 +102,7 @@ export default function GameSend({
         fontFamily: "'DM Sans', sans-serif",
         fontWeight: 600,
         fontSize: 13,
-        height: 40,
+        height: 44,
         borderRadius: 'var(--r)',
         border: 'none',
         cursor: 'pointer',
@@ -208,11 +208,9 @@ export default function GameSend({
                             background: inputMessage.trim() ? 'var(--accent)' : 'var(--surface-2)',
                             color: inputMessage.trim() ? '#fff' : 'var(--text-400)',
                             cursor: inputMessage.trim() ? 'pointer' : 'not-allowed',
-                            width: 40,
+                            width: 44,
                             padding: 0,
                         }}
-                        onMouseEnter={e => { if (inputMessage.trim()) e.currentTarget.style.background = 'var(--accent-dim)'; }}
-                        onMouseLeave={e => { if (inputMessage.trim()) e.currentTarget.style.background = 'var(--accent)'; }}
                     >
                         <Send size={15} />
                     </button>
@@ -225,14 +223,6 @@ export default function GameSend({
                         background: isGuessMode ? 'var(--surface-2)' : 'var(--surface-1)',
                         color: 'var(--text-600)',
                         border: isGuessMode ? '1px solid var(--border-strong)' : '1px solid var(--border)',
-                    }}
-                    onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = 'var(--border-strong)';
-                        e.currentTarget.style.background = isGuessMode ? 'var(--surface-1)' : 'var(--surface-2)';
-                    }}
-                    onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = isGuessMode ? 'var(--border-strong)' : 'var(--border)';
-                        e.currentTarget.style.background = isGuessMode ? 'var(--surface-2)' : 'var(--surface-1)';
                     }}
                 >
                     {isGuessMode ? 'Stop Guessing' : 'Make a Guess'}
@@ -269,16 +259,12 @@ export default function GameSend({
                     <button
                         onClick={() => handleResponse('yes')}
                         style={{ ...btnBase, flex: 1, background: 'var(--state-live)', color: '#fff' }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                     >
                         Yes
                     </button>
                     <button
                         onClick={() => handleResponse('no')}
                         style={{ ...btnBase, flex: 1, background: 'var(--state-out)', color: '#fff' }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
-                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                     >
                         No
                     </button>

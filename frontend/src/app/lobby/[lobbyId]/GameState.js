@@ -9,7 +9,7 @@ import Paper from '@mui/material/Paper';
 import { styled } from '@mui/material/styles';
 import { Loader2 } from "lucide-react";
 
-const IMAGE_SIZE = '140px';
+const IMAGE_SIZE = 'clamp(90px, 20vw, 140px)';
 
 const Item = styled(Paper)(({ theme, isSelected, isPendingGuess }) => ({
     ...theme.typography.body2,
