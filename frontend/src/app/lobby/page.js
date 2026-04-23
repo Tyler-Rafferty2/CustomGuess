@@ -40,7 +40,7 @@ export default function LobbyPage() {
             <style>{`
                 @media (max-width: 768px) {
                     html, body { overflow: hidden; }
-                    .browse-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; }
+                    .browse-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; overscroll-behavior: none; }
                 }
             `}</style>
             <Navbar />

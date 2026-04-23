@@ -729,7 +729,7 @@ const DESIGN_TOKENS = `
 
   @media (max-width: 768px) {
     html, body { overflow: hidden; }
-    .lobby-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; }
+    .lobby-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; overscroll-behavior: none; }
   }
 
   /* ── Mobile settings collapse ── */
