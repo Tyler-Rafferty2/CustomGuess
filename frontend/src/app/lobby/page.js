@@ -36,7 +36,13 @@ export default function LobbyPage() {
     };
 
     return (
-        <>
+        <div className="browse-root">
+            <style>{`
+                @media (max-width: 768px) {
+                    body { overflow: hidden; }
+                    .browse-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; }
+                }
+            `}</style>
             <Navbar />
             <div style={{
                 minHeight: 'calc(100vh - 70px)',
@@ -93,6 +99,6 @@ export default function LobbyPage() {
 
                 </div>
             </div>
-        </>
+        </div>
     );
 }

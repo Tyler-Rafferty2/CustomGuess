@@ -727,6 +727,11 @@ const DESIGN_TOKENS = `
     .tab-btn span { display: none; }
   }
 
+  @media (max-width: 768px) {
+    body { overflow: hidden; }
+    .lobby-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; }
+  }
+
   /* ── Mobile settings collapse ── */
   .settings-collapse-header {
     display: none;
