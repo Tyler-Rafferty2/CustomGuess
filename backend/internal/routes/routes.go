@@ -109,6 +109,7 @@ func MountRoutes(r chi.Router) {
 
 	r.Route("/player", func(r chi.Router) {
 		r.With(optionalUserMiddleware).Get("/set/public", playerHandler.GetSetFromPublicHandler)
+		r.With(optionalUserMiddleware).Post("/set/{setId}/report", playerHandler.ReportSetHandler)
 
 		r.Group(func(r chi.Router) {
 			r.Use(userMiddleware)

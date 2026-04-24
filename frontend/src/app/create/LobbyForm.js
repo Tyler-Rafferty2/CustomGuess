@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
-import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2, ChevronDown } from "lucide-react";
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2, ChevronDown, Flag } from "lucide-react";
 import Navbar from "@/components/navbar";
 import useMediaQuery from '@mui/material/useMediaQuery';
 
@@ -476,6 +476,89 @@ const DESIGN_TOKENS = `
   .set-card__like-btn--active { color: var(--state-out); }
   .set-card__like-btn:disabled { cursor: default; opacity: 0.6; }
 
+  .set-card__report-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    border-radius: var(--r);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--text-400);
+    transition: color var(--dur-fast), transform var(--dur-fast);
+    line-height: 1;
+    margin-left: auto;
+  }
+  .set-card__report-btn:hover:not(:disabled) {
+    color: #c0392b;
+    transform: scale(1.1);
+  }
+  .set-card__report-btn:disabled { cursor: default; opacity: 0.45; }
+
+  .report-modal {
+    background: var(--surface-0);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    width: 100%;
+    max-width: 400px;
+    padding: var(--s6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s4);
+    animation: slideUp var(--dur-default) var(--ease-out);
+  }
+  .report-modal__title {
+    font-family: 'Fraunces', serif;
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-900);
+    letter-spacing: -0.02em;
+  }
+  .report-modal__sub {
+    font-size: var(--text-sm);
+    color: var(--text-400);
+    margin-top: var(--s1);
+  }
+  .report-modal__options {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+  }
+  .report-modal__option {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-base);
+    color: var(--text-900);
+    background: var(--surface-0);
+    transition: background var(--dur-fast), border-color var(--dur-fast);
+    text-align: left;
+  }
+  .report-modal__option:hover {
+    background: var(--surface-1);
+    border-color: var(--border-strong);
+  }
+  .report-modal__option--selected {
+    border-color: var(--accent);
+    background: #FDF1EC;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .report-modal__actions {
+    display: flex;
+    gap: var(--s3);
+    justify-content: flex-end;
+  }
+
   .toggle-row {
     display: flex;
     align-items: center;
@@ -794,6 +877,10 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [chatFeature, setChatFeature] = useState(true);
     const [turnTimerSeconds, setTurnTimerSeconds] = useState(0);
     const [previewSet, setPreviewSet] = useState(null);
+    const [reportingSet, setReportingSet] = useState(null);
+    const [reportReason, setReportReason] = useState('');
+    const [reportSubmitting, setReportSubmitting] = useState(false);
+    const [reportedSetIds, setReportedSetIds] = useState(new Set());
 
     // Debounce searchDraft → searchQuery
     useEffect(() => {
@@ -985,6 +1072,27 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         }
     };
 
+    const handleReportSubmit = async () => {
+        if (!reportingSet || !reportReason) return;
+        setReportSubmitting(true);
+        try {
+            const res = await apiFetch(`/player/set/${reportingSet.id}/report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reportReason }),
+            });
+            if (res.ok || res.status === 409) {
+                setReportedSetIds(prev => new Set([...prev, reportingSet.id]));
+            }
+        } catch {
+            // best-effort
+        } finally {
+            setReportSubmitting(false);
+            setReportingSet(null);
+            setReportReason('');
+        }
+    };
+
     return (
         <>
             <style>{DESIGN_TOKENS}</style>
@@ -1143,6 +1251,17 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                                     <Heart size={13} fill={set.likedByMe ? "currentColor" : "none"} strokeWidth={2} />
                                                     {set.likeCount ?? 0}
                                                 </button>
+                                                {setView === "public" && set.userId !== user?.id && (
+                                                    <button
+                                                        className="set-card__report-btn"
+                                                        onClick={(e) => { e.stopPropagation(); setReportingSet(set); }}
+                                                        disabled={reportedSetIds.has(set.id)}
+                                                        title={reportedSetIds.has(set.id) ? "Already reported" : "Report this set"}
+                                                        aria-label={`Report ${set.name}`}
+                                                    >
+                                                        <Flag size={13} strokeWidth={2} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1553,6 +1672,54 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                             >
                                 <Check size={15} />
                                 Select This Set
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Report Set Modal */}
+            {reportingSet && (
+                <div className="preview-overlay" onClick={() => { setReportingSet(null); setReportReason(''); }}>
+                    <div className="report-modal" onClick={(e) => e.stopPropagation()}>
+                        <div>
+                            <div className="report-modal__title">Report Set</div>
+                            <div className="report-modal__sub">
+                                Why are you reporting <strong>{reportingSet.name}</strong>?
+                            </div>
+                        </div>
+                        <div className="report-modal__options">
+                            {[
+                                { value: 'offensive',            label: 'Offensive content' },
+                                { value: 'copyright',            label: 'Copyright violation' },
+                                { value: 'inappropriate_images', label: 'Inappropriate images' },
+                                { value: 'spam',                 label: 'Spam or fake' },
+                            ].map(({ value, label }) => (
+                                <button
+                                    key={value}
+                                    className={`report-modal__option${reportReason === value ? ' report-modal__option--selected' : ''}`}
+                                    onClick={() => setReportReason(value)}
+                                    type="button"
+                                >
+                                    {reportReason === value && <Check size={14} strokeWidth={3} />}
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="report-modal__actions">
+                            <button
+                                className="btn btn--secondary"
+                                onClick={() => { setReportingSet(null); setReportReason(''); }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn--primary"
+                                onClick={handleReportSubmit}
+                                disabled={!reportReason || reportSubmitting}
+                            >
+                                {reportSubmitting && <Loader2 size={13} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                Submit Report
                             </button>
                         </div>
                     </div>

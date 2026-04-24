@@ -16,6 +16,7 @@ type CharacterSet struct {
     Public        bool        `gorm:"default:false" json:"public"`
     PlayCount     int         `gorm:"default:0" json:"playCount"`
     MinCharacters int         `gorm:"default:2" json:"minCharacters"`
+    ReportCount   int         `gorm:"default:0" json:"reportCount"`
     CreatedAt     time.Time   `json:"createdAt"`
     Characters    []Character `gorm:"foreignKey:SetID;constraint:OnDelete:CASCADE;" json:"characters"`
 }

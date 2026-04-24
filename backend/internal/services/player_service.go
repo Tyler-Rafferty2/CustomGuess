@@ -1,6 +1,7 @@
 package services
 
 import (
+    "errors"
     "fmt"
     "strings"
     "time"
@@ -293,7 +294,9 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
         params.PageSize = 12
     }
 
-    base := s.DB.Model(&models.CharacterSet{}).Where("character_sets.public = ?", true)
+    base := s.DB.Model(&models.CharacterSet{}).
+        Where("character_sets.public = ?", true).
+        Where("character_sets.report_count < ?", reportThreshold)
 
     if params.Search != "" {
         like := "%" + strings.ToLower(params.Search) + "%"
@@ -447,9 +450,41 @@ func (s *PlayerService) GetStats(user *models.User) (*StatsResponse, error) {
     return resp, nil
 }
 
+const reportThreshold = 5
 
+func (s *PlayerService) ReportSet(reporterID uuid.UUID, setID uuid.UUID, reason models.ReportReason) error {
+    switch reason {
+    case models.ReportReasonOffensive,
+        models.ReportReasonCopyright,
+        models.ReportReasonImages,
+        models.ReportReasonSpam:
+    default:
+        return fmt.Errorf("invalid report reason")
+    }
 
+    return s.DB.Transaction(func(tx *gorm.DB) error {
+        var existing models.SetReport
+        err := tx.Where("user_id = ? AND set_id = ?", reporterID, setID).First(&existing).Error
+        if err == nil {
+            return fmt.Errorf("already reported")
+        }
+        if !errors.Is(err, gorm.ErrRecordNotFound) {
+            return err
+        }
 
+        if err := tx.Create(&models.SetReport{
+            UserID: reporterID,
+            SetID:  setID,
+            Reason: reason,
+        }).Error; err != nil {
+            return err
+        }
+
+        return tx.Model(&models.CharacterSet{}).
+            Where("id = ?", setID).
+            UpdateColumn("report_count", gorm.Expr("report_count + 1")).Error
+    })
+}
 
 
 

@@ -396,3 +396,40 @@ func (h *PlayerHandler) ToggleLikeHandler(w http.ResponseWriter, r *http.Request
         "likedByMe": likedByMe,
     })
 }
+
+// POST /set/{setId}/report
+func (h *PlayerHandler) ReportSetHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+    if user == nil {
+        http.Error(w, "unauthorized", http.StatusUnauthorized)
+        return
+    }
+
+    setID, err := uuid.Parse(chi.URLParam(r, "setId"))
+    if err != nil {
+        http.Error(w, "invalid setId", http.StatusBadRequest)
+        return
+    }
+
+    var body struct {
+        Reason models.ReportReason `json:"reason"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+        http.Error(w, "invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    if err := h.Service.ReportSet(user.ID, setID, body.Reason); err != nil {
+        switch err.Error() {
+        case "already reported":
+            http.Error(w, "already reported", http.StatusConflict)
+        case "invalid report reason":
+            http.Error(w, "invalid report reason", http.StatusBadRequest)
+        default:
+            http.Error(w, "failed to submit report", http.StatusInternalServerError)
+        }
+        return
+    }
+
+    w.WriteHeader(http.StatusNoContent)
+}
