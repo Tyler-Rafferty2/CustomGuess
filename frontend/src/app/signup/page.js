@@ -53,6 +53,7 @@ export default function Signup() {
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [error, setError] = useState(null);
+    const [agreed, setAgreed] = useState(false);
 
     const handleSignup = async (e) => {
         e.preventDefault();
@@ -82,6 +83,11 @@ export default function Signup() {
 
         if (password !== confirmPassword) {
             setError("Passwords do not match");
+            return;
+        }
+
+        if (!agreed) {
+            setError("You must agree to the Terms and Privacy Policy");
             return;
         }
 
@@ -176,9 +182,28 @@ export default function Signup() {
                         />
                     </div>
 
+                    <label className="flex items-start gap-3 cursor-pointer mt-1">
+                        <input
+                            type="checkbox"
+                            checked={agreed}
+                            onChange={(e) => setAgreed(e.target.checked)}
+                            className="mt-[3px] w-4 h-4 shrink-0 accent-[#D9572B] cursor-pointer"
+                        />
+                        <span className="text-[14px] text-[#5C5047] leading-[1.5]">
+                            I agree to the{" "}
+                            <Link href="/terms" className="text-[#D9572B] font-semibold hover:text-[#B84422] transition-colors" target="_blank">
+                                Terms and Conditions
+                            </Link>
+                            {" "}and{" "}
+                            <Link href="/privacy" className="text-[#D9572B] font-semibold hover:text-[#B84422] transition-colors" target="_blank">
+                                Privacy Policy
+                            </Link>
+                        </span>
+                    </label>
+
                     <button
                         type="submit"
-                        className="w-full h-[44px] mt-4 bg-[#D9572B] hover:bg-[#B84422] active:bg-[#B84422] text-[#FFFFFF] text-[16px] font-semibold rounded-[6px] transition-colors duration-75 focus:outline-none focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF]"
+                        className="w-full h-[44px] mt-2 bg-[#D9572B] hover:bg-[#B84422] active:bg-[#B84422] text-[#FFFFFF] text-[16px] font-semibold rounded-[6px] transition-colors duration-75 focus:outline-none focus:ring-2 focus:ring-[#D9572B] focus:ring-offset-2 focus:ring-offset-[#FFFFFF]"
                     >
                         Sign Up
                     </button>
