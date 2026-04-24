@@ -672,7 +672,7 @@ function BottomTabBar({ pathname, onNavigate }) {
             {tabs.map(({ label, href, Icon }) => {
                 const isActive = href === "/" ? pathname === "/" : pathname?.startsWith(href);
                 return (
-                    <button
+                    <motion.button
                         key={href}
                         onClick={() => onNavigate(href)}
                         style={{
@@ -688,10 +688,12 @@ function BottomTabBar({ pathname, onNavigate }) {
                             fontWeight: isActive ? 600 : 400,
                             transition: "color 150ms",
                         }}
+                        whileTap={{ scale: 0.8 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 17 }}
                     >
                         <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
                         {label}
-                    </button>
+                    </motion.button>
                 );
             })}
         </nav>
