@@ -7,6 +7,6 @@ export default function robots() {
         disallow: ["/lobby/", "/profile", "/create", "/set/", "/edit/", "/forgot-password", "/password_reset"],
       },
     ],
-    sitemap: "https://guess-who-tau-one.vercel.app/sitemap.xml",
+    sitemap: "https://customguess.com/sitemap.xml",
   };
 }

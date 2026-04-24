@@ -1,5 +1,5 @@
 export default function sitemap() {
-  const base = "https://guess-who-tau-one.vercel.app";
+  const base = "https://customguess.com";
   return [
     { url: base, lastModified: new Date(), changeFrequency: "weekly", priority: 1 },
     { url: `${base}/lobby`, lastModified: new Date(), changeFrequency: "always", priority: 0.8 },

@@ -29,7 +29,7 @@ export const metadata = {
     title: "CustomGuess – Multiplayer Deduction Game",
     description:
       "Create custom character sets and play a real-time deduction game with friends. Ask questions, eliminate suspects, win.",
-    url: "https://guess-who-tau-one.vercel.app",
+    url: "https://customguess.com",
     siteName: "CustomGuess",
     type: "website",
     locale: "en_US",
@@ -39,7 +39,7 @@ export const metadata = {
     title: "CustomGuess – Multiplayer Deduction Game",
     description: "Custom real-time deduction game. Create, invite, and play.",
   },
-  metadataBase: new URL("https://guess-who-tau-one.vercel.app"),
+  metadataBase: new URL("https://customguess.com"),
 };
 
 export const viewport = {
