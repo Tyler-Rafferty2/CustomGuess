@@ -151,9 +151,8 @@ export default function PrivacyPage() {
               <li key={href}>
                 <a
                   href={href}
-                  style={{ color: "var(--accent)", textDecoration: "none" }}
-                  onMouseEnter={(e) => (e.target.style.textDecoration = "underline")}
-                  onMouseLeave={(e) => (e.target.style.textDecoration = "none")}
+                  className="hover:underline"
+                  style={{ color: "var(--accent)" }}
                 >
                   {label}
                 </a>
