@@ -19,9 +19,6 @@
     </clipPath>
   </defs>
 
-  <!-- Card background -->
-  <rect width="200" height="240" fill="#F7F3EE" rx="20"/>
-
   <!-- Bust group clipped to card, question mark cut out -->
   <g clip-path="url(#card-clip)" mask="url(#cutout)">
     <!-- Head -->
