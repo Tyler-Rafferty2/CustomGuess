@@ -491,7 +491,7 @@ function Logo({ onClick }) {
             whileHover={onClick ? { opacity: 0.8 } : {}}
             whileTap={onClick ? { scale: 0.97 } : {}}
         >
-            <img src="/logo.svg" alt="CustomGuess logo" style={{ height: 34, width: "auto" }} />
+            <img src="/logo-mark.svg" alt="CustomGuess logo" style={{ height: 34, width: "auto" }} />
             <span style={{
                 fontFamily: "'Fraunces', serif",
                 fontSize: 22, fontWeight: 900,

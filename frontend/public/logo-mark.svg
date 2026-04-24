@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="200" height="240">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@800&amp;display=swap');
+    </style>
+    <mask id="cutout">
+      <rect width="200" height="240" fill="white"/>
+      <text
+        x="100"
+        y="120"
+        font-family="Fraunces, Georgia, serif"
+        font-size="99"
+        font-weight="800"
+        text-anchor="middle"
+        fill="black">?</text>
+    </mask>
+  </defs>
+
+  <!-- Bust with question mark cut out, no background -->
+  <circle cx="100" cy="85" r="52" fill="#D9572B" mask="url(#cutout)"/>
+  <path
+    d="M -10 240 Q 0 168 48 152 Q 72 142 100 142 Q 128 142 152 152 Q 200 168 210 240 Z"
+    fill="#D9572B" mask="url(#cutout)"/>
+</svg>
