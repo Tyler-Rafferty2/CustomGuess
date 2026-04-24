@@ -41,7 +41,7 @@ export default function GameSend({
                 setReceivedMessage('');
                 setTurn(true);
                 setInputMessage('');
-            }, 50);
+            }, 150);
         } catch {
             // Send failed (connection dropped) — revert so the question stays visible
         }
