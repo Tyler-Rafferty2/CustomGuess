@@ -203,8 +203,6 @@ export default function Profile() {
                 </div>
             )}
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');
-
         .back-btn {
           display: flex; align-items: center; gap: 8px;
           background: transparent; border: 1px solid ${T.border};

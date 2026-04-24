@@ -150,8 +150,6 @@ export default function Navbar() {
 
         return (
             <>
-                <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');`}</style>
-
                 <nav style={{
                     position: "relative",
                     zIndex: 20,
@@ -365,8 +363,6 @@ export default function Navbar() {
 
     return (
         <>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');`}</style>
-
             <nav style={{
                 position: "relative",
                 zIndex: 20,

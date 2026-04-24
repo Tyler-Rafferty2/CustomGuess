@@ -158,9 +158,7 @@ export default function Home() {
   return (
     <div className="home-root" style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;0,9..144,900;1,9..144,700&family=DM+Sans:wght@400;500;600&display=swap');
-
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         .primary-btn {
           display: flex; align-items: center; justify-content: center; gap: 10px;

@@ -160,7 +160,6 @@ function NewSetForm() {
     return (
         <div style={{ minHeight: "100vh", background: T.bg }}>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=DM+Sans:wght@400;500;600&display=swap');
                 @keyframes spin { to { transform: rotate(360deg); } }
             `}</style>
 

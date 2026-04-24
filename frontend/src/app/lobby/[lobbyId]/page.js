@@ -20,15 +20,6 @@ import { styled } from '@mui/material/styles';
 import Drawer from '@mui/material/Drawer';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
-const fontLink = typeof document !== 'undefined' && (() => {
-    if (!document.getElementById('gw-fonts')) {
-        const l = document.createElement('link');
-        l.id = 'gw-fonts';
-        l.rel = 'stylesheet';
-        l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=DM+Sans:wght@400;500;600&display=swap';
-        document.head.appendChild(l);
-    }
-})();
 
 const GLOBAL_CSS = `
   :root {
@@ -214,13 +205,7 @@ function StyleInjector() {
         s.id = 'gw-tokens';
         s.textContent = GLOBAL_CSS;
         document.head.appendChild(s);
-        if (!document.getElementById('gw-fonts')) {
-            const l = document.createElement('link');
-            l.id = 'gw-fonts';
-            l.rel = 'stylesheet';
-            l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=DM+Sans:wght@400;500;600&display=swap';
-            document.head.appendChild(l);
-        }
+
     }, []);
     return null;
 }
