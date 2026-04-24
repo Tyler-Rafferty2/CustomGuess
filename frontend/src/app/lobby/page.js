@@ -58,11 +58,6 @@ export default function LobbyPage() {
                     gap: 'var(--s8)',
                 }}>
 
-                    {/* DEBUG — remove after testing */}
-                    <div style={{ background: '#1a1510', color: '#fff', fontFamily: 'monospace', fontSize: 11, padding: '8px 12px', borderRadius: 6, wordBreak: 'break-all' }}>
-                        user: {user ? JSON.stringify(user) : 'null'}
-                    </div>
-
                     {/* Page header */}
                     <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 'var(--s6)' }}>
                         <h1 style={{
