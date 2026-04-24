@@ -1083,6 +1083,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             });
             if (res.ok || res.status === 409) {
                 setReportedSetIds(prev => new Set([...prev, reportingSet.id]));
+                setPublicSets(prev => prev.filter(s => s.id !== reportingSet.id));
             }
         } catch {
             // best-effort
