@@ -119,14 +119,14 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [dragging, cropBox]);
+    }, [dragging, cropBox]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Auto-open crop modal when parent signals a new image was added
     useEffect(() => {
         if (triggerEdit == null || images.length === 0) return;
         setEditingIndex(triggerEdit);
         setCropBox({ x: 50, y: 50, width: 280, height: 280 });
-    }, [triggerEdit]);
+    }, [triggerEdit, images.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const applyCrop = () => {
         const img = images[editingIndex];
