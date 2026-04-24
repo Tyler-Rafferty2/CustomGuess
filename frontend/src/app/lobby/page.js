@@ -41,7 +41,7 @@ export default function LobbyPage() {
                 @media (max-width: 768px) {
                     html, body { overflow: hidden; }
                     .browse-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; overscroll-behavior: none; }
-                    .browse-inner { padding: var(--s3) var(--s4) !important; }
+                    .browse-inner { padding: var(--s3) var(--s4) !important; gap: var(--s3) !important; }
                 }
             `}</style>
             <Navbar />
@@ -60,7 +60,7 @@ export default function LobbyPage() {
                 }}>
 
                     {/* Page header */}
-                    <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: 'var(--s6)' }}>
+                    <div>
                         <h1 style={{
                             fontFamily: "'Fraunces', serif",
                             fontWeight: 900,
@@ -68,7 +68,7 @@ export default function LobbyPage() {
                             color: 'var(--text-900)',
                             letterSpacing: '-0.03em',
                             lineHeight: 1.05,
-                            margin: 5,
+                            margin: 0,
                         }}>
                             Find a Game
                         </h1>
