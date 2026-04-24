@@ -36,11 +36,13 @@ export const metadata = {
     siteName: "CustomGuess",
     type: "website",
     locale: "en_US",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "CustomGuess – Multiplayer Deduction Game" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "CustomGuess – Multiplayer Deduction Game",
     description: "Custom real-time deduction game. Create, invite, and play.",
+    images: ["/opengraph-image"],
   },
   metadataBase: new URL("https://customguess.com"),
 };
