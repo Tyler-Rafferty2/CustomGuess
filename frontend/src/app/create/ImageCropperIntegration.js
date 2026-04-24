@@ -126,7 +126,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
         if (triggerEdit == null || images.length === 0) return;
         setEditingIndex(triggerEdit);
         setCropBox({ x: 50, y: 50, width: 280, height: 280 });
-    }, [triggerEdit, images.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [triggerEdit, images.length]);
 
     const applyCrop = () => {
         const img = images[editingIndex];
@@ -212,6 +212,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                 <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {images.map((img, index) => (
                         <div key={img.id} style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={img.cropped || img.original}
                                 alt={img.name}

@@ -71,7 +71,7 @@ export default async function Image() {
               fontWeight: 400,
             }}
           >
-            Create custom characters. Ask yes/no questions. Find your friend's secret before they find yours.
+            Create custom characters. Ask yes/no questions. Find your friend&apos;s secret before they find yours.
           </p>
 
           <div
