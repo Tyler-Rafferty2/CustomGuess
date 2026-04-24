@@ -44,6 +44,9 @@ export const metadata = {
     description: "Custom real-time deduction game. Create, invite, and play.",
     images: ["/opengraph-image"],
   },
+  verification: {
+    google: "krRAsrBrHBYFsLTQKmjxQPYpR0vHAP6_LfGL4SC2njo",
+  },
   metadataBase: new URL("https://customguess.com"),
 };
 
