@@ -103,7 +103,7 @@ export default function Navbar() {
     const [activeLobbyId, setActiveLobbyId] = useState(null);
 
     const router = useRouter();
-    const isMobile = useMediaQuery('(max-width: 768px)');
+    const isMobile = useMediaQuery('(max-width: 768px)', { defaultMatches: true });
 
     const handleLogout = () => logout();
 
