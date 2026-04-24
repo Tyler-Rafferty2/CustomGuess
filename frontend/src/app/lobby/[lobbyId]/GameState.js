@@ -54,13 +54,21 @@ const Item = styled(Paper)(({ theme, isSelected, isPendingGuess }) => ({
         fontFamily: "'DM Sans', sans-serif",
         lineHeight: '1.25rem',
         padding: '0 4px 4px 4px',
-        height: '2.5rem',
+        height: '2.75rem',
         overflow: 'hidden',
         display: '-webkit-box',
         WebkitLineClamp: 2,
         WebkitBoxOrient: 'vertical',
         textAlign: 'center',
         color: 'var(--text-900)',
+        wordBreak: 'break-word',
+    },
+
+    '@media (max-width: 480px)': {
+        '& .character-name': {
+            fontSize: '0.65rem',
+            marginTop: theme.spacing(0.5),
+        },
     },
 
     ...(isSelected && {
