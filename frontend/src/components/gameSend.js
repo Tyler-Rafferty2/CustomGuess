@@ -37,13 +37,13 @@ export default function GameSend({
                 channel: 'response',
                 swap: 'yes',
             }));
-            // Optimistically update UI before server confirms
-            setReceivedMessage('');
-            setTurn(true);
-            setInputMessage('');
+            setTimeout(() => {
+                setReceivedMessage('');
+                setTurn(true);
+                setInputMessage('');
+            }, 50);
         } catch {
             // Send failed (connection dropped) — revert so the question stays visible
-            setReceivedMessage(ans === 'yes' ? receivedMessage : receivedMessage);
         }
     };
 
