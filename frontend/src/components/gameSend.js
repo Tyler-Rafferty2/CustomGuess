@@ -4,9 +4,9 @@ import { Send } from 'lucide-react';
 export default function GameSend({
     lobbyId, username, wsRef, setIsConnected,
     messages, setMessages, turn, setSentMessage, sentMessage,
-    receivedMessage, waitingReponse, setWaitingReponse,
+    receivedMessage, setReceivedMessage, waitingReponse, setWaitingReponse,
     setIsGuessMode, isGuessMode,
-    turnTimeLeft, lobby, playerId,
+    turnTimeLeft, lobby, playerId, setTurn,
 }) {
     const [inputMessage, setInputMessage] = useState('');
     const [pressedBtn, setPressedBtn] = useState(null);
@@ -28,15 +28,23 @@ export default function GameSend({
     };
 
     const handleResponse = (ans) => {
-        wsRef.current.send(JSON.stringify({
-            type: 'message',
-            content: ans,
-            time: new Date().toLocaleTimeString(),
-            lobbyId,
-            channel: 'response',
-            swap: 'yes',
-        }));
-        setInputMessage('');
+        try {
+            wsRef.current.send(JSON.stringify({
+                type: 'message',
+                content: ans,
+                time: new Date().toLocaleTimeString(),
+                lobbyId,
+                channel: 'response',
+                swap: 'yes',
+            }));
+            // Optimistically update UI before server confirms
+            setReceivedMessage('');
+            setTurn(true);
+            setInputMessage('');
+        } catch {
+            // Send failed (connection dropped) — revert so the question stays visible
+            setReceivedMessage(ans === 'yes' ? receivedMessage : receivedMessage);
+        }
     };
 
     const handleKeyPress = (e) => {

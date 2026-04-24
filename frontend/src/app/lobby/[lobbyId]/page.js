@@ -2040,10 +2040,11 @@ export default function LobbyPage() {
                                         setIsConnected={setIsConnected} messages={messagesGame}
                                         setMessages={setMessagesGame} turn={turn}
                                         setSentMessage={setSentMessage} sentMessage={sentMessage}
-                                        receivedMessage={receivedMessage}
+                                        receivedMessage={receivedMessage} setReceivedMessage={setReceivedMessage}
                                         waitingReponse={waitingReponse} setWaitingReponse={setWaitingReponse}
                                         setIsGuessMode={setIsGuessMode} isGuessMode={isGuessMode}
                                         turnTimeLeft={turnTimeLeft} lobby={lobby} playerId={playerId}
+                                        setTurn={setTurn}
                                     />
                                 )}
                             </div>
