@@ -485,12 +485,13 @@ function Logo({ onClick }) {
         <motion.div
             onClick={onClick}
             style={{
-                display: "flex", alignItems: "baseline", gap: 8,
+                display: "flex", alignItems: "center", gap: 10,
                 cursor: onClick ? "pointer" : "default", userSelect: "none",
             }}
             whileHover={onClick ? { opacity: 0.8 } : {}}
             whileTap={onClick ? { scale: 0.97 } : {}}
         >
+            <img src="/logo.svg" alt="CustomGuess logo" style={{ height: 34, width: "auto" }} />
             <span style={{
                 fontFamily: "'Fraunces', serif",
                 fontSize: 22, fontWeight: 900,

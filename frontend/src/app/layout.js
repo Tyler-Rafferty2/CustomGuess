@@ -18,6 +18,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata = {
+  icons: {
+    icon: "/logo.svg",
+  },
   title: {
     default: "CustomGuess – Multiplayer Deduction Game",
     template: "%s | CustomGuess",
