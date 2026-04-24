@@ -55,6 +55,7 @@ const Item = styled(Paper)(({ theme, isSelected, isPendingGuess }) => ({
         lineHeight: '1.25rem',
         padding: '0 4px 4px 4px',
         height: '2.75rem',
+        width: '100%',
         overflow: 'hidden',
         display: '-webkit-box',
         WebkitLineClamp: 2,
@@ -62,6 +63,7 @@ const Item = styled(Paper)(({ theme, isSelected, isPendingGuess }) => ({
         textAlign: 'center',
         color: 'var(--text-900)',
         wordBreak: 'break-word',
+        boxSizing: 'border-box',
     },
 
     '@media (max-width: 480px)': {

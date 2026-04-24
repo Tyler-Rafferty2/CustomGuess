@@ -9,6 +9,7 @@ export default function GameSend({
     turnTimeLeft, lobby, playerId,
 }) {
     const [inputMessage, setInputMessage] = useState('');
+    const [pressedBtn, setPressedBtn] = useState(null);
 
     const sendMessage = () => {
         if (!inputMessage.trim() || !wsRef.current) return;
@@ -258,13 +259,35 @@ export default function GameSend({
                 <div style={{ display: 'flex', gap: 'var(--s2)' }}>
                     <button
                         onClick={() => handleResponse('yes')}
-                        style={{ ...btnBase, flex: 1, background: 'var(--state-live)', color: '#fff' }}
+                        onPointerDown={() => setPressedBtn('yes')}
+                        onPointerUp={() => setPressedBtn(null)}
+                        onPointerLeave={() => setPressedBtn(null)}
+                        style={{
+                            ...btnBase,
+                            flex: 1,
+                            background: pressedBtn === 'yes' ? '#1e6644' : 'var(--state-live)',
+                            color: '#fff',
+                            transform: pressedBtn === 'yes' ? 'scale(0.96)' : 'scale(1)',
+                            boxShadow: pressedBtn === 'yes' ? 'inset 0 2px 6px rgba(0,0,0,0.25)' : 'none',
+                            transition: 'background 80ms, transform 80ms, box-shadow 80ms',
+                        }}
                     >
                         Yes
                     </button>
                     <button
                         onClick={() => handleResponse('no')}
-                        style={{ ...btnBase, flex: 1, background: 'var(--state-out)', color: '#fff' }}
+                        onPointerDown={() => setPressedBtn('no')}
+                        onPointerUp={() => setPressedBtn(null)}
+                        onPointerLeave={() => setPressedBtn(null)}
+                        style={{
+                            ...btnBase,
+                            flex: 1,
+                            background: pressedBtn === 'no' ? '#922b21' : 'var(--state-out)',
+                            color: '#fff',
+                            transform: pressedBtn === 'no' ? 'scale(0.96)' : 'scale(1)',
+                            boxShadow: pressedBtn === 'no' ? 'inset 0 2px 6px rgba(0,0,0,0.25)' : 'none',
+                            transition: 'background 80ms, transform 80ms, box-shadow 80ms',
+                        }}
                     >
                         No
                     </button>
