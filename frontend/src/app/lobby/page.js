@@ -41,6 +41,7 @@ export default function LobbyPage() {
                 @media (max-width: 768px) {
                     html, body { overflow: hidden; }
                     .browse-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow-y: auto; overscroll-behavior: none; }
+                    .browse-inner { padding: var(--s3) var(--s4) !important; }
                 }
             `}</style>
             <Navbar />
@@ -49,10 +50,10 @@ export default function LobbyPage() {
                 background: 'var(--bg)',
                 fontFamily: "'DM Sans', sans-serif",
             }}>
-                <div style={{
+                <div className="browse-inner" style={{
                     maxWidth: 1080,
                     margin: '0 auto',
-                    padding: 'var(--s10) var(--s6)',
+                    padding: 'var(--s4) var(--s6)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 'var(--s8)',
