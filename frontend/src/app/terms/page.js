@@ -238,6 +238,18 @@ export default function TermsPage() {
       </Section>
 
       <div style={{
+        marginTop: "var(--s6)",
+        padding: "var(--s4) var(--s5)",
+        background: "var(--surface-1)",
+        borderRadius: "var(--r)",
+        border: "1px solid var(--border)",
+      }}>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "var(--text-sm)", color: "var(--text-400)", lineHeight: 1.6, margin: 0 }}>
+          <strong style={{ color: "var(--text-600)" }}>Trademark Notice:</strong> CustomGuess is an independent project and is not affiliated with, endorsed by, or associated with Hasbro, Inc. or the Guess Who® board game. &quot;Guess Who&quot; is a registered trademark of Hasbro, Inc.
+        </p>
+      </div>
+
+      <div style={{
         marginTop: "var(--s8)",
         paddingTop: "var(--s5)",
         borderTop: "1px solid var(--border)",

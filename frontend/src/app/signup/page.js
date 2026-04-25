@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 
 function EyeIcon({ open }) {
     return open ? (
@@ -223,6 +224,7 @@ export default function Signup() {
                 </p>
             </div>
         </div>
+        <Footer />
         </>
     );
 }

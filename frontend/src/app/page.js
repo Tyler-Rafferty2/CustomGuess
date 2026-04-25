@@ -2,6 +2,7 @@
 import { apiFetch } from '@/lib/api';
 
 import Navbar from "../components/navbar";
+import Footer from "../components/footer";
 import { useContext, useState } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
@@ -354,6 +355,7 @@ export default function Home() {
 
         </div>
       </main>
+      <Footer />
     </div>
   );
 }

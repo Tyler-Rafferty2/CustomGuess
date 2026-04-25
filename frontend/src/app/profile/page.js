@@ -2,6 +2,7 @@
 import { apiFetch } from '@/lib/api';
 
 import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 import SetCover from "@/components/SetCover";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "@/context/UserContext";
@@ -547,6 +548,7 @@ export default function Profile() {
 
                 </div>
             </main>
+        <Footer />
         </div>
     );
 }
