@@ -83,6 +83,10 @@ body {
 .char-overlay {
   opacity: 0;
   transition: opacity 150ms;
+  pointer-events: none;
+}
+.char-overlay button {
+  pointer-events: auto;
 }
 .char-card:hover .char-overlay {
   opacity: 1;
@@ -104,5 +108,6 @@ body {
     top: 6px;
     right: 6px;
     gap: 4px;
+    z-index: 1;
   }
 }

@@ -369,15 +369,19 @@ function EditSetForm() {
                         </div>
                     </div>
                     <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                        <div style={{ width: 180, height: 180, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, flexShrink: 0, background: T.surface1, position: "relative" }}>
+                        <div className="char-card" style={{ width: 180, height: 180, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, flexShrink: 0, background: T.surface1, position: "relative" }}>
                             {coverPreview ? (
                                 <>
                                     <img src={coverPreview} alt="cover" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                                    <div
-                                        style={{ position: "absolute", inset: 0, background: "rgba(26,21,16,0.45)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: 0, transition: "opacity 150ms" }}
-                                        onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                                        onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                                    >
+                                    <div className="char-corner-btns">
+                                        <button onClick={openCoverCrop} title="Crop" style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                            <Crop size={14} color={T.text900} />
+                                        </button>
+                                        <button onClick={() => { setCoverPreview(null); setCoverFile(null); setCoverOriginal(null); }} title="Remove" style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                            <X size={14} color={T.stateOut} />
+                                        </button>
+                                    </div>
+                                    <div className="char-overlay" style={{ position: "absolute", inset: 0, background: "rgba(26,21,16,0.45)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                                         <button onClick={openCoverCrop} title="Crop" style={{ width: 32, height: 32, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                             <Crop size={15} color={T.text900} />
                                         </button>
