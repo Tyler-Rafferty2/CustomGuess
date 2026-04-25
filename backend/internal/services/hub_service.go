@@ -211,10 +211,6 @@ func (h *Hub) Run() {
 		case message := <-h.broadcast:
 			h.mu.RLock()
 			lobby, ok := h.lobbies[message.LobbyID]
-			clientCount := 0
-			if ok {
-				clientCount = len(lobby)
-			}
 			h.mu.RUnlock()
 			
 			if !ok {

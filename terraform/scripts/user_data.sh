@@ -49,6 +49,8 @@ server {
     listen 80;
     server_name _;
 
+    client_max_body_size 15m;
+
     # Certbot ACME challenge (used when running: sudo certbot --nginx -d your.domain)
     location /.well-known/acme-challenge/ {
         root /var/www/html;
