@@ -3,29 +3,26 @@
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@800&amp;display=swap');
     </style>
-    <mask id="cutout">
-      <rect width="200" height="240" fill="white"/>
-      <text
-        x="100"
-        y="120"
-        font-family="Fraunces, Georgia, serif"
-        font-size="99"
-        font-weight="800"
-        text-anchor="middle"
-        fill="black">?</text>
-    </mask>
     <clipPath id="card-clip">
       <rect width="200" height="240" rx="20"/>
     </clipPath>
   </defs>
 
-  <!-- Bust group clipped to card, question mark cut out -->
-  <g clip-path="url(#card-clip)" mask="url(#cutout)">
-    <!-- Head -->
+  <!-- Bust clipped to card -->
+  <g clip-path="url(#card-clip)">
     <circle cx="100" cy="85" r="52" fill="#D9572B"/>
-    <!-- Shoulders -->
     <path
       d="M -10 240 Q 0 168 48 152 Q 72 142 100 142 Q 128 142 152 152 Q 200 168 210 240 Z"
       fill="#D9572B"/>
   </g>
+
+  <!-- White question mark on top -->
+  <text
+    x="100"
+    y="120"
+    font-family="Fraunces, Georgia, serif"
+    font-size="99"
+    font-weight="800"
+    text-anchor="middle"
+    fill="white">?</text>
 </svg>
