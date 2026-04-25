@@ -103,7 +103,7 @@ export default function Navbar() {
     const [activeLobbyId, setActiveLobbyId] = useState(null);
 
     const router = useRouter();
-    const isMobile = useMediaQuery('(max-width: 768px)', { noSsr: true });
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const handleLogout = () => logout();
 
@@ -246,39 +246,39 @@ export default function Navbar() {
 
     /* ── Standard Bar ────────────────────────────── */
 
-    /* Shared user dropdown (used in both desktop and mobile top bars) */
-    const userDropdown = !isLoading && user && !user.isGuest ? (
+    /* User dropdown — accepts mobile flag so each bar uses correct styling */
+    const makeUserDropdown = (mobile) => !isLoading && user && !user.isGuest ? (
         <div style={{ position: "relative" }}>
             <motion.button
                 onClick={() => setShowUserMenu(v => !v)}
                 style={{
-                    display: "flex", alignItems: "center", gap: isMobile ? 0 : 8,
-                    padding: isMobile ? 0 : "4px 8px 4px 4px",
+                    display: "flex", alignItems: "center", gap: mobile ? 0 : 8,
+                    padding: mobile ? 0 : "4px 8px 4px 4px",
                     background: showUserMenu ? T.surface1 : "transparent",
-                    border: `1px solid ${showUserMenu ? T.borderStrong : (isMobile ? "transparent" : T.border)}`,
-                    borderRadius: isMobile ? "50%" : "6px",
+                    border: `1px solid ${showUserMenu ? T.borderStrong : (mobile ? "transparent" : T.border)}`,
+                    borderRadius: mobile ? "50%" : "6px",
                     cursor: "pointer",
-                    width: isMobile ? 36 : "auto",
-                    height: isMobile ? 36 : "auto",
+                    width: mobile ? 36 : "auto",
+                    height: mobile ? 36 : "auto",
                     justifyContent: "center",
                 }}
                 whileHover={{ background: T.surface1, borderColor: T.borderStrong }}
                 whileTap={{ scale: 0.97 }}
             >
                 <div style={{
-                    width: isMobile ? 36 : 28,
-                    height: isMobile ? 36 : 28,
-                    borderRadius: isMobile ? "50%" : 4,
+                    width: mobile ? 36 : 28,
+                    height: mobile ? 36 : 28,
+                    borderRadius: mobile ? "50%" : 4,
                     background: T.surface2, border: `1px solid ${T.border}`,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     color: T.accent,
-                    fontSize: isMobile ? 14 : 12,
+                    fontSize: mobile ? 14 : 12,
                     fontWeight: 700,
                     fontFamily: "'Fraunces', serif",
                 }}>
                     {(user.username || user.email)?.[0]?.toUpperCase()}
                 </div>
-                {!isMobile && (
+                {!mobile && (
                     <>
                         <span style={{ fontSize: 13, fontWeight: 600, color: T.text600 }}>
                             {user.username || user.email.split("@")[0]}
@@ -370,8 +370,8 @@ export default function Navbar() {
                 borderBottom: `1px solid ${T.border}`,
                 fontFamily: "'DM Sans', sans-serif",
             }}>
-                {isMobile ? (
-                    /* ── Mobile top bar: Logo + user only ── */
+                {/* ── Mobile top bar: Logo + user only ── */}
+                <div className="mobile-nav">
                     <div style={{
                         padding: "0 16px",
                         height: 56,
@@ -380,12 +380,14 @@ export default function Navbar() {
                         <Logo onClick={() => router.push("/")} />
                         {!isLoading && (
                             user && !user.isGuest
-                                ? userDropdown
+                                ? makeUserDropdown(true)
                                 : <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
                         )}
                     </div>
-                ) : (
-                    /* ── Desktop top bar ── */
+                </div>
+
+                {/* ── Desktop top bar ── */}
+                <div className="desktop-nav">
                     <div style={{
                         padding: "0 24px",
                         height: 56, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
@@ -455,7 +457,7 @@ export default function Navbar() {
                             )}
                             <div style={{ minWidth: 148, display: "flex", justifyContent: "flex-end" }}>
                                 {!isLoading && (user && !user.isGuest
-                                    ? userDropdown
+                                    ? makeUserDropdown(false)
                                     : (
                                         <div style={{ display: "flex", gap: 8 }}>
                                             <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
@@ -466,12 +468,14 @@ export default function Navbar() {
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
 
                 <HowToPlayModal open={showHowToPlay} onClose={() => setShowHowToPlay(false)} />
             </nav>
 
-            {isMobile && <BottomTabBar pathname={pathname} onNavigate={(href) => router.push(href)} />}
+            <div className="mobile-bottom-bar">
+                <BottomTabBar pathname={pathname} onNavigate={(href) => router.push(href)} />
+            </div>
         </>
     );
 }
