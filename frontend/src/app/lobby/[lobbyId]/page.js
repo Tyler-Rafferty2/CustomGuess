@@ -41,7 +41,7 @@ const GLOBAL_CSS = `
     --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px;
     --s6:24px; --s8:32px; --s10:40px; --s12:48px; --s16:64px;
   }
-  body { background: var(--bg); }
+  body { background: var(--bg); overscroll-behavior: none; }
   .gw-label {
     font-family: 'DM Sans', sans-serif;
     font-weight: 600;
@@ -217,6 +217,13 @@ const _rematchLobbyCache = {};
 export default function LobbyPage() {
 
     const { user } = useContext(UserContext);
+
+    useEffect(() => {
+        const html = document.documentElement;
+        html.style.overscrollBehavior = "none";
+        return () => { html.style.overscrollBehavior = ""; };
+    }, []);
+
     const [error, setError] = useState(null);
     const [lobby, setLobby] = useState(null);
     const [gameState, setGameState] = useState(null);
