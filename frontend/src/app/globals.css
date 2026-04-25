@@ -79,21 +79,22 @@ body {
   .mobile-bottom-bar { display: block; }
 }
 
-/* Character card overlay — hover on desktop only */
+/* Character card overlay — only on true pointer/hover devices */
 .char-overlay {
-  opacity: 0;
-  transition: opacity 150ms;
+  display: none;
   pointer-events: none;
 }
 .char-overlay button {
   pointer-events: auto;
 }
-.char-card:hover .char-overlay {
-  opacity: 1;
-}
-@media (hover: none) {
+@media (hover: hover) {
   .char-overlay {
-    display: none;
+    display: flex;
+    opacity: 0;
+    transition: opacity 150ms;
+  }
+  .char-card:hover .char-overlay {
+    opacity: 1;
   }
 }
 
