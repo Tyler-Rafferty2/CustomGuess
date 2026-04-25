@@ -49,6 +49,10 @@ function EditSetForm() {
     // Signals the cropper to auto-open crop modal (incremented each time to re-trigger)
     const [cropTrigger, setCropTrigger] = useState(null);
 
+    const [cropExistingChar, setCropExistingChar] = useState(null); // { char, original }
+    const [existingCropBox, setExistingCropBox] = useState({ x: 50, y: 50, width: 280, height: 280 });
+    const [existingCropDragging, setExistingCropDragging] = useState(null);
+
     const [coverOriginal, setCoverOriginal] = useState(null);
     const [coverCropOpen, setCoverCropOpen] = useState(false);
     const [coverCropBox, setCoverCropBox] = useState({ x: 50, y: 50, width: 200, height: 200 });
@@ -174,29 +178,73 @@ function EditSetForm() {
 
     const cropExisting = async (char) => {
         try {
-            const res = await fetch(imgUrl(char.image));
+            const src = char.croppedPreview || imgUrl(char.image);
+            const res = await fetch(src);
             const blob = await res.blob();
-            const objectURL = URL.createObjectURL(blob);
-            const file = new File([blob], `${char.name}.jpg`, { type: blob.type });
-            const newEntry = {
-                id: Date.now() + Math.random(),
-                name: char.name,
-                originalName: `${char.name}.jpg`,
-                file,
-                original: objectURL,
-                cropped: objectURL,
-                croppedFile: file,
-            };
-            setExistingChars(prev => prev.filter(c => c.id !== char.id));
-            setNewImages(prev => {
-                const updated = [...prev, newEntry];
-                setCropTrigger(updated.length - 1);
-                return updated;
+            const original = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.readAsDataURL(blob);
             });
+            setCropExistingChar({ char, original });
+            setExistingCropBox({ x: 50, y: 50, width: 280, height: 280 });
         } catch {
             setError("Could not load image for cropping.");
         }
     };
+
+    const applyExistingCrop = () => {
+        const image = new Image();
+        image.onload = () => {
+            const aspect = image.width / image.height;
+            let rw, rh, ox, oy;
+            if (aspect > 1) { rw = CROP_SIZE; rh = CROP_SIZE / aspect; ox = 0; oy = (CROP_SIZE - rh) / 2; }
+            else { rh = CROP_SIZE; rw = CROP_SIZE * aspect; ox = (CROP_SIZE - rw) / 2; oy = 0; }
+            const sx = (existingCropBox.x - ox) * (image.width / rw);
+            const sy = (existingCropBox.y - oy) * (image.height / rh);
+            const sw = existingCropBox.width * (image.width / rw);
+            const sh = existingCropBox.height * (image.height / rh);
+            const canvas = document.createElement('canvas');
+            canvas.width = 280; canvas.height = 280;
+            canvas.getContext('2d').drawImage(image, sx, sy, sw, sh, 0, 0, 280, 280);
+            canvas.toBlob((blob) => {
+                const croppedFile = new File([blob], `${cropExistingChar.char.name}.png`, { type: 'image/png' });
+                setExistingChars(prev => prev.map(c =>
+                    c.id === cropExistingChar.char.id
+                        ? { ...c, croppedFile, croppedPreview: canvas.toDataURL('image/png') }
+                        : c
+                ));
+                setCropExistingChar(null);
+            }, 'image/png');
+        };
+        image.src = cropExistingChar.original;
+    };
+
+    useEffect(() => {
+        if (!existingCropDragging) return;
+        const onMove = (e) => {
+            const dx = e.clientX - existingCropDragging.startX;
+            const dy = e.clientY - existingCropDragging.startY;
+            let b = { ...existingCropBox };
+            if (existingCropDragging.type === 'move') {
+                b.x = Math.max(0, Math.min(CROP_SIZE - b.width, existingCropDragging.startBox.x + dx));
+                b.y = Math.max(0, Math.min(CROP_SIZE - b.height, existingCropDragging.startBox.y + dy));
+            } else {
+                const sb = existingCropDragging.startBox;
+                if (existingCropDragging.type === 'nw') { const s = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height - dy)); b.width = s; b.height = s; b.x = sb.x + (sb.width - s); b.y = sb.y + (sb.height - s); }
+                else if (existingCropDragging.type === 'ne') { const s = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height - dy)); b.width = s; b.height = s; b.y = sb.y + (sb.height - s); }
+                else if (existingCropDragging.type === 'sw') { const s = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height + dy)); b.width = s; b.height = s; b.x = sb.x + (sb.width - s); }
+                else if (existingCropDragging.type === 'se') { const s = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height + dy)); b.width = s; b.height = s; }
+                b.x = Math.max(0, Math.min(CROP_SIZE - b.width, b.x));
+                b.y = Math.max(0, Math.min(CROP_SIZE - b.height, b.y));
+            }
+            setExistingCropBox(b);
+        };
+        const onUp = () => setExistingCropDragging(null);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+        return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+    }, [existingCropDragging, existingCropBox]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleDelete = async () => {
         setDeleting(true);
@@ -229,12 +277,16 @@ function EditSetForm() {
         formData.append("public", isPublic);
         if (coverFile) formData.append("coverImage", coverFile);
 
-        existingChars.forEach((c, i) => {
+        const toKeep = existingChars.filter(c => !c.croppedFile);
+        const toReplace = existingChars.filter(c => c.croppedFile);
+
+        toKeep.forEach((c, i) => {
             formData.append(`keepCharacters[${i}][id]`, c.id);
             formData.append(`keepCharacters[${i}][name]`, c.name);
         });
 
-        newImages.forEach((img, i) => {
+        const allNew = [...toReplace, ...newImages];
+        allNew.forEach((img, i) => {
             formData.append(`newCharacters[${i}][name]`, img.name);
             formData.append(`newCharacters[${i}][image]`, img.croppedFile || img.file);
         });
@@ -372,7 +424,7 @@ function EditSetForm() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
                                     <div key={char.id} style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
-                                        <img src={imgUrl(char.image)} alt={char.name} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                                        <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
 
                                         {/* Hover overlay */}
                                         <div style={{
@@ -485,6 +537,49 @@ function EditSetForm() {
                             >
                                 Make Public
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Existing character crop modal */}
+            {cropExistingChar && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(26,21,16,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                    <div style={{ background: T.surface0, borderRadius: 6, padding: 24, width: "100%", maxWidth: CROP_SIZE + 220, border: `1px solid ${T.border}` }}>
+                        <div style={{ marginBottom: 20 }}>
+                            <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: T.text900, margin: "0 0 2px", letterSpacing: "-0.02em" }}>Adjust Crop</h2>
+                            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>Drag the box to move · drag corners to resize</p>
+                        </div>
+                        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                            <div style={{ position: "relative", flexShrink: 0, width: CROP_SIZE, height: CROP_SIZE, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
+                                <img src={cropExistingChar.original} alt="crop" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
+                                <div
+                                    style={{ position: "absolute", left: existingCropBox.x, top: existingCropBox.y, width: existingCropBox.width, height: existingCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move" }}
+                                    onMouseDown={(e) => { e.preventDefault(); setExistingCropDragging({ type: 'move', startX: e.clientX, startY: e.clientY, startBox: { ...existingCropBox } }); }}
+                                >
+                                    <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                                        {[1/3, 2/3].map(f => <div key={f} style={{ position: "absolute", left: `${f * 100}%`, top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.3)" }} />)}
+                                        {[1/3, 2/3].map(f => <div key={f} style={{ position: "absolute", top: `${f * 100}%`, left: 0, right: 0, height: 1, background: "rgba(255,255,255,0.3)" }} />)}
+                                    </div>
+                                    {[
+                                        { type: 'nw', top: -HANDLE/2, left: -HANDLE/2, cursor: 'nw-resize' },
+                                        { type: 'ne', top: -HANDLE/2, right: -HANDLE/2, cursor: 'ne-resize' },
+                                        { type: 'sw', bottom: -HANDLE/2, left: -HANDLE/2, cursor: 'sw-resize' },
+                                        { type: 'se', bottom: -HANDLE/2, right: -HANDLE/2, cursor: 'se-resize' },
+                                    ].map(({ type, cursor, ...pos }) => (
+                                        <div key={type} onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setExistingCropDragging({ type, startX: e.clientX, startY: e.clientY, startBox: { ...existingCropBox } }); }}
+                                            style={{ position: "absolute", width: HANDLE, height: HANDLE, background: T.surface0, border: `2px solid ${T.accent}`, borderRadius: "50%", cursor, ...pos }} />
+                                    ))}
+                                </div>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 160, display: "flex", flexDirection: "column", gap: 8, justifyContent: "flex-end" }}>
+                                <button onClick={applyExistingCrop} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, height: 40, borderRadius: 6, border: "none", background: T.accent, color: "#fff", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                                    <Check size={16} /> Apply
+                                </button>
+                                <button onClick={() => setCropExistingChar(null)} style={{ height: 40, borderRadius: 6, border: `1px solid ${T.border}`, background: "transparent", color: T.text600, fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

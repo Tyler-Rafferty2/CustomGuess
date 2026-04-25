@@ -350,16 +350,6 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
 
                             {/* Info panel */}
                             <div style={{ flex: 1, minWidth: 160, display: "flex", flexDirection: "column", gap: 16, justifyContent: "space-between" }}>
-                                <div style={{ background: T.surface1, borderRadius: 6, padding: "14px 16px", border: `1px solid ${T.border}` }}>
-                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, fontWeight: 600, color: T.text400, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>Crop Info</p>
-                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text600, margin: "0 0 4px" }}>
-                                        Selection: {Math.round(cropBox.width)} × {Math.round(cropBox.height)}px
-                                    </p>
-                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text600, margin: 0 }}>
-                                        Output: {OUTPUT_SIZE} × {OUTPUT_SIZE}px
-                                    </p>
-                                </div>
-
                                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                     <button
                                         onClick={applyCrop}
