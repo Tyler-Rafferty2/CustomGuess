@@ -9,6 +9,7 @@ export default function Footer() {
           .site-footer .footer-links { gap: 12px !important; flex-wrap: nowrap !important; }
           .site-footer .footer-link { font-size: 10px !important; }
           .site-footer .footer-copy { font-size: 10px !important; white-space: nowrap; }
+          .footer-support { display: none !important; }
         }
       `}</style>
       <footer className="site-footer" style={{
@@ -31,7 +32,7 @@ export default function Footer() {
         <Link href="/contact" className="footer-link" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
           Contact
         </Link>
-        <a href="mailto:support@customguess.com" className="footer-link" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
+        <a href="mailto:support@customguess.com" className="footer-link footer-support" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
           Support — support@customguess.com
         </a>
       </div>

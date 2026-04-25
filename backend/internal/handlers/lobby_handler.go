@@ -100,12 +100,11 @@ func (h *LobbyHandler) GetActiveLobbyHandler(w http.ResponseWriter, r *http.Requ
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
+    w.Header().Set("Content-Type", "application/json")
     if player == nil {
-        http.Error(w, "no active game", http.StatusNotFound)
+        json.NewEncoder(w).Encode(map[string]interface{}{"lobbyId": nil})
         return
     }
-
-    w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(map[string]string{"lobbyId": player.LobbyID.String()})
 }
 
