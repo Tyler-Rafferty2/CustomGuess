@@ -424,7 +424,7 @@ function EditSetForm() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
                                     <div key={char.id} style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
-                                        <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
+                                        <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} crossOrigin="anonymous" style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }} />
 
                                         {/* Hover overlay */}
                                         <div style={{

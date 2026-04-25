@@ -12,7 +12,7 @@ import (
 var R2Client *s3.Client
 
 const R2Bucket = "customguess"
-const R2PublicURL = "https://pub-a01e9040276b4109961d7afc1ba917a8.r2.dev"
+const R2PublicURL = "https://pub-19a8df9d958c4ee79bbeed604cf74512.r2.dev"
 
 func InitR2() {
 	accountID := os.Getenv("R2_ACCOUNT_ID")
