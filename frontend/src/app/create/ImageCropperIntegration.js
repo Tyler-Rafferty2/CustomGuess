@@ -219,6 +219,24 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                                 style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
                             />
 
+                            {/* Corner buttons — touch devices only */}
+                            <div className="char-corner-btns">
+                                <button
+                                    onClick={() => startEdit(index)}
+                                    title="Adjust crop"
+                                    style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                >
+                                    <Crop size={14} color={T.text900} />
+                                </button>
+                                <button
+                                    onClick={() => remove(index)}
+                                    title="Remove"
+                                    style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                >
+                                    <X size={14} color={T.stateOut} />
+                                </button>
+                            </div>
+
                             {/* Hover actions */}
                             <div className="char-overlay" style={{
                                 position: "absolute", inset: 0,

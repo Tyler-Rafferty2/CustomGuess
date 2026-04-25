@@ -79,7 +79,7 @@ body {
   .mobile-bottom-bar { display: block; }
 }
 
-/* Character card overlay — hover on desktop, always visible on touch */
+/* Character card overlay — hover on desktop only */
 .char-overlay {
   opacity: 0;
   transition: opacity 150ms;
@@ -89,6 +89,20 @@ body {
 }
 @media (hover: none) {
   .char-overlay {
-    opacity: 1;
+    display: none;
+  }
+}
+
+/* Character card corner buttons — touch only, hidden on desktop */
+.char-corner-btns {
+  display: none;
+}
+@media (hover: none) {
+  .char-corner-btns {
+    display: flex;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    gap: 4px;
   }
 }

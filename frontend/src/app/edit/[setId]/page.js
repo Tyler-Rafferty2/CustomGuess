@@ -426,6 +426,24 @@ function EditSetForm() {
                                     <div key={char.id} className="char-card" style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
                                         <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} crossOrigin="anonymous" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />
 
+                                        {/* Corner buttons — touch devices only */}
+                                        <div className="char-corner-btns">
+                                            <button
+                                                onClick={() => cropExisting(char)}
+                                                title="Crop"
+                                                style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                            >
+                                                <Crop size={14} color={T.text900} />
+                                            </button>
+                                            <button
+                                                onClick={() => removeExisting(char.id)}
+                                                title="Remove"
+                                                style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                            >
+                                                <X size={14} color={T.stateOut} />
+                                            </button>
+                                        </div>
+
                                         {/* Hover overlay */}
                                         <div className="char-overlay" style={{
                                             position: "absolute", inset: 0,
