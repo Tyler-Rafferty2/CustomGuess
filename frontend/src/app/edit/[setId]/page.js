@@ -60,12 +60,12 @@ function EditSetForm() {
 
     const coverInputRef = useRef(null);
 
-    const MAX_cropCanvasSize = 400;
+    const MAX_CROP_SIZE = 400;
     const COVER_OUTPUT = 400;
     const HANDLE = 12;
     const MIN_CROP = 50;
     const [cropCanvasSize, setCropCanvasSize] = useState(400);
-    const computeCropSize = () => Math.min(MAX_cropCanvasSize, window.innerWidth - 80);
+    const computeCropSize = () => Math.min(MAX_CROP_SIZE, window.innerWidth - 80);
 
     const totalCount = existingChars.length + newImages.length;
 
@@ -119,7 +119,7 @@ function EditSetForm() {
         }
         const cs = computeCropSize();
         setCropCanvasSize(cs);
-        const scale = cs / MAX_cropCanvasSize;
+        const scale = cs / MAX_CROP_SIZE;
         setCoverCropBox({ x: 50 * scale, y: 50 * scale, width: 200 * scale, height: 200 * scale });
         setCoverCropOpen(true);
     };
@@ -193,7 +193,7 @@ function EditSetForm() {
             });
             const cs = computeCropSize();
             setCropCanvasSize(cs);
-            const scale = cs / MAX_cropCanvasSize;
+            const scale = cs / MAX_CROP_SIZE;
             setCropExistingChar({ char, original });
             setExistingCropBox({ x: 50 * scale, y: 50 * scale, width: 280 * scale, height: 280 * scale });
         } catch {

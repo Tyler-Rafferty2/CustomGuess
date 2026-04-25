@@ -1,6 +1,7 @@
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
+import { Analytics } from "@vercel/analytics/next";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -60,6 +61,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={`${fraunces.variable} ${dmSans.variable} antialiased`}>
         <UserProvider>{children}</UserProvider>
+        <Analytics />
       </body>
     </html>
   );
