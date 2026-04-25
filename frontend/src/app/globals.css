@@ -79,23 +79,15 @@ body {
   .mobile-bottom-bar { display: block; }
 }
 
-/* Character card overlay — only on mouse/trackpad devices */
+/* Character card overlay — shown via JS mouseenter/mouseleave only (never fires on touch) */
 .char-overlay {
-  display: none;
+  display: flex;
+  opacity: 0;
+  transition: opacity 150ms;
   pointer-events: none;
 }
 .char-overlay button {
   pointer-events: auto;
-}
-@media (pointer: fine) {
-  .char-overlay {
-    display: flex;
-    opacity: 0;
-    transition: opacity 150ms;
-  }
-  .char-card:hover .char-overlay {
-    opacity: 1;
-  }
 }
 
 /* Character card corner buttons — touch only, hidden on desktop */

@@ -369,7 +369,10 @@ function EditSetForm() {
                         </div>
                     </div>
                     <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                        <div className="char-card" style={{ width: 180, height: 180, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, flexShrink: 0, background: T.surface1, position: "relative" }}>
+                        <div className="char-card" style={{ width: 180, height: 180, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, flexShrink: 0, background: T.surface1, position: "relative" }}
+                            onMouseEnter={e => { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; }}
+                            onMouseLeave={e => { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; }}
+                        >
                             {coverPreview ? (
                                 <>
                                     <img src={coverPreview} alt="cover" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -427,7 +430,10 @@ function EditSetForm() {
                             <p style={{ ...label, marginBottom: 10 }}>Existing</p>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
-                                    <div key={char.id} className="char-card" style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                                    <div key={char.id} className="char-card" style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}
+                                        onMouseEnter={e => { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; }}
+                                        onMouseLeave={e => { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; }}
+                                    >
                                         <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />
 
                                         {/* Corner buttons — touch devices only */}
