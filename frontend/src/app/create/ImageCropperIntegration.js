@@ -259,9 +259,10 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
 
                             {/* Hover actions */}
                             <div className="char-overlay" style={{
-                                position: "absolute", inset: 0,
+                                position: "absolute", top: 0, left: 0, right: 0, aspectRatio: "1",
                                 background: "rgba(26,21,16,0.45)",
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                opacity: 0, transition: "opacity 150ms",
                             }}>
                                 <button
                                     onClick={() => openCrop(index)}
