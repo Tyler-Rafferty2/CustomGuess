@@ -9,6 +9,14 @@ export default function TermsPage() {
       color: "var(--text-900)",
       fontFamily: "'DM Sans', sans-serif",
     }}>
+      <Link href="/" style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        fontSize: "var(--text-sm)", color: "var(--text-400)",
+        textDecoration: "none", marginBottom: "var(--s5)",
+      }}>
+        ← Back to home
+      </Link>
+
       <h1 style={{
         fontFamily: "'Fraunces', serif",
         fontSize: "var(--text-xl)",
