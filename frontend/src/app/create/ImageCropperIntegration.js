@@ -228,12 +228,12 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
             {images.length > 0 && (
                 <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {images.map((img, index) => (
-                        <div key={img.id} className="char-card" style={{ background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}
-                            onPointerEnter={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; } }}
-                            onPointerLeave={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; } }}
-                        >
+                        <div key={img.id} className="char-card" style={{ background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
                             {/* Image + hover overlay scoped together */}
-                            <div style={{ position: "relative" }}>
+                            <div style={{ position: "relative" }}
+                                onPointerEnter={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; } }}
+                                onPointerLeave={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; } }}
+                            >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={img.cropped || img.original}

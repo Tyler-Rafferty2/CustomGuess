@@ -421,7 +421,7 @@ function EditSetForm() {
                                             <X size={14} color={T.stateOut} />
                                         </button>
                                     </div>
-                                    <div className="char-overlay" style={{ position: "absolute", inset: 0, background: "rgba(26,21,16,0.45)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                    <div className="char-overlay" style={{ position: "absolute", inset: 0, background: "rgba(26,21,16,0.45)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: 0, transition: "opacity 150ms" }}>
                                         <button onClick={openCoverCrop} title="Crop" style={{ width: 32, height: 32, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                             <Crop size={15} color={T.text900} />
                                         </button>
@@ -467,10 +467,11 @@ function EditSetForm() {
                             <p style={{ ...label, marginBottom: 10 }}>Existing</p>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
-                                    <div key={char.id} className="char-card" style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}
-                                        onPointerEnter={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; } }}
-                                        onPointerLeave={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; } }}
-                                    >
+                                    <div key={char.id} className="char-card" style={{ background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                                        <div style={{ position: "relative" }}
+                                            onPointerEnter={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; } }}
+                                            onPointerLeave={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; } }}
+                                        >
                                         <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />
 
                                         {/* Corner buttons — touch devices only */}
@@ -496,6 +497,7 @@ function EditSetForm() {
                                             position: "absolute", inset: 0,
                                             background: "rgba(26,21,16,0.45)",
                                             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                            opacity: 0, transition: "opacity 150ms",
                                         }}>
                                             <button
                                                 onClick={() => cropExisting(char)}
@@ -512,6 +514,7 @@ function EditSetForm() {
                                                 <X size={14} color={T.stateOut} />
                                             </button>
                                         </div>
+                                        </div>{/* end image wrapper */}
 
                                         <div style={{ padding: "7px 8px 8px", borderTop: `1px solid ${T.border}` }}>
                                             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 9, fontWeight: 600, color: T.text400, textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px", display: "flex", alignItems: "center", gap: 3 }}>Name <Pencil size={9} /></p>
