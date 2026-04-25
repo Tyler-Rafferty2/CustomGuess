@@ -372,7 +372,7 @@ function EditSetForm() {
                         <div className="char-card" style={{ width: 180, height: 180, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, flexShrink: 0, background: T.surface1, position: "relative" }}>
                             {coverPreview ? (
                                 <>
-                                    <img src={coverPreview} alt="cover" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                    <img src={coverPreview} alt="cover" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                                     <div className="char-corner-btns">
                                         <button onClick={openCoverCrop} title="Crop" style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                             <Crop size={14} color={T.text900} />
@@ -428,7 +428,7 @@ function EditSetForm() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
                                     <div key={char.id} className="char-card" style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
-                                        <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} crossOrigin="anonymous" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />
+                                        <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />
 
                                         {/* Corner buttons — touch devices only */}
                                         <div className="char-corner-btns">
