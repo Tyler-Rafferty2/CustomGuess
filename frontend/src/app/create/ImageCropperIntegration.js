@@ -8,7 +8,7 @@ const T = {
     border: "#DDD5CA", borderStrong: "#C4B8A8", stateOut: "#C0392B",
 };
 
-const CONTAINER_SIZE = 400;
+const MAX_CANVAS = 400;
 const OUTPUT_SIZE = 280;
 const HANDLE_SIZE = 12;
 const MIN_CROP = 50;
@@ -18,6 +18,7 @@ const MIN_CROP = 50;
 export default function ImageCropperIntegration({ images, setImages, triggerEdit = null }) {
     const [editingIndex, setEditingIndex] = useState(null);
     const [cropBox, setCropBox] = useState({ x: 50, y: 50, width: 280, height: 280 });
+    const [canvasSize, setCanvasSize] = useState(MAX_CANVAS);
     const [dragging, setDragging] = useState(null);
     const [dropHover, setDropHover] = useState(false);
     const fileInputRef = useRef(null);
@@ -66,9 +67,14 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
         if (files.length) handleFileSelect(files);
     };
 
-    const startEdit = (index) => {
+    // Compute canvas size to fit screen, then open crop modal
+    const openCrop = (index) => {
+        // 32px outer modal padding + 48px inner modal padding = 80px total horizontal
+        const cs = Math.min(MAX_CANVAS, window.innerWidth - 80);
+        const scale = cs / MAX_CANVAS;
+        setCanvasSize(cs);
+        setCropBox({ x: 50 * scale, y: 50 * scale, width: 280 * scale, height: 280 * scale });
         setEditingIndex(index);
-        setCropBox({ x: 50, y: 50, width: 280, height: 280 });
     };
 
     const getCoords = (e) =>
@@ -84,15 +90,15 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
 
     const handlePointerMove = (e) => {
         if (!dragging) return;
-        if (e.cancelable) e.preventDefault();
+        e.preventDefault();
         const { clientX, clientY } = getCoords(e);
         const dx = clientX - dragging.startX;
         const dy = clientY - dragging.startY;
         let b = { ...cropBox };
 
         if (dragging.type === 'move') {
-            b.x = Math.max(0, Math.min(CONTAINER_SIZE - b.width, dragging.startBox.x + dx));
-            b.y = Math.max(0, Math.min(CONTAINER_SIZE - b.height, dragging.startBox.y + dy));
+            b.x = Math.max(0, Math.min(canvasSize - b.width, dragging.startBox.x + dx));
+            b.y = Math.max(0, Math.min(canvasSize - b.height, dragging.startBox.y + dy));
         } else {
             const sb = dragging.startBox;
             if (dragging.type === 'nw') {
@@ -111,8 +117,8 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                 const size = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height + dy));
                 b.width = size; b.height = size;
             }
-            b.x = Math.max(0, Math.min(CONTAINER_SIZE - b.width, b.x));
-            b.y = Math.max(0, Math.min(CONTAINER_SIZE - b.height, b.y));
+            b.x = Math.max(0, Math.min(canvasSize - b.width, b.x));
+            b.y = Math.max(0, Math.min(canvasSize - b.height, b.y));
         }
         setCropBox(b);
     };
@@ -136,9 +142,8 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
     // Auto-open crop modal when parent signals a new image was added
     useEffect(() => {
         if (triggerEdit == null || images.length === 0) return;
-        setEditingIndex(triggerEdit);
-        setCropBox({ x: 50, y: 50, width: 280, height: 280 });
-    }, [triggerEdit, images.length]);
+        openCrop(triggerEdit);
+    }, [triggerEdit, images.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const applyCrop = () => {
         const img = images[editingIndex];
@@ -147,11 +152,11 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
             const aspect = image.width / image.height;
             let rw, rh, ox, oy;
             if (aspect > 1) {
-                rw = CONTAINER_SIZE; rh = CONTAINER_SIZE / aspect;
-                ox = 0; oy = (CONTAINER_SIZE - rh) / 2;
+                rw = canvasSize; rh = canvasSize / aspect;
+                ox = 0; oy = (canvasSize - rh) / 2;
             } else {
-                rh = CONTAINER_SIZE; rw = CONTAINER_SIZE * aspect;
-                ox = (CONTAINER_SIZE - rw) / 2; oy = 0;
+                rh = canvasSize; rw = canvasSize * aspect;
+                ox = (canvasSize - rw) / 2; oy = 0;
             }
 
             const sx = (cropBox.x - ox) * (image.width / rw);
@@ -234,7 +239,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                             {/* Corner buttons — touch devices only */}
                             <div className="char-corner-btns">
                                 <button
-                                    onClick={() => startEdit(index)}
+                                    onClick={() => openCrop(index)}
                                     title="Adjust crop"
                                     style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 >
@@ -256,7 +261,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                             }}>
                                 <button
-                                    onClick={() => startEdit(index)}
+                                    onClick={() => openCrop(index)}
                                     title="Adjust crop"
                                     style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                                 >
@@ -307,7 +312,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                 }}>
                     <div style={{
                         background: T.surface0, borderRadius: 6, padding: 24,
-                        width: "100%", maxWidth: CONTAINER_SIZE + 228,
+                        width: "100%", maxWidth: MAX_CANVAS + 228,
                         border: `1px solid ${T.border}`,
                         maxHeight: "90vh", overflowY: "auto", overscrollBehavior: "contain",
                     }}>
@@ -324,7 +329,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                             {/* Canvas */}
                             <div style={{
                                 position: "relative", flexShrink: 0,
-                                width: CONTAINER_SIZE, height: CONTAINER_SIZE,
+                                width: canvasSize, height: canvasSize,
                                 background: T.surface1, borderRadius: 6, overflow: "hidden",
                                 border: `1px solid ${T.border}`,
                             }}>
