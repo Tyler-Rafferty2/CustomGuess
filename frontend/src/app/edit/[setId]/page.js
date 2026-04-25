@@ -60,10 +60,12 @@ function EditSetForm() {
 
     const coverInputRef = useRef(null);
 
-    const CROP_SIZE = 400;
+    const MAX_cropCanvasSize = 400;
     const COVER_OUTPUT = 400;
     const HANDLE = 12;
     const MIN_CROP = 50;
+    const [cropCanvasSize, setCropCanvasSize] = useState(400);
+    const computeCropSize = () => Math.min(MAX_cropCanvasSize, window.innerWidth - 80);
 
     const totalCount = existingChars.length + newImages.length;
 
@@ -115,7 +117,10 @@ function EditSetForm() {
                 return;
             }
         }
-        setCoverCropBox({ x: 50, y: 50, width: 200, height: 200 });
+        const cs = computeCropSize();
+        setCropCanvasSize(cs);
+        const scale = cs / MAX_cropCanvasSize;
+        setCoverCropBox({ x: 50 * scale, y: 50 * scale, width: 200 * scale, height: 200 * scale });
         setCoverCropOpen(true);
     };
 
@@ -131,16 +136,16 @@ function EditSetForm() {
             const dy = e.clientY - coverDragging.startY;
             let b = { ...coverCropBox };
             if (coverDragging.type === "move") {
-                b.x = Math.max(0, Math.min(CROP_SIZE - b.width, coverDragging.startBox.x + dx));
-                b.y = Math.max(0, Math.min(CROP_SIZE - b.height, coverDragging.startBox.y + dy));
+                b.x = Math.max(0, Math.min(cropCanvasSize - b.width, coverDragging.startBox.x + dx));
+                b.y = Math.max(0, Math.min(cropCanvasSize - b.height, coverDragging.startBox.y + dy));
             } else {
                 const sb = coverDragging.startBox;
                 if (coverDragging.type === "nw") { const s = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height - dy)); b.width = s; b.height = s; b.x = sb.x + (sb.width - s); b.y = sb.y + (sb.height - s); }
                 else if (coverDragging.type === "ne") { const s = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height - dy)); b.width = s; b.height = s; b.y = sb.y + (sb.height - s); }
                 else if (coverDragging.type === "sw") { const s = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height + dy)); b.width = s; b.height = s; b.x = sb.x + (sb.width - s); }
                 else if (coverDragging.type === "se") { const s = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height + dy)); b.width = s; b.height = s; }
-                b.x = Math.max(0, Math.min(CROP_SIZE - b.width, b.x));
-                b.y = Math.max(0, Math.min(CROP_SIZE - b.height, b.y));
+                b.x = Math.max(0, Math.min(cropCanvasSize - b.width, b.x));
+                b.y = Math.max(0, Math.min(cropCanvasSize - b.height, b.y));
             }
             setCoverCropBox(b);
         };
@@ -155,8 +160,8 @@ function EditSetForm() {
         image.onload = () => {
             const aspect = image.width / image.height;
             let rw, rh, ox, oy;
-            if (aspect > 1) { rw = CROP_SIZE; rh = CROP_SIZE / aspect; ox = 0; oy = (CROP_SIZE - rh) / 2; }
-            else { rh = CROP_SIZE; rw = CROP_SIZE * aspect; ox = (CROP_SIZE - rw) / 2; oy = 0; }
+            if (aspect > 1) { rw = cropCanvasSize; rh = cropCanvasSize / aspect; ox = 0; oy = (cropCanvasSize - rh) / 2; }
+            else { rh = cropCanvasSize; rw = cropCanvasSize * aspect; ox = (cropCanvasSize - rw) / 2; oy = 0; }
             const sx = (coverCropBox.x - ox) * (image.width / rw);
             const sy = (coverCropBox.y - oy) * (image.height / rh);
             const sw = coverCropBox.width * (image.width / rw);
@@ -186,8 +191,11 @@ function EditSetForm() {
                 reader.onload = e => resolve(e.target.result);
                 reader.readAsDataURL(blob);
             });
+            const cs = computeCropSize();
+            setCropCanvasSize(cs);
+            const scale = cs / MAX_cropCanvasSize;
             setCropExistingChar({ char, original });
-            setExistingCropBox({ x: 50, y: 50, width: 280, height: 280 });
+            setExistingCropBox({ x: 50 * scale, y: 50 * scale, width: 280 * scale, height: 280 * scale });
         } catch {
             setError("Could not load image for cropping.");
         }
@@ -198,8 +206,8 @@ function EditSetForm() {
         image.onload = () => {
             const aspect = image.width / image.height;
             let rw, rh, ox, oy;
-            if (aspect > 1) { rw = CROP_SIZE; rh = CROP_SIZE / aspect; ox = 0; oy = (CROP_SIZE - rh) / 2; }
-            else { rh = CROP_SIZE; rw = CROP_SIZE * aspect; ox = (CROP_SIZE - rw) / 2; oy = 0; }
+            if (aspect > 1) { rw = cropCanvasSize; rh = cropCanvasSize / aspect; ox = 0; oy = (cropCanvasSize - rh) / 2; }
+            else { rh = cropCanvasSize; rw = cropCanvasSize * aspect; ox = (cropCanvasSize - rw) / 2; oy = 0; }
             const sx = (existingCropBox.x - ox) * (image.width / rw);
             const sy = (existingCropBox.y - oy) * (image.height / rh);
             const sw = existingCropBox.width * (image.width / rw);
@@ -227,16 +235,16 @@ function EditSetForm() {
             const dy = e.clientY - existingCropDragging.startY;
             let b = { ...existingCropBox };
             if (existingCropDragging.type === 'move') {
-                b.x = Math.max(0, Math.min(CROP_SIZE - b.width, existingCropDragging.startBox.x + dx));
-                b.y = Math.max(0, Math.min(CROP_SIZE - b.height, existingCropDragging.startBox.y + dy));
+                b.x = Math.max(0, Math.min(cropCanvasSize - b.width, existingCropDragging.startBox.x + dx));
+                b.y = Math.max(0, Math.min(cropCanvasSize - b.height, existingCropDragging.startBox.y + dy));
             } else {
                 const sb = existingCropDragging.startBox;
                 if (existingCropDragging.type === 'nw') { const s = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height - dy)); b.width = s; b.height = s; b.x = sb.x + (sb.width - s); b.y = sb.y + (sb.height - s); }
                 else if (existingCropDragging.type === 'ne') { const s = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height - dy)); b.width = s; b.height = s; b.y = sb.y + (sb.height - s); }
                 else if (existingCropDragging.type === 'sw') { const s = Math.max(MIN_CROP, Math.min(sb.width - dx, sb.height + dy)); b.width = s; b.height = s; b.x = sb.x + (sb.width - s); }
                 else if (existingCropDragging.type === 'se') { const s = Math.max(MIN_CROP, Math.min(sb.width + dx, sb.height + dy)); b.width = s; b.height = s; }
-                b.x = Math.max(0, Math.min(CROP_SIZE - b.width, b.x));
-                b.y = Math.max(0, Math.min(CROP_SIZE - b.height, b.y));
+                b.x = Math.max(0, Math.min(cropCanvasSize - b.width, b.x));
+                b.y = Math.max(0, Math.min(cropCanvasSize - b.height, b.y));
             }
             setExistingCropBox(b);
         };
@@ -569,13 +577,13 @@ function EditSetForm() {
             {/* Existing character crop modal */}
             {cropExistingChar && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(26,21,16,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-                    <div style={{ background: T.surface0, borderRadius: 6, padding: 24, width: "100%", maxWidth: CROP_SIZE + 220, border: `1px solid ${T.border}` }}>
+                    <div style={{ background: T.surface0, borderRadius: 6, padding: 24, width: "100%", maxWidth: MAX_CROP_SIZE + 220, maxHeight: "90vh", overflowY: "auto", overscrollBehavior: "contain", border: `1px solid ${T.border}` }}>
                         <div style={{ marginBottom: 20 }}>
                             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: T.text900, margin: "0 0 2px", letterSpacing: "-0.02em" }}>Adjust Crop</h2>
                             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>Drag the box to move · drag corners to resize</p>
                         </div>
                         <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                            <div style={{ position: "relative", flexShrink: 0, width: CROP_SIZE, height: CROP_SIZE, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
+                            <div style={{ position: "relative", flexShrink: 0, width: cropCanvasSize, height: cropCanvasSize, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
                                 <img src={cropExistingChar.original} alt="crop" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
                                 <div
                                     style={{ position: "absolute", left: existingCropBox.x, top: existingCropBox.y, width: existingCropBox.width, height: existingCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move" }}
@@ -612,13 +620,13 @@ function EditSetForm() {
             {/* Cover crop modal */}
             {coverCropOpen && coverOriginal && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(26,21,16,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-                    <div style={{ background: T.surface0, borderRadius: 6, padding: 24, width: "100%", maxWidth: CROP_SIZE + 220, border: `1px solid ${T.border}` }}>
+                    <div style={{ background: T.surface0, borderRadius: 6, padding: 24, width: "100%", maxWidth: MAX_CROP_SIZE + 220, maxHeight: "90vh", overflowY: "auto", overscrollBehavior: "contain", border: `1px solid ${T.border}` }}>
                         <div style={{ marginBottom: 20 }}>
                             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: T.text900, margin: "0 0 2px", letterSpacing: "-0.02em" }}>Crop Cover</h2>
                             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>Drag the box to move · drag corners to resize</p>
                         </div>
                         <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                            <div style={{ position: "relative", flexShrink: 0, width: CROP_SIZE, height: CROP_SIZE, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
+                            <div style={{ position: "relative", flexShrink: 0, width: cropCanvasSize, height: cropCanvasSize, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
                                 <img src={coverOriginal} alt="crop" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
                                 <div
                                     style={{ position: "absolute", left: coverCropBox.x, top: coverCropBox.y, width: coverCropBox.width, height: coverCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move" }}
