@@ -216,12 +216,12 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                             <img
                                 src={img.cropped || img.original}
                                 alt={img.name}
-                                style={{ width: "100%", height: 128, objectFit: "cover", display: "block" }}
+                                style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
                             />
 
                             {/* Hover actions */}
                             <div style={{
-                                position: "absolute", inset: 0, height: 128,
+                                position: "absolute", inset: 0,
                                 background: "rgba(26,21,16,0.45)",
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                                 opacity: 0, transition: "opacity 150ms",
