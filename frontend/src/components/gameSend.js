@@ -96,7 +96,7 @@ export default function GameSend({
     const inputStyle = {
         flex: 1,
         fontFamily: "'DM Sans', sans-serif",
-        fontSize: 14,
+        fontSize: 16,
         color: 'var(--text-900)',
         background: 'var(--surface-1)',
         border: '1px solid var(--border)',
