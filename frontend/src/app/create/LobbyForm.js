@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
-import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2, ChevronDown, Flag } from "lucide-react";
+import { UserCircle, Search, Plus, Check, Star, Lock, Unlock, Eye, MessageSquare, Shuffle, Timer, Pencil, Heart, Loader2, ChevronDown, Flag, Play } from "lucide-react";
 import Navbar from "@/components/navbar";
 import useMediaQuery from '@mui/material/useMediaQuery';
 
@@ -1242,6 +1242,10 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                                         {set.isPublic ? "Public" : "Private"}
                                                     </span>
                                                 )}
+                                                <span className="set-card__like-btn" style={{ cursor: "default", color: "var(--text-400)" }} title="Times played">
+                                                    <Play size={12} strokeWidth={2} />
+                                                    {set.playCount ?? 0}
+                                                </span>
                                                 <button
                                                     className={`set-card__like-btn${set.likedByMe ? " set-card__like-btn--active" : ""}`}
                                                     onClick={(e) => { e.stopPropagation(); handleToggleLike(set.id); }}

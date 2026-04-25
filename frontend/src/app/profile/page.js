@@ -8,7 +8,7 @@ import { useContext, useState, useEffect } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trophy, Hash, Star, Lock, Globe, Pencil, Trash2, Layers, Heart } from "lucide-react";
+import { ArrowLeft, Trophy, Hash, Star, Lock, Globe, Pencil, Trash2, Layers, Heart, Play } from "lucide-react";
 
 /* ─────────────────────────────────────────────
    Design tokens — v3.0 schema
@@ -470,9 +470,15 @@ export default function Profile() {
                                                     }
                                                 </div>
                                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
-                                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
-                                                        {set.characters?.length ?? 0} character{set.characters?.length !== 1 ? "s" : ""}
-                                                    </p>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
+                                                            {set.characters?.length ?? 0} char{set.characters?.length !== 1 ? "s" : ""}
+                                                        </p>
+                                                        <span style={{ display: "flex", alignItems: "center", gap: 3, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400 }} title="Times played">
+                                                            <Play size={11} strokeWidth={2} />
+                                                            {set.playCount ?? 0}
+                                                        </span>
+                                                    </div>
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); handleToggleLike(set.id); }}
                                                         title={set.likedByMe ? "Unlike" : "Like"}
