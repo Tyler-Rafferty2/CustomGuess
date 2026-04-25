@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <>
-      <style>{`@media (max-width: 768px) { .site-footer { display: none !important; } }`}</style>
+      <style>{`@media (max-width: 768px) { .site-footer { margin-bottom: 56px; } }`}</style>
       <footer className="site-footer" style={{
         borderTop: "1px solid #DDD5CA",
         padding: "16px 24px",
