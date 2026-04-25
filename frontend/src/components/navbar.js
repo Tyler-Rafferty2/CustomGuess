@@ -223,7 +223,7 @@ export default function Navbar() {
                                 </div>
 
                                 <div style={{ padding: 8 }}>
-                                    <MenuRow Icon={HelpCircle} label="How to Play" sub="View game rules" onClick={() => { }} />
+                                    <MenuRow Icon={HelpCircle} label="How to Play" sub="View game rules" onClick={() => { setShowHowToPlay(true); setMenuOpen(false); }} />
                                     <div style={{ height: 1, background: T.border, margin: "4px 0" }} />
                                     <MenuRow
                                         Icon={LogOut} label="Leave Game" sub="Exit current match"

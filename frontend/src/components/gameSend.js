@@ -273,7 +273,7 @@ export default function GameSend({
                         style={{
                             ...btnBase,
                             flex: 1,
-                            background: pressedBtn === 'yes' ? '#1e6644' : 'var(--state-live)',
+                            background: pressedBtn === 'yes' ? 'var(--state-live-dim, #1e6644)' : 'var(--state-live)',
                             color: '#fff',
                             transform: pressedBtn === 'yes' ? 'scale(0.96)' : 'scale(1)',
                             boxShadow: pressedBtn === 'yes' ? 'inset 0 2px 6px rgba(0,0,0,0.25)' : 'none',
@@ -290,7 +290,7 @@ export default function GameSend({
                         style={{
                             ...btnBase,
                             flex: 1,
-                            background: pressedBtn === 'no' ? '#922b21' : 'var(--state-out)',
+                            background: pressedBtn === 'no' ? 'var(--state-out-dim, #922b21)' : 'var(--state-out)',
                             color: '#fff',
                             transform: pressedBtn === 'no' ? 'scale(0.96)' : 'scale(1)',
                             boxShadow: pressedBtn === 'no' ? 'inset 0 2px 6px rgba(0,0,0,0.25)' : 'none',

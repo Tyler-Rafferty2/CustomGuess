@@ -217,32 +217,27 @@ func (h *Hub) Run() {
 			}
 			h.mu.RUnlock()
 			
-			log.Printf("Broadcasting message to lobby %s: Type=%s, Content=%s, Username=%s, Clients in lobby: %d", 
-				message.LobbyID, message.Type, message.Content, message.Username, clientCount)
-			
 			if !ok {
 				log.Printf("WARNING: Lobby %s not found for broadcast!", message.LobbyID)
 				continue
 			}
-			
+
 			h.mu.Lock()
-			successCount := 0
 			failCount := 0
 			for clientID, client := range lobby {
 				select {
 				case client.Send <- message:
-					successCount++
-					log.Printf("Message sent to client %s (%s)", client.Username, clientID)
 				default:
 					failCount++
-					log.Printf("Failed to send to client %s (%s), closing connection", client.Username, clientID)
 					close(client.Send)
 					delete(lobby, clientID)
 				}
 			}
 			h.mu.Unlock()
-			
-			log.Printf("Broadcast complete: %d successful, %d failed", successCount, failCount)
+
+			if failCount > 0 {
+				log.Printf("Broadcast to lobby %s: %d client(s) dropped", message.LobbyID, failCount)
+			}
 		}
 	}
 }

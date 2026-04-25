@@ -64,8 +64,6 @@ export default function LobbyPage() {
             // console.error(err);
             setError("Network error");
         }
-        console.log(lobbyCode)
-        console.log(lobbies)
         router.push(`/lobby/${lobbyID}`);
 
     };

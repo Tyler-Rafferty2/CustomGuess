@@ -19,7 +19,9 @@
   --border-strong: #C4B8A8;
 
   --state-out: #C0392B;
+  --state-out-dim: #922b21;
   --state-live: #2A7A56;
+  --state-live-dim: #1e6644;
 
   /* Spacing */
   --s1: 4px;

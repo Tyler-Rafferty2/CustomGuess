@@ -24,7 +24,6 @@ export default function ChatApp({ lobbyId, username, wsRef, setIsConnected, mess
             setUnreadCount(newMessages.length);
         } else {
             setUnreadCount(0);
-            // Only mark as read if there are unread messages
             if (messages.some(m => !m.read)) {
                 setMessages(prev => prev.map(m => ({ ...m, read: true })));
             }
@@ -65,14 +64,41 @@ export default function ChatApp({ lobbyId, username, wsRef, setIsConnected, mess
 
     if (isMinimized) {
         return (
-            <div className="fixed bottom-4 right-4 z-50">
+            <div style={{ position: 'fixed', bottom: 16, right: 16, zIndex: 50 }}>
                 <button
                     onClick={() => setIsMinimized(false)}
-                    className="bg-indigo-600 text-white rounded-full p-4 shadow-lg hover:bg-indigo-700 transition-all relative"
+                    style={{
+                        background: 'var(--accent)',
+                        color: '#fff',
+                        borderRadius: 'var(--r)',
+                        padding: 16,
+                        border: 'none',
+                        cursor: 'pointer',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
                 >
-                    <MessageCircle className="w-6 h-6" />
+                    <MessageCircle size={24} />
                     {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                        <span style={{
+                            position: 'absolute',
+                            top: -4,
+                            right: -4,
+                            background: 'var(--state-out, #C0392B)',
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: 700,
+                            borderRadius: 'var(--r)',
+                            minWidth: 18,
+                            height: 18,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0 4px',
+                            fontFamily: "'DM Sans', sans-serif",
+                        }}>
                             {unreadCount}
                         </span>
                     )}
@@ -82,62 +108,97 @@ export default function ChatApp({ lobbyId, username, wsRef, setIsConnected, mess
     }
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 w-96 h-[500px] flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200">
-            <div className="bg-indigo-600 text-white p-3 rounded-t-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5" />
+        <div style={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            zIndex: 50,
+            width: 360,
+            height: 500,
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'var(--surface-0)',
+            borderRadius: 'var(--r)',
+            border: '1px solid var(--border)',
+            fontFamily: "'DM Sans', sans-serif",
+            overflow: 'hidden',
+        }}>
+            {/* Header */}
+            <div style={{
+                background: 'var(--accent)',
+                color: '#fff',
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexShrink: 0,
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <MessageCircle size={18} />
                     <div>
-                        <h2 className="font-semibold text-sm">Chat Room</h2>
-                        <p className="text-xs text-indigo-200">{username}</p>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>Chat Room</div>
+                        <div style={{ fontSize: 11, opacity: 0.8 }}>{username}</div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <button
                         onClick={() => setIsMinimized(true)}
-                        className="p-1 hover:bg-indigo-700 rounded transition-colors"
                         title="Minimize"
+                        style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, borderRadius: 'var(--r)', display: 'flex' }}
                     >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg width={16} height={16} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
                     </button>
                     <button
                         onClick={disconnect}
-                        className="p-1 hover:bg-indigo-700 rounded transition-colors"
                         title="Disconnect"
+                        style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, borderRadius: 'var(--r)', display: 'flex' }}
                     >
-                        <X className="w-4 h-4" />
+                        <X size={16} />
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 bg-gray-50">
-                <div className="space-y-2">
+            {/* Messages */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: 12, background: 'var(--surface-1, #EDE8E2)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {messages.map((msg, idx) => (
                         <div key={idx}>
                             {msg.type === 'join' ? (
-                                <div className="text-center">
-                                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-full">
+                                <div style={{ textAlign: 'center' }}>
+                                    <span style={{
+                                        fontSize: 11,
+                                        color: 'var(--text-400)',
+                                        background: 'var(--surface-0)',
+                                        padding: '2px 8px',
+                                        borderRadius: 'var(--r)',
+                                        border: '1px solid var(--border)',
+                                    }}>
                                         {msg.username} {msg.content}
                                     </span>
                                 </div>
                             ) : (
-                                <div className={`flex ${msg.username === username ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-[75%]`}>
+                                <div style={{ display: 'flex', justifyContent: msg.username === username ? 'flex-end' : 'flex-start' }}>
+                                    <div style={{ maxWidth: '75%' }}>
                                         {msg.username !== username && (
-                                            <div className="flex items-center gap-1 mb-1">
-                                                <span className="text-xs font-semibold text-gray-700">{msg.username}</span>
-                                                <span className="text-xs text-gray-400">{msg.time}</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-900)' }}>{msg.username}</span>
+                                                <span style={{ fontSize: 11, color: 'var(--text-400)' }}>{msg.time}</span>
                                             </div>
                                         )}
-                                        <div className={`px-3 py-2 rounded-lg text-sm ${msg.username === username
-                                            ? 'bg-indigo-600 text-white rounded-br-none'
-                                            : 'bg-white text-gray-800 shadow-sm rounded-bl-none'
-                                            }`}>
+                                        <div style={{
+                                            padding: '6px 10px',
+                                            borderRadius: 'var(--r)',
+                                            fontSize: 13,
+                                            background: msg.username === username ? 'var(--accent)' : 'var(--surface-0)',
+                                            color: msg.username === username ? '#fff' : 'var(--text-900)',
+                                            border: msg.username === username ? 'none' : '1px solid var(--border)',
+                                        }}>
                                             {msg.content}
                                         </div>
                                         {msg.username === username && (
-                                            <div className="text-xs text-gray-400 mt-1 text-right">{msg.time}</div>
+                                            <div style={{ fontSize: 11, color: 'var(--text-400)', marginTop: 2, textAlign: 'right' }}>{msg.time}</div>
                                         )}
                                     </div>
                                 </div>
@@ -148,24 +209,51 @@ export default function ChatApp({ lobbyId, username, wsRef, setIsConnected, mess
                 </div>
             </div>
 
-            <div className="p-3 bg-white border-t border-gray-200 rounded-b-lg">
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Type a message..."
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                    />
-                    <button
-                        onClick={sendMessage}
-                        disabled={!inputMessage.trim()}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-1"
-                    >
-                        <Send className="w-4 h-4" />
-                    </button>
-                </div>
+            {/* Input */}
+            <div style={{
+                padding: 10,
+                background: 'var(--surface-0)',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                gap: 8,
+                flexShrink: 0,
+            }}>
+                <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Type a message..."
+                    style={{
+                        flex: 1,
+                        padding: '6px 10px',
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--r)',
+                        outline: 'none',
+                        fontSize: 13,
+                        fontFamily: "'DM Sans', sans-serif",
+                        background: 'var(--surface-0)',
+                        color: 'var(--text-900)',
+                    }}
+                />
+                <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim()}
+                    style={{
+                        padding: '6px 12px',
+                        background: inputMessage.trim() ? 'var(--accent)' : 'var(--border)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 'var(--r)',
+                        cursor: inputMessage.trim() ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        transition: 'background 150ms ease',
+                    }}
+                >
+                    <Send size={16} />
+                </button>
             </div>
         </div>
     );

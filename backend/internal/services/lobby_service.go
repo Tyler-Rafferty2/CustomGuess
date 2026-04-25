@@ -176,8 +176,6 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         }
     }
 
-    log.Printf("Is it chatFeature: %t", chatFeature)
-
     if !chatFeature {
         turnTimerSeconds = 0
     }
@@ -246,7 +244,6 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
     // Set the turn to the first player
     lobby.TurnID = &player.ID
     s.DB.Save(lobby)
-    log.Printf("right be fore return: %t", lobby.ChatFeature)
 
     return lobby, nil
 }
