@@ -71,15 +71,23 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
         setCropBox({ x: 50, y: 50, width: 280, height: 280 });
     };
 
-    const handleMouseDown = (e, type) => {
+    const getCoords = (e) =>
+        e.touches
+            ? { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }
+            : { clientX: e.clientX, clientY: e.clientY };
+
+    const handlePointerDown = (e, type) => {
         e.preventDefault();
-        setDragging({ type, startX: e.clientX, startY: e.clientY, startBox: { ...cropBox } });
+        const { clientX, clientY } = getCoords(e);
+        setDragging({ type, startX: clientX, startY: clientY, startBox: { ...cropBox } });
     };
 
-    const handleMouseMove = (e) => {
+    const handlePointerMove = (e) => {
         if (!dragging) return;
-        const dx = e.clientX - dragging.startX;
-        const dy = e.clientY - dragging.startY;
+        if (e.cancelable) e.preventDefault();
+        const { clientX, clientY } = getCoords(e);
+        const dx = clientX - dragging.startX;
+        const dy = clientY - dragging.startY;
         let b = { ...cropBox };
 
         if (dragging.type === 'move') {
@@ -109,15 +117,19 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
         setCropBox(b);
     };
 
-    const handleMouseUp = () => setDragging(null);
+    const handlePointerUp = () => setDragging(null);
 
     useEffect(() => {
         if (!dragging) return;
-        window.addEventListener('mousemove', handleMouseMove);
-        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('mouseup', handlePointerUp);
+        window.addEventListener('touchmove', handlePointerMove, { passive: false });
+        window.addEventListener('touchend', handlePointerUp);
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mousemove', handlePointerMove);
+            window.removeEventListener('mouseup', handlePointerUp);
+            window.removeEventListener('touchmove', handlePointerMove);
+            window.removeEventListener('touchend', handlePointerUp);
         };
     }, [dragging, cropBox]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -297,6 +309,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                         background: T.surface0, borderRadius: 6, padding: 24,
                         width: "100%", maxWidth: CONTAINER_SIZE + 228,
                         border: `1px solid ${T.border}`,
+                        maxHeight: "90vh", overflowY: "auto", overscrollBehavior: "contain",
                     }}>
                         <div style={{ marginBottom: 28 }}>
                             <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: T.text900, margin: "0 0 2px", letterSpacing: "-0.02em" }}>
@@ -329,8 +342,10 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                                     boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)",
                                     border: `2px solid ${T.surface0}`,
                                     cursor: "move",
+                                    touchAction: "none",
                                 }}
-                                    onMouseDown={(e) => handleMouseDown(e, 'move')}
+                                    onMouseDown={(e) => handlePointerDown(e, 'move')}
+                                    onTouchStart={(e) => handlePointerDown(e, 'move')}
                                 >
                                     {/* Grid lines */}
                                     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -351,11 +366,12 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                                     ].map(({ type, cursor, ...pos }) => (
                                         <div
                                             key={type}
-                                            onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, type); }}
+                                            onMouseDown={(e) => { e.stopPropagation(); handlePointerDown(e, type); }}
+                                            onTouchStart={(e) => { e.stopPropagation(); handlePointerDown(e, type); }}
                                             style={{
                                                 position: "absolute", width: HANDLE_SIZE, height: HANDLE_SIZE,
                                                 background: T.surface0, border: `2px solid ${T.accent}`,
-                                                borderRadius: "50%", cursor, ...pos,
+                                                borderRadius: "50%", cursor, touchAction: "none", ...pos,
                                             }}
                                         />
                                     ))}
