@@ -21,6 +21,9 @@ export default function Footer() {
         <Link href="/privacy" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
           Privacy
         </Link>
+        <Link href="/contact" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
+          Contact
+        </Link>
         <a href="mailto:support@customguess.com" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
           Support — support@customguess.com
         </a>

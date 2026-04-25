@@ -14,6 +14,22 @@ func NewEmailService(apiKey string) *EmailService {
 	}
 }
 
+func (s *EmailService) SendContactEmail(fromName, fromEmail, subject, message string) error {
+	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
+		From:    s.from,
+		To:      []string{"tjraff5@gmail.com"},
+		ReplyTo: fromEmail,
+		Subject: "[Contact] " + subject,
+		Html: `<div style="font-family: 'DM Sans', sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #F7F3EE; border-radius: 6px;">
+			<h1 style="font-family: Fraunces, serif; color: #1A1510; font-size: 24px; margin-bottom: 8px;">New Contact Message</h1>
+			<p style="color: #5C5047; margin-bottom: 4px;"><strong>From:</strong> ` + fromName + ` &lt;` + fromEmail + `&gt;</p>
+			<p style="color: #5C5047; margin-bottom: 16px;"><strong>Subject:</strong> ` + subject + `</p>
+			<div style="background: #fff; border: 1px solid #DDD5CA; border-radius: 6px; padding: 16px; color: #1A1510; line-height: 1.6; white-space: pre-wrap;">` + message + `</div>
+		</div>`,
+	})
+	return err
+}
+
 func (s *EmailService) SendPasswordReset(to, resetLink string) error {
 	_, err := s.client.Emails.Send(&resend.SendEmailRequest{
 		From:    s.from,

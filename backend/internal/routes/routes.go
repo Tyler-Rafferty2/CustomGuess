@@ -37,6 +37,7 @@ func MountRoutes(r chi.Router) {
 
 	// Create handler structs
 	userHandler := &handlers.UserHandler{Service: userService, SessionService: sessionService}
+	contactHandler := &handlers.ContactHandler{EmailService: emailService}
 	authHandler := handlers.NewAuthHandler(sessionService)
 	lobbyHandler := &handlers.LobbyHandler{Service: lobbyService}
 	playerHandler := &handlers.PlayerHandler{Service: playerService}
@@ -124,6 +125,8 @@ func MountRoutes(r chi.Router) {
 			r.Post("/set/{setId}/like", playerHandler.ToggleLikeHandler)
 		})
 	})
+
+	r.Post("/contact", contactHandler.SendContactHandler)
 
 	r.Get("/ws", wsHandler.HandleWebSocket)
 }
