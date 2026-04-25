@@ -179,7 +179,7 @@ function EditSetForm() {
     const cropExisting = async (char) => {
         try {
             const src = char.croppedPreview || imgUrl(char.image);
-            const res = await fetch(src);
+            const res = await fetch(src, { cache: 'reload' });
             const blob = await res.blob();
             const original = await new Promise(resolve => {
                 const reader = new FileReader();
