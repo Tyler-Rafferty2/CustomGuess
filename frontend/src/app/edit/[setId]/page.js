@@ -67,6 +67,12 @@ function EditSetForm() {
     const [cropCanvasSize, setCropCanvasSize] = useState(400);
     const computeCropSize = () => Math.min(MAX_CROP_SIZE, window.innerWidth - 80);
 
+    const anyModalOpen = !!(cropExistingChar || coverCropOpen);
+    useEffect(() => {
+        document.body.style.overflow = anyModalOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [anyModalOpen]);
+
     const totalCount = existingChars.length + newImages.length;
 
     useEffect(() => {
@@ -124,16 +130,23 @@ function EditSetForm() {
         setCoverCropOpen(true);
     };
 
-    const handleCoverMouseDown = (e, type) => {
+    const getCoords = (e) => e.touches
+        ? { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }
+        : { clientX: e.clientX, clientY: e.clientY };
+
+    const handleCoverPointerDown = (e, type) => {
         e.preventDefault();
-        setCoverDragging({ type, startX: e.clientX, startY: e.clientY, startBox: { ...coverCropBox } });
+        const { clientX, clientY } = getCoords(e);
+        setCoverDragging({ type, startX: clientX, startY: clientY, startBox: { ...coverCropBox } });
     };
 
     useEffect(() => {
         if (!coverDragging) return;
         const onMove = (e) => {
-            const dx = e.clientX - coverDragging.startX;
-            const dy = e.clientY - coverDragging.startY;
+            e.preventDefault();
+            const { clientX, clientY } = getCoords(e);
+            const dx = clientX - coverDragging.startX;
+            const dy = clientY - coverDragging.startY;
             let b = { ...coverCropBox };
             if (coverDragging.type === "move") {
                 b.x = Math.max(0, Math.min(cropCanvasSize - b.width, coverDragging.startBox.x + dx));
@@ -152,8 +165,15 @@ function EditSetForm() {
         const onUp = () => setCoverDragging(null);
         window.addEventListener("mousemove", onMove);
         window.addEventListener("mouseup", onUp);
-        return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-    }, [coverDragging, coverCropBox]);
+        window.addEventListener("touchmove", onMove, { passive: false });
+        window.addEventListener("touchend", onUp);
+        return () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            window.removeEventListener("touchmove", onMove);
+            window.removeEventListener("touchend", onUp);
+        };
+    }, [coverDragging, coverCropBox]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const applyCoverCrop = () => {
         const image = new Image();
@@ -231,8 +251,10 @@ function EditSetForm() {
     useEffect(() => {
         if (!existingCropDragging) return;
         const onMove = (e) => {
-            const dx = e.clientX - existingCropDragging.startX;
-            const dy = e.clientY - existingCropDragging.startY;
+            e.preventDefault();
+            const { clientX, clientY } = getCoords(e);
+            const dx = clientX - existingCropDragging.startX;
+            const dy = clientY - existingCropDragging.startY;
             let b = { ...existingCropBox };
             if (existingCropDragging.type === 'move') {
                 b.x = Math.max(0, Math.min(cropCanvasSize - b.width, existingCropDragging.startBox.x + dx));
@@ -251,7 +273,14 @@ function EditSetForm() {
         const onUp = () => setExistingCropDragging(null);
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
-        return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+        return () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+            window.removeEventListener('touchmove', onMove);
+            window.removeEventListener('touchend', onUp);
+        };
     }, [existingCropDragging, existingCropBox]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleDelete = async () => {
@@ -586,8 +615,9 @@ function EditSetForm() {
                             <div style={{ position: "relative", flexShrink: 0, width: cropCanvasSize, height: cropCanvasSize, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
                                 <img src={cropExistingChar.original} alt="crop" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
                                 <div
-                                    style={{ position: "absolute", left: existingCropBox.x, top: existingCropBox.y, width: existingCropBox.width, height: existingCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move" }}
-                                    onMouseDown={(e) => { e.preventDefault(); setExistingCropDragging({ type: 'move', startX: e.clientX, startY: e.clientY, startBox: { ...existingCropBox } }); }}
+                                    style={{ position: "absolute", left: existingCropBox.x, top: existingCropBox.y, width: existingCropBox.width, height: existingCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move", touchAction: "none" }}
+                                    onMouseDown={(e) => { e.preventDefault(); const {clientX,clientY}=getCoords(e); setExistingCropDragging({ type: 'move', startX: clientX, startY: clientY, startBox: { ...existingCropBox } }); }}
+                                    onTouchStart={(e) => { e.preventDefault(); const {clientX,clientY}=getCoords(e); setExistingCropDragging({ type: 'move', startX: clientX, startY: clientY, startBox: { ...existingCropBox } }); }}
                                 >
                                     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
                                         {[1/3, 2/3].map(f => <div key={f} style={{ position: "absolute", left: `${f * 100}%`, top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.3)" }} />)}
@@ -599,8 +629,10 @@ function EditSetForm() {
                                         { type: 'sw', bottom: -HANDLE/2, left: -HANDLE/2, cursor: 'sw-resize' },
                                         { type: 'se', bottom: -HANDLE/2, right: -HANDLE/2, cursor: 'se-resize' },
                                     ].map(({ type, cursor, ...pos }) => (
-                                        <div key={type} onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); setExistingCropDragging({ type, startX: e.clientX, startY: e.clientY, startBox: { ...existingCropBox } }); }}
-                                            style={{ position: "absolute", width: HANDLE, height: HANDLE, background: T.surface0, border: `2px solid ${T.accent}`, borderRadius: "50%", cursor, ...pos }} />
+                                        <div key={type}
+                                            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); const {clientX,clientY}=getCoords(e); setExistingCropDragging({ type, startX: clientX, startY: clientY, startBox: { ...existingCropBox } }); }}
+                                            onTouchStart={(e) => { e.stopPropagation(); e.preventDefault(); const {clientX,clientY}=getCoords(e); setExistingCropDragging({ type, startX: clientX, startY: clientY, startBox: { ...existingCropBox } }); }}
+                                            style={{ position: "absolute", width: HANDLE, height: HANDLE, background: T.surface0, border: `2px solid ${T.accent}`, borderRadius: "50%", cursor, touchAction: "none", ...pos }} />
                                     ))}
                                 </div>
                             </div>
@@ -629,8 +661,9 @@ function EditSetForm() {
                             <div style={{ position: "relative", flexShrink: 0, width: cropCanvasSize, height: cropCanvasSize, background: T.surface1, borderRadius: 6, overflow: "hidden", border: `1px solid ${T.border}` }}>
                                 <img src={coverOriginal} alt="crop" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />
                                 <div
-                                    style={{ position: "absolute", left: coverCropBox.x, top: coverCropBox.y, width: coverCropBox.width, height: coverCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move" }}
-                                    onMouseDown={(e) => handleCoverMouseDown(e, "move")}
+                                    style={{ position: "absolute", left: coverCropBox.x, top: coverCropBox.y, width: coverCropBox.width, height: coverCropBox.height, boxShadow: "0 0 0 9999px rgba(26,21,16,0.55)", border: `2px solid ${T.surface0}`, cursor: "move", touchAction: "none" }}
+                                    onMouseDown={(e) => handleCoverPointerDown(e, "move")}
+                                    onTouchStart={(e) => handleCoverPointerDown(e, "move")}
                                 >
                                     <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
                                         {[1 / 3, 2 / 3].map(f => <div key={f} style={{ position: "absolute", left: `${f * 100}%`, top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.3)" }} />)}
@@ -642,8 +675,10 @@ function EditSetForm() {
                                         { type: "sw", bottom: -HANDLE / 2, left: -HANDLE / 2, cursor: "sw-resize" },
                                         { type: "se", bottom: -HANDLE / 2, right: -HANDLE / 2, cursor: "se-resize" },
                                     ].map(({ type, cursor, ...pos }) => (
-                                        <div key={type} onMouseDown={(e) => { e.stopPropagation(); handleCoverMouseDown(e, type); }}
-                                            style={{ position: "absolute", width: HANDLE, height: HANDLE, background: T.surface0, border: `2px solid ${T.accent}`, borderRadius: "50%", cursor, ...pos }} />
+                                        <div key={type}
+                                            onMouseDown={(e) => { e.stopPropagation(); handleCoverPointerDown(e, type); }}
+                                            onTouchStart={(e) => { e.stopPropagation(); handleCoverPointerDown(e, type); }}
+                                            style={{ position: "absolute", width: HANDLE, height: HANDLE, background: T.surface0, border: `2px solid ${T.accent}`, borderRadius: "50%", cursor, touchAction: "none", ...pos }} />
                                     ))}
                                 </div>
                             </div>
