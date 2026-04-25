@@ -79,7 +79,7 @@ body {
   .mobile-bottom-bar { display: block; }
 }
 
-/* Character card overlay — only on true pointer/hover devices */
+/* Character card overlay — only on mouse/trackpad devices */
 .char-overlay {
   display: none;
   pointer-events: none;
@@ -87,7 +87,7 @@ body {
 .char-overlay button {
   pointer-events: auto;
 }
-@media (hover: hover) {
+@media (pointer: fine) {
   .char-overlay {
     display: flex;
     opacity: 0;
