@@ -228,56 +228,59 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
             {images.length > 0 && (
                 <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {images.map((img, index) => (
-                        <div key={img.id} className="char-card" style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}
+                        <div key={img.id} className="char-card" style={{ background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}
                             onPointerEnter={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; } }}
                             onPointerLeave={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; } }}
                         >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={img.cropped || img.original}
-                                alt={img.name}
-                                style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
-                            />
+                            {/* Image + hover overlay scoped together */}
+                            <div style={{ position: "relative" }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={img.cropped || img.original}
+                                    alt={img.name}
+                                    style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }}
+                                />
 
-                            {/* Corner buttons — touch devices only */}
-                            <div className="char-corner-btns">
-                                <button
-                                    onClick={() => openCrop(index)}
-                                    title="Adjust crop"
-                                    style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                >
-                                    <Crop size={14} color={T.text900} />
-                                </button>
-                                <button
-                                    onClick={() => remove(index)}
-                                    title="Remove"
-                                    style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                >
-                                    <X size={14} color={T.stateOut} />
-                                </button>
-                            </div>
+                                {/* Corner buttons — touch devices only */}
+                                <div className="char-corner-btns">
+                                    <button
+                                        onClick={() => openCrop(index)}
+                                        title="Adjust crop"
+                                        style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    >
+                                        <Crop size={14} color={T.text900} />
+                                    </button>
+                                    <button
+                                        onClick={() => remove(index)}
+                                        title="Remove"
+                                        style={{ width: 28, height: 28, borderRadius: 4, background: "rgba(255,255,255,0.9)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    >
+                                        <X size={14} color={T.stateOut} />
+                                    </button>
+                                </div>
 
-                            {/* Hover actions */}
-                            <div className="char-overlay" style={{
-                                position: "absolute", top: 0, left: 0, right: 0, aspectRatio: "1",
-                                background: "rgba(26,21,16,0.45)",
-                                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                                opacity: 0, transition: "opacity 150ms",
-                            }}>
-                                <button
-                                    onClick={() => openCrop(index)}
-                                    title="Adjust crop"
-                                    style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                >
-                                    <Crop size={14} color={T.text900} />
-                                </button>
-                                <button
-                                    onClick={() => remove(index)}
-                                    title="Remove"
-                                    style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                                >
-                                    <X size={14} color={T.stateOut} />
-                                </button>
+                                {/* Hover actions */}
+                                <div className="char-overlay" style={{
+                                    position: "absolute", inset: 0,
+                                    background: "rgba(26,21,16,0.45)",
+                                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                                    opacity: 0, transition: "opacity 150ms",
+                                }}>
+                                    <button
+                                        onClick={() => openCrop(index)}
+                                        title="Adjust crop"
+                                        style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    >
+                                        <Crop size={14} color={T.text900} />
+                                    </button>
+                                    <button
+                                        onClick={() => remove(index)}
+                                        title="Remove"
+                                        style={{ width: 28, height: 28, borderRadius: 4, background: T.surface0, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                    >
+                                        <X size={14} color={T.stateOut} />
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Name */}
