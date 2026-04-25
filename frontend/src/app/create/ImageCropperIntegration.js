@@ -229,8 +229,8 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                 <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {images.map((img, index) => (
                         <div key={img.id} className="char-card" style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}
-                            onMouseEnter={e => { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; }}
-                            onMouseLeave={e => { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; }}
+                            onPointerEnter={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '1'; } }}
+                            onPointerLeave={e => { if (e.pointerType === 'mouse') { const o = e.currentTarget.querySelector('.char-overlay'); if (o) o.style.opacity = '0'; } }}
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img

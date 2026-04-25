@@ -51,6 +51,7 @@ body {
   color: var(--text-900);
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
