@@ -322,8 +322,8 @@ export default function Home() {
                   type="text"
                   value={lobbyCode}
                   onChange={(e) => setLobbyCode(e.target.value.toUpperCase())}
-                  placeholder="XXXXXX"
-                  maxLength={6}
+                  placeholder="XXXX"
+                  maxLength={4}
                   aria-label="Lobby code"
                 />
                 <button
