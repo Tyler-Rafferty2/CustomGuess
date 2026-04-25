@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api';
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import Navbar from "@/components/navbar";
 
 function EyeIcon({ open }) {
     return open ? (
@@ -112,7 +113,9 @@ export default function Signup() {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#F7F3EE] p-6 font-sans">
+        <>
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-[#F7F3EE] p-6 font-sans">
             <div className="w-full max-w-md bg-[#FFFFFF] border border-[#DDD5CA] rounded-[6px] p-8">
                 <h1 className="text-[26px] leading-[1.1] tracking-[-0.02em] font-bold text-center mb-6 font-serif text-[#1A1510]">
                     Create an Account
@@ -220,5 +223,6 @@ export default function Signup() {
                 </p>
             </div>
         </div>
+        </>
     );
 }

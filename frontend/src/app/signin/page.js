@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useContext } from "react";
 import { UserContext } from "@/context/UserContext";
 import Link from "next/link";
+import Navbar from "@/components/navbar";
 
 export default function Signin() {
     const router = useRouter();
@@ -42,8 +43,10 @@ export default function Signin() {
     };
 
     return (
-        /* --bg (#F7F3EE) */
-        <div className="flex items-center justify-center min-h-screen bg-[#F7F3EE] p-6 font-sans">
+        <>
+        <Navbar />
+        {/* --bg (#F7F3EE) */}
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-[#F7F3EE] p-6 font-sans">
 
             {/* --surface-0 (#FFFFFF) with --border (#DDD5CA) and strict 6px radius */}
             <div className="w-full max-w-md bg-[#FFFFFF] border border-[#DDD5CA] rounded-[6px] p-8">
@@ -140,5 +143,6 @@ export default function Signin() {
                 </p>
             </div>
         </div>
+        </>
     );
 }

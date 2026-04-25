@@ -103,7 +103,7 @@ export default function Navbar() {
     const [activeLobbyId, setActiveLobbyId] = useState(null);
 
     const router = useRouter();
-    const isMobile = useMediaQuery('(max-width: 768px)', { defaultMatches: true });
+    const isMobile = useMediaQuery('(max-width: 768px)', { noSsr: true });
 
     const handleLogout = () => logout();
 
@@ -385,9 +385,9 @@ export default function Navbar() {
                         )}
                     </div>
                 ) : (
-                    /* ── Desktop top bar: unchanged ── */
+                    /* ── Desktop top bar ── */
                     <div style={{
-                        maxWidth: 1080, margin: "0 auto", padding: "0 24px",
+                        padding: "0 24px",
                         height: 56, display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
                     }}>
                         <Logo onClick={() => router.push("/")} />

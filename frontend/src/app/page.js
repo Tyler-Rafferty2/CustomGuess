@@ -350,27 +350,6 @@ export default function Home() {
 
             <div style={{ height: 1, background: T.border }} />
 
-            {/* Guest nudge */}
-            {!isLoading && !user && (
-              <p style={{
-                fontFamily: "'DM Sans', sans-serif",
-                fontSize: 13, color: T.text400, lineHeight: 1.5,
-              }}>
-                Playing as guest.{" "}
-                <button
-                  onClick={() => router.push("/signin")}
-                  style={{
-                    background: "none", border: "none", padding: 0,
-                    color: T.accent, fontFamily: "'DM Sans', sans-serif",
-                    fontSize: 13, fontWeight: 500, cursor: "pointer",
-                    textDecoration: "underline", textUnderlineOffset: 3,
-                  }}
-                >
-                  Sign in
-                </button>
-                {" "}to save stats and track your record.
-              </p>
-            )}
           </motion.div>
 
         </div>

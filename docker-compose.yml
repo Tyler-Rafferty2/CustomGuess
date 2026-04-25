@@ -23,9 +23,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=aws-1-eu-west-3.pooler.supabase.com
+      - DB_HOST=aws-1-us-east-1.pooler.supabase.com
       - DB_PORT=5432
-      - DB_USER=postgres.scldxnsnjocrxupeykyo
+      - DB_USER=postgres.dfikabshrqezrolrknxk
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=postgres
       - DB_SSLMODE=require
