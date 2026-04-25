@@ -102,7 +102,7 @@ function EditSetForm() {
         let original = coverOriginal;
         if (!original && coverPreview) {
             try {
-                const res = await fetch(coverPreview);
+                const res = await fetch(coverPreview, { cache: 'reload' });
                 const blob = await res.blob();
                 original = await new Promise(resolve => {
                     const reader = new FileReader();
@@ -372,7 +372,7 @@ function EditSetForm() {
                         <div style={{ width: 180, height: 180, borderRadius: 6, overflow: "hidden", border: `2px dashed ${T.border}`, flexShrink: 0, background: T.surface1, position: "relative" }}>
                             {coverPreview ? (
                                 <>
-                                    <img src={coverPreview} alt="cover" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                                    <img src={coverPreview} alt="cover" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                                     <div
                                         style={{ position: "absolute", inset: 0, background: "rgba(26,21,16,0.45)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: 0, transition: "opacity 150ms" }}
                                         onMouseEnter={e => e.currentTarget.style.opacity = 1}
