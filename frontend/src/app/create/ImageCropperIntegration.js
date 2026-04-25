@@ -211,7 +211,7 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
             {images.length > 0 && (
                 <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                     {images.map((img, index) => (
-                        <div key={img.id} style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                        <div key={img.id} className="char-card" style={{ position: "relative", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 src={img.cropped || img.original}
@@ -220,15 +220,11 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                             />
 
                             {/* Hover actions */}
-                            <div style={{
+                            <div className="char-overlay" style={{
                                 position: "absolute", inset: 0,
                                 background: "rgba(26,21,16,0.45)",
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                                opacity: 0, transition: "opacity 150ms",
-                            }}
-                                onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                                onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                            >
+                            }}>
                                 <button
                                     onClick={() => startEdit(index)}
                                     title="Adjust crop"

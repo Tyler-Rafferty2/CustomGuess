@@ -423,19 +423,15 @@ function EditSetForm() {
                             <p style={{ ...label, marginBottom: 10 }}>Existing</p>
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
                                 {existingChars.map(char => (
-                                    <div key={char.id} style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
+                                    <div key={char.id} className="char-card" style={{ position: "relative", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 6, overflow: "hidden" }}>
                                         <img src={char.croppedPreview || imgUrl(char.image)} alt={char.name} crossOrigin="anonymous" style={{ width: "100%", aspectRatio: "1", objectFit: "cover", display: "block" }} />
 
                                         {/* Hover overlay */}
-                                        <div style={{
+                                        <div className="char-overlay" style={{
                                             position: "absolute", inset: 0,
                                             background: "rgba(26,21,16,0.45)",
                                             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                                            opacity: 0, transition: "opacity 150ms",
-                                        }}
-                                            onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                                            onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                                        >
+                                        }}>
                                             <button
                                                 onClick={() => cropExisting(char)}
                                                 title="Crop"

@@ -78,3 +78,17 @@ body {
   .mobile-nav { display: block; }
   .mobile-bottom-bar { display: block; }
 }
+
+/* Character card overlay — hover on desktop, always visible on touch */
+.char-overlay {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+.char-card:hover .char-overlay {
+  opacity: 1;
+}
+@media (hover: none) {
+  .char-overlay {
+    opacity: 1;
+  }
+}
