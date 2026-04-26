@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GuessWho Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F7F3EE;
+  --surface-0: #FFFFFF;
+  --surface-1: #F2EDE7;
+  --surface-2: #E8E0D8;
+  --accent: #D9572B;
+  --accent-dim: #B84422;
+  --text-900: #1A1510;
+  --text-600: #5C5047;
+  --text-400: #A0937F;
+  --border: #DDD5CA;
+  --border-strong: #C4B8A8;
+  --state-out: #C0392B;
+  --state-live: #2A7A56;
+  --r: 6px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text-900);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border);
+  padding: var(--s4) var(--s8);
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.header__title {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--text-900);
+}
+.header__dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Nav */
+.nav {
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--s8);
+  display: flex;
+  gap: 0;
+}
+.nav-tab {
+  padding: var(--s3) var(--s5);
+  border: none;
+  background: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-600);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.nav-tab:hover { color: var(--text-900); }
+.nav-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Main */
+.main { padding: var(--s8); max-width: 1200px; margin: 0 auto; }
+
+/* Section title row */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s6);
+}
+.section-title {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-900);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 36px; padding: 0 var(--s4);
+  border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-primary {
+  background: var(--accent); color: #fff;
+}
+.btn-primary:hover { background: var(--accent-dim); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-600);
+  border: 1px solid var(--border-strong);
+}
+.btn-ghost:hover { background: var(--surface-1); color: var(--text-900); }
+.btn-danger-sm {
+  height: 28px; padding: 0 var(--s3);
+  border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--state-out);
+  border: 1px solid var(--state-out);
+  transition: background 0.15s, color 0.15s;
+}
+.btn-danger-sm:hover { background: var(--state-out); color: #fff; }
+.btn-ghost-sm {
+  height: 28px; padding: 0 var(--s3);
+  border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-600);
+  border: 1px solid var(--border-strong);
+  transition: background 0.15s;
+}
+.btn-ghost-sm:hover { background: var(--surface-1); }
+
+/* Stats grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--s4);
+}
+.stat-card {
+  background: var(--surface-0);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s4) var(--s5);
+}
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--s2);
+}
+.stat-value {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 32px;
+  color: var(--text-900);
+  line-height: 1;
+}
+
+/* Tables */
+.table-wrap {
+  background: var(--surface-0);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  text-align: left;
+  padding: var(--s3) var(--s4);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-400);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-600);
+  vertical-align: middle;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td { background: var(--surface-1); }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px var(--s2);
+  border-radius: var(--r);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.badge--reg  { background: #E8F5EE; color: var(--state-live); }
+.badge--guest { background: var(--surface-2); color: var(--text-400); }
+.badge--active   { background: #E8F5EE; color: var(--state-live); }
+.badge--waiting  { background: #FEF3E2; color: #A05C00; }
+.badge--finished { background: var(--surface-2); color: var(--text-400); }
+
+/* Pagination */
+.pagination {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-top: var(--s4);
+  justify-content: flex-end;
+}
+.page-info { color: var(--text-400); font-size: 13px; }
+
+/* Toggle group */
+.toggle-group { display: flex; gap: var(--s2); }
+.toggle-btn {
+  height: 32px; padding: 0 var(--s4);
+  border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  background: var(--surface-1);
+  color: var(--text-600);
+  border: 1px solid var(--border);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.toggle-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+/* Report cards */
+.reports-list { display: flex; flex-direction: column; gap: var(--s4); }
+.report-card {
+  background: var(--surface-0);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s5);
+}
+.report-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-bottom: var(--s3);
+}
+.report-card__name {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text-900);
+}
+.report-card__meta {
+  font-size: 13px;
+  color: var(--text-400);
+  margin-top: var(--s1);
+}
+.report-card__actions { display: flex; gap: var(--s2); flex-shrink: 0; }
+.report-card__reasons { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.reason-pill {
+  display: inline-block;
+  padding: 2px var(--s2);
+  border-radius: var(--r);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-600);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--s10) var(--s8);
+  color: var(--text-400);
+  font-size: 14px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(26,21,16,0.45);
+  z-index: 200;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: var(--s8) var(--s4);
+  overflow-y: auto;
+}
+.modal-overlay[hidden] { display: none; }
+.modal {
+  background: var(--surface-0);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  width: 100%; max-width: 860px;
+  padding: var(--s6);
+}
+.modal__header {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: var(--s5);
+}
+.modal__title {
+  font-family: 'Fraunces', serif;
+  font-weight: 700; font-size: 20px;
+}
+.modal__close {
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; color: var(--text-400); line-height: 1;
+  padding: 0 var(--s1);
+}
+.modal__close:hover { color: var(--text-900); }
+
+/* Set cards in modal */
+.set-list { display: flex; flex-direction: column; gap: var(--s5); }
+.set-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.set-card__header {
+  background: var(--surface-1);
+  padding: var(--s3) var(--s4);
+  display: flex; align-items: center; gap: var(--s3);
+}
+.set-card__cover {
+  width: 40px; height: 40px;
+  border-radius: var(--r);
+  object-fit: cover;
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.set-card__cover-placeholder {
+  width: 40px; height: 40px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+.set-card__name {
+  font-family: 'Fraunces', serif;
+  font-weight: 700; font-size: 15px;
+  color: var(--text-900);
+}
+.set-card__meta {
+  font-size: 12px; color: var(--text-400); margin-top: 2px;
+}
+.set-card__chars {
+  padding: var(--s3) var(--s4);
+  display: flex; flex-wrap: wrap; gap: var(--s3);
+}
+.char-thumb {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s1);
+  width: 72px;
+}
+.char-thumb img {
+  width: 72px; height: 72px;
+  object-fit: cover;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.char-thumb__name {
+  font-size: 11px; color: var(--text-600); text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  bottom: var(--s6);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  z-index: 1000;
+  pointer-events: none;
+}
+.toast {
+  padding: var(--s3) var(--s5);
+  border-radius: var(--r);
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  animation: toast-in 0.2s ease-out;
+}
+.toast--success { background: var(--state-live); }
+.toast--error   { background: var(--state-out); }
+.toast--info    { background: var(--text-600); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header__dot"></div>
+  <div class="header__title">GuessWho Admin</div>
+</header>
+
+<nav class="nav">
+  <button class="nav-tab active" data-section="stats">Stats</button>
+  <button class="nav-tab" data-section="users">Users</button>
+  <button class="nav-tab" data-section="lobbies">Lobbies</button>
+  <button class="nav-tab" data-section="content">Content</button>
+</nav>
+
+<main class="main">
+
+  <!-- Stats -->
+  <section id="section-stats">
+    <div class="section-header">
+      <div class="section-title">Overview</div>
+      <button class="btn btn-ghost" onclick="loadStats()">Refresh</button>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" id="s-total-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">Registered</div><div class="stat-value" id="s-reg-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">Guests</div><div class="stat-value" id="s-guest-users">—</div></div>
+      <div class="stat-card"><div class="stat-label">Games Played</div><div class="stat-value" id="s-total-games">—</div></div>
+      <div class="stat-card"><div class="stat-label">Games Today</div><div class="stat-value" id="s-games-today">—</div></div>
+      <div class="stat-card"><div class="stat-label">Active Games</div><div class="stat-value" id="s-active">—</div></div>
+      <div class="stat-card"><div class="stat-label">Waiting</div><div class="stat-value" id="s-waiting">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Sets</div><div class="stat-value" id="s-total-sets">—</div></div>
+      <div class="stat-card"><div class="stat-label">Public Sets</div><div class="stat-value" id="s-public-sets">—</div></div>
+      <div class="stat-card"><div class="stat-label">Reports</div><div class="stat-value" id="s-reports">—</div></div>
+    </div>
+  </section>
+
+  <!-- Users -->
+  <section id="section-users" hidden>
+    <div class="section-header">
+      <div class="section-title">Users</div>
+      <div style="display:flex;align-items:center;gap:var(--s4)">
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="ufilter-all" onclick="setUsersFilter('all')">All</button>
+          <button class="toggle-btn" id="ufilter-reg"        onclick="setUsersFilter('registered')">Registered</button>
+        </div>
+        <div class="pagination">
+          <span class="page-info" id="users-page-info">—</span>
+          <button class="btn btn-ghost" id="users-prev" onclick="usersPage--; loadUsers()">Prev</button>
+          <button class="btn btn-ghost" id="users-next" onclick="usersPage++; loadUsers()">Next</button>
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Type</th>
+            <th>Games</th>
+            <th>Joined</th>
+            <th></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Lobbies -->
+  <section id="section-lobbies" hidden>
+    <div class="section-header">
+      <div class="section-title">Lobbies</div>
+      <div class="toggle-group">
+        <button class="toggle-btn" id="toggle-all" onclick="setLobbiesFilter(false)">All</button>
+        <button class="toggle-btn active" id="toggle-active" onclick="setLobbiesFilter(true)">Active only</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Host</th>
+            <th>Players</th>
+            <th>Status</th>
+            <th>Character Set</th>
+            <th>Last Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="lobbies-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Content -->
+  <section id="section-content" hidden>
+    <div class="section-header">
+      <div class="section-title">Reported Sets</div>
+      <button class="btn btn-ghost" onclick="loadReports()">Refresh</button>
+    </div>
+    <div id="reports-list"></div>
+  </section>
+
+</main>
+
+<div class="toast-container" id="toast-container"></div>
+
+<!-- User Sets Modal -->
+<div class="modal-overlay" id="sets-modal" hidden onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal__header">
+      <div class="modal__title" id="modal-title">Sets</div>
+      <button class="modal__close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ─── Config ──────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:8080';
+const ADMIN_TOKEN = ''; // set this if using Docker: e.g. 'my-secret-token'
+
+// ─── Fetch helper ─────────────────────────────────────────────────────────────
+async function apiFetch(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (ADMIN_TOKEN) headers['X-Admin-Token'] = ADMIN_TOKEN;
+  const res = await fetch(API_BASE + path, {
+    ...options,
+    credentials: 'omit',
+    headers,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast--${type}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+         d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── Tab nav ──────────────────────────────────────────────────────────────────
+const sectionLoaders = {};
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const key = tab.dataset.section;
+    document.querySelectorAll('section[id^="section-"]').forEach(s => s.hidden = true);
+    document.getElementById('section-' + key).hidden = false;
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    sectionLoaders[key]?.();
+  });
+});
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const d = await apiFetch('/admin/stats');
+    document.getElementById('s-total-users').textContent = d.total_users;
+    document.getElementById('s-reg-users').textContent   = d.registered_users;
+    document.getElementById('s-guest-users').textContent = d.guest_users;
+    document.getElementById('s-total-games').textContent = d.total_games_played;
+    document.getElementById('s-games-today').textContent = d.games_today;
+    document.getElementById('s-active').textContent      = d.active_lobbies;
+    document.getElementById('s-waiting').textContent     = d.waiting_lobbies;
+    document.getElementById('s-total-sets').textContent  = d.total_character_sets;
+    document.getElementById('s-public-sets').textContent = d.public_character_sets;
+    document.getElementById('s-reports').textContent     = d.total_reports;
+  } catch (e) {
+    showToast('Failed to load stats: ' + e.message, 'error');
+  }
+}
+sectionLoaders.stats = loadStats;
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+let usersPage = 1;
+let usersTotal = 0;
+let usersFilter = 'all';
+const USERS_LIMIT = 50;
+
+function setUsersFilter(f) {
+  usersFilter = f;
+  usersPage = 1;
+  ['all','reg'].forEach(k => document.getElementById('ufilter-'+k).classList.remove('active'));
+  document.getElementById('ufilter-' + (f === 'registered' ? 'reg' : 'all')).classList.add('active');
+  loadUsers();
+}
+
+async function loadUsers() {
+  const params = `page=${usersPage}&limit=${USERS_LIMIT}` + (usersFilter !== 'all' ? `&filter=${usersFilter}` : '');
+  try {
+    const d = await apiFetch(`/admin/users?${params}`);
+    usersTotal = d.total;
+    const tbody = document.getElementById('users-tbody');
+    if (!d.users || d.users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No users found.</td></tr>`;
+    } else {
+      tbody.innerHTML = d.users.map(u => `
+        <tr>
+          <td style="color:var(--text-900);font-weight:500">${escHtml(u.username)}</td>
+          <td>${escHtml(u.email)}</td>
+          <td><span class="badge ${u.is_guest ? 'badge--guest' : 'badge--reg'}">${u.is_guest ? 'Guest' : 'Registered'}</span></td>
+          <td>${u.game_count}</td>
+          <td>${fmtDate(u.created_at)}</td>
+          <td><button class="btn-ghost-sm" onclick="openUserSets('${escHtml(u.id)}','${escHtml(u.username)}')">Sets</button></td>
+          <td><button class="btn-danger-sm" onclick="deleteUser('${escHtml(u.id)}','${escHtml(u.username)}')">Delete</button></td>
+        </tr>
+      `).join('');
+    }
+    const totalPages = Math.max(1, Math.ceil(usersTotal / USERS_LIMIT));
+    document.getElementById('users-page-info').textContent = `Page ${usersPage} of ${totalPages}`;
+    document.getElementById('users-prev').disabled = usersPage <= 1;
+    document.getElementById('users-next').disabled = usersPage * USERS_LIMIT >= usersTotal;
+  } catch (e) {
+    showToast('Failed to load users: ' + e.message, 'error');
+  }
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Delete user "${username}"?\n\nThis removes all their data and cannot be undone.`)) return;
+  try {
+    await apiFetch(`/admin/users/${id}`, { method: 'DELETE' });
+    showToast(`Deleted user ${username}`, 'success');
+    loadUsers();
+    loadStats();
+  } catch (e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+sectionLoaders.users = loadUsers;
+
+// ─── Lobbies ──────────────────────────────────────────────────────────────────
+let lobbiesActiveOnly = true;
+
+function setLobbiesFilter(activeOnly) {
+  lobbiesActiveOnly = activeOnly;
+  document.getElementById('toggle-all').classList.toggle('active', !activeOnly);
+  document.getElementById('toggle-active').classList.toggle('active', activeOnly);
+  loadLobbies();
+}
+
+function lobbyStatusBadge(lobby) {
+  if (lobby.game_over) return '<span class="badge badge--finished">Finished</span>';
+  if (lobby.game_started_at) return '<span class="badge badge--active">Active</span>';
+  return '<span class="badge badge--waiting">Waiting</span>';
+}
+
+async function loadLobbies() {
+  try {
+    const d = await apiFetch(`/admin/lobbies?active=${lobbiesActiveOnly}`);
+    const tbody = document.getElementById('lobbies-tbody');
+    if (!d.lobbies || d.lobbies.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No lobbies found.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = d.lobbies.map(l => `
+      <tr>
+        <td style="font-family:'Fraunces',serif;font-weight:700;font-size:16px;color:var(--text-900)">${escHtml(l.code)}</td>
+        <td>${escHtml(l.host_username)}</td>
+        <td>${escHtml((l.player_names || []).join(', '))}</td>
+        <td>${lobbyStatusBadge(l)}</td>
+        <td>${escHtml(l.character_set_name)}</td>
+        <td>${fmtDateTime(l.last_active)}</td>
+        <td><button class="btn-danger-sm" onclick="deleteLobby('${escHtml(l.id)}','${escHtml(l.code)}')">Delete</button></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    showToast('Failed to load lobbies: ' + e.message, 'error');
+  }
+}
+
+async function deleteLobby(id, code) {
+  if (!confirm(`Delete lobby "${code}"? This will end the game for all players.`)) return;
+  try {
+    await apiFetch(`/admin/lobbies/${id}`, { method: 'DELETE' });
+    showToast(`Deleted lobby ${code}`, 'success');
+    loadLobbies();
+    loadStats();
+  } catch (e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+sectionLoaders.lobbies = loadLobbies;
+
+// ─── Content / Reports ────────────────────────────────────────────────────────
+async function loadReports() {
+  try {
+    const d = await apiFetch('/admin/reports');
+    const container = document.getElementById('reports-list');
+    if (!d.reported_sets || d.reported_sets.length === 0) {
+      container.innerHTML = '<div class="empty-state">No reported sets.</div>';
+      return;
+    }
+
+    // Group reasons with counts
+    function reasonPills(reports) {
+      const counts = {};
+      for (const r of reports) counts[r.reason] = (counts[r.reason] || 0) + 1;
+      return Object.entries(counts).map(([reason, n]) =>
+        `<span class="reason-pill">${escHtml(reason)} ×${n}</span>`
+      ).join('');
+    }
+
+    container.innerHTML = d.reported_sets.map(s => `
+      <div class="report-card">
+        <div class="report-card__header">
+          <div>
+            <div class="report-card__name">${escHtml(s.name)}</div>
+            <div class="report-card__meta">by ${escHtml(s.creator_username)} · ${s.report_count} report${s.report_count !== 1 ? 's' : ''}</div>
+          </div>
+          <div class="report-card__actions">
+            <button class="btn-danger-sm" onclick="deleteSet('${escHtml(s.id)}','${escHtml(s.name)}')">Delete Set</button>
+            <button class="btn-ghost-sm" onclick="clearReports('${escHtml(s.id)}','${escHtml(s.name)}')">Clear Reports</button>
+          </div>
+        </div>
+        <div class="report-card__reasons">${reasonPills(s.reports)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    showToast('Failed to load reports: ' + e.message, 'error');
+  }
+}
+
+async function deleteSet(id, name) {
+  if (!confirm(`Delete character set "${name}"? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/admin/sets/${id}`, { method: 'DELETE' });
+    showToast(`Deleted set "${name}"`, 'success');
+    loadReports();
+    loadStats();
+  } catch (e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  }
+}
+
+async function clearReports(id, name) {
+  try {
+    await apiFetch(`/admin/sets/${id}/clear-reports`, { method: 'POST' });
+    showToast(`Cleared reports for "${name}"`, 'success');
+    loadReports();
+    loadStats();
+  } catch (e) {
+    showToast('Clear failed: ' + e.message, 'error');
+  }
+}
+sectionLoaders.content = loadReports;
+
+// ─── User Sets Modal ──────────────────────────────────────────────────────────
+async function openUserSets(userId, username) {
+  document.getElementById('modal-title').textContent = username + "'s Sets";
+  document.getElementById('modal-body').innerHTML = '<div class="empty-state">Loading…</div>';
+  document.getElementById('sets-modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const d = await apiFetch(`/admin/users/${userId}/sets`);
+    const body = document.getElementById('modal-body');
+
+    if (!d.sets || d.sets.length === 0) {
+      body.innerHTML = '<div class="empty-state">No character sets.</div>';
+      return;
+    }
+
+    body.innerHTML = `<div class="set-list">${d.sets.map(s => `
+      <div class="set-card">
+        <div class="set-card__header">
+          ${s.cover_image
+            ? `<img class="set-card__cover" src="${escHtml(s.cover_image)}" alt="" loading="lazy">`
+            : `<div class="set-card__cover-placeholder"></div>`}
+          <div>
+            <div class="set-card__name">${escHtml(s.name)}</div>
+            <div class="set-card__meta">
+              ${s.characters.length} character${s.characters.length !== 1 ? 's' : ''}
+              · ${s.public ? 'Public' : 'Private'}
+              · ${s.play_count} play${s.play_count !== 1 ? 's' : ''}
+              ${s.report_count > 0 ? `· <span style="color:var(--state-out)">${s.report_count} report${s.report_count !== 1 ? 's' : ''}</span>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="set-card__chars">
+          ${s.characters.map(c => `
+            <div class="char-thumb">
+              <img src="${escHtml(c.image)}" alt="${escHtml(c.name)}" loading="lazy"
+                   onerror="this.style.background='var(--surface-2)';this.removeAttribute('src')">
+              <div class="char-thumb__name">${escHtml(c.name)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `).join('')}</div>`;
+  } catch (e) {
+    document.getElementById('modal-body').innerHTML = '<div class="empty-state">Failed to load sets.</div>';
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+function closeModal() {
+  document.getElementById('sets-modal').hidden = true;
+  document.body.style.overflow = '';
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('sets-modal')) closeModal();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadStats();
+</script>
+</body>
+</html>

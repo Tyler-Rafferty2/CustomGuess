@@ -131,7 +131,7 @@ func (e *LobbyError) Error() string {
 }
 
 // create a new lobby with the first player
-func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool, turnTimerSeconds int, characterIDs []uuid.UUID) (*models.Lobby, error) {
+func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private bool, randomizeChar bool, chatFeature bool, turnTimerSeconds int, characterIDs []uuid.UUID, randomCount int) (*models.Lobby, error) {
 
     existing, err := s.GetPlayerByUser(user)
     if err != nil {
@@ -187,6 +187,7 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
         RandomSecret:     randomizeChar,
         ChatFeature:      chatFeature,
         TurnTimerSeconds: turnTimerSeconds,
+        RandomCount:      randomCount,
     }
 
     if user.IsGuest {
@@ -677,28 +678,52 @@ func (s *LobbyService) AcceptRematch(user *models.User, lobbyID uuid.UUID) (*mod
         return nil, fmt.Errorf("character set not found: %w", err)
     }
 
-    var setCharacters []models.Character
-    if err := s.DB.Where("set_id = ?", charSet.ID).Find(&setCharacters).Error; err != nil || len(setCharacters) == 0 {
-        return nil, fmt.Errorf("no characters found for character set")
+    // Determine which characters to use for the new lobby
+    var sourceChars []struct{ Name, Image string }
+    sameSet := oldLobby.CharacterSetID == *oldLobby.RematchCharacterSetID
+
+    if sameSet && oldLobby.RandomCount == 0 {
+        // Manual / all-characters subset — copy the exact same LobbyCharacters from old lobby
+        var oldLobbyChars []models.LobbyCharacter
+        if err := s.DB.Where("lobby_id = ?", oldLobby.ID).Find(&oldLobbyChars).Error; err != nil || len(oldLobbyChars) == 0 {
+            return nil, fmt.Errorf("could not load original characters")
+        }
+        for _, c := range oldLobbyChars {
+            sourceChars = append(sourceChars, struct{ Name, Image string }{c.Name, c.Image})
+        }
+    } else {
+        // Random N or different set — load from master set and reshuffle
+        var setCharacters []models.Character
+        if err := s.DB.Where("set_id = ?", charSet.ID).Find(&setCharacters).Error; err != nil || len(setCharacters) == 0 {
+            return nil, fmt.Errorf("no characters found for character set")
+        }
+        rand.Shuffle(len(setCharacters), func(i, j int) { setCharacters[i], setCharacters[j] = setCharacters[j], setCharacters[i] })
+        count := oldLobby.RandomCount
+        if count == 0 || count > len(setCharacters) {
+            count = len(setCharacters)
+        }
+        for _, c := range setCharacters[:count] {
+            sourceChars = append(sourceChars, struct{ Name, Image string }{c.Name, c.Image})
+        }
     }
 
     newLobby := &models.Lobby{
-        Code:              generateLobbyCode(),
-        CharacterSetID:    charSet.ID,
-        Private:           oldLobby.Private,
-        RandomSecret:      oldLobby.RandomSecret,
-        ChatFeature:       oldLobby.ChatFeature,
-        TurnTimerSeconds:  oldLobby.TurnTimerSeconds,
-        UserID:            requestingPlayer.UserID,
-        GuestID:           requestingPlayer.GuestID,
+        Code:             generateLobbyCode(),
+        CharacterSetID:   charSet.ID,
+        Private:          oldLobby.Private,
+        RandomSecret:     oldLobby.RandomSecret,
+        ChatFeature:      oldLobby.ChatFeature,
+        TurnTimerSeconds: oldLobby.TurnTimerSeconds,
+        RandomCount:      oldLobby.RandomCount,
+        UserID:           requestingPlayer.UserID,
+        GuestID:          requestingPlayer.GuestID,
     }
     if err := s.DB.Create(newLobby).Error; err != nil {
         return nil, err
     }
 
-    // Snapshot the new set's characters into the lobby
-    lobbyChars := make([]models.LobbyCharacter, len(setCharacters))
-    for i, c := range setCharacters {
+    lobbyChars := make([]models.LobbyCharacter, len(sourceChars))
+    for i, c := range sourceChars {
         lobbyChars[i] = models.LobbyCharacter{
             LobbyID: newLobby.ID,
             Name:    c.Name,

@@ -1003,7 +1003,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const res = await apiFetch(`/lobby/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds, characterIds: getCharacterIds() }),
+                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds, characterIds: getCharacterIds(), randomCount: charSelectMode === 'random' ? (randomCount ?? 0) : 0 }),
             });
             const data = await res.json();
             if (res.status === 409) {

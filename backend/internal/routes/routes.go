@@ -129,4 +129,19 @@ func MountRoutes(r chi.Router) {
 	r.Post("/contact", contactHandler.SendContactHandler)
 
 	r.Get("/ws", wsHandler.HandleWebSocket)
+
+	adminHandler := &handlers.AdminHandler{DB: config.DB}
+	r.With(middleware.AdminMiddleware).Get("/admin-ui", adminHandler.ServeUI)
+	r.Route("/admin", func(r chi.Router) {
+		r.Use(middleware.AdminMiddleware)
+		r.Get("/stats", adminHandler.GetStats)
+		r.Get("/users", adminHandler.ListUsers)
+		r.Get("/users/{id}/sets", adminHandler.GetUserSets)
+		r.Delete("/users/{id}", adminHandler.DeleteUser)
+		r.Get("/lobbies", adminHandler.ListLobbies)
+		r.Delete("/lobbies/{id}", adminHandler.DeleteLobby)
+		r.Get("/reports", adminHandler.ListReports)
+		r.Delete("/sets/{id}", adminHandler.DeleteSet)
+		r.Post("/sets/{id}/clear-reports", adminHandler.ClearReports)
+	})
 }

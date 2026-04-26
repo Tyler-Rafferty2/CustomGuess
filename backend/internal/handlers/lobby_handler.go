@@ -41,10 +41,11 @@ func (h *LobbyHandler) CreateLobbyHandler(w http.ResponseWriter, r *http.Request
         ChatFeature      bool        `json:"chatFeature"`
         TurnTimerSeconds int         `json:"turnTimerSeconds"`
         CharacterIDs     []uuid.UUID `json:"characterIds"`
+        RandomCount      int         `json:"randomCount"`
     }
     json.NewDecoder(r.Body).Decode(&req)
 
-    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature, req.TurnTimerSeconds, req.CharacterIDs)
+    lobby, err := h.Service.CreateLobby(user, req.SetID, req.Private, req.RandomSecret, req.ChatFeature, req.TurnTimerSeconds, req.CharacterIDs, req.RandomCount)
     if err != nil {
         var lobbyErr *services.LobbyError
         if errors.As(err, &lobbyErr) {

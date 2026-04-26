@@ -29,6 +29,8 @@ type Lobby struct {
     Winner        *uuid.UUID  `gorm:"type:uuid" json:"winner"`
     GameStartedAt *time.Time  `json:"gameStartedAt"`
 
+    RandomCount int `gorm:"default:0" json:"randomCount"`
+
     RematchRequestedBy    *uuid.UUID `gorm:"type:uuid" json:"rematchRequestedBy"`
     RematchCharacterSetID *uuid.UUID `gorm:"type:uuid" json:"rematchCharacterSetID"`
 
