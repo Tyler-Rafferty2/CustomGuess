@@ -231,6 +231,7 @@ export default function Home() {
           html, body { overflow: hidden; }
           .home-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow: hidden; }
           .home-main { padding: 24px 20px !important; }
+          .seo-section { display: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -355,6 +356,62 @@ export default function Home() {
 
         </div>
       </main>
+      {/* SEO content — hidden on mobile (overflow locked), visible on desktop */}
+      <section className="seo-section" style={{
+        background: T.surface1,
+        borderTop: `1px solid ${T.border}`,
+        padding: "48px 24px",
+      }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+          <h2 style={{
+            fontFamily: "'Fraunces', serif",
+            fontSize: 26, fontWeight: 900, color: T.text900,
+            letterSpacing: "-0.02em", marginBottom: 12,
+          }}>
+            How to Play Custom Guess Who Online
+          </h2>
+          <p style={{
+            fontFamily: "'DM Sans', sans-serif",
+            fontSize: 15, lineHeight: 1.7, color: T.text600, marginBottom: 28,
+          }}>
+            CustomGuess is a free online version of custom Guess Who that lets you play with your own photos and characters. Create a game, pick a secret character, and challenge a friend to find yours using only yes/no questions — just like the classic board game, but fully customizable.
+          </p>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            <div>
+              <h3 style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 13, fontWeight: 700, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: T.accent, marginBottom: 8,
+              }}>
+                Create Your Own Characters
+              </h3>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 14, lineHeight: 1.65, color: T.text600,
+              }}>
+                Upload any photos to build a fully custom Guess Who character set. Use celebrities, friends, coworkers, or anything you like. Share the set with anyone to start a game instantly.
+              </p>
+            </div>
+            <div>
+              <h3 style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 13, fontWeight: 700, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: T.accent, marginBottom: 8,
+              }}>
+                Play for Free, No Download
+              </h3>
+              <p style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 14, lineHeight: 1.65, color: T.text600,
+              }}>
+                No app, no account required. Play custom Guess Who directly in your browser with real-time multiplayer. One player creates the game, shares a code, and both players are live in seconds.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <Footer />
     </div>
   );
