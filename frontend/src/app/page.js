@@ -374,7 +374,7 @@ export default function Home() {
             fontFamily: "'DM Sans', sans-serif",
             fontSize: 15, lineHeight: 1.7, color: T.text600, marginBottom: 28,
           }}>
-            CustomGuess is a free online version of custom Guess Who that lets you play with your own photos and characters. Create a game, pick a secret character, and challenge a friend to find yours using only yes/no questions — just like the classic board game, but fully customizable.
+            CustomGuess is a free online version of custom Guess Who that lets you play with your own photos and characters. Create a game, pick a secret character, and challenge a friend to find yours using only yes/no questions, just like the classic board game, but fully customizable.
           </p>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -390,7 +390,7 @@ export default function Home() {
                 fontFamily: "'DM Sans', sans-serif",
                 fontSize: 14, lineHeight: 1.65, color: T.text600,
               }}>
-                Upload any photos to build a fully custom Guess Who character set. Use celebrities, friends, coworkers, or anything you like. Share the set with anyone to start a game instantly.
+                Upload any photos to build a fully custom Guess Who character set. Share the set with anyone to start a game instantly.
               </p>
             </div>
             <div>
