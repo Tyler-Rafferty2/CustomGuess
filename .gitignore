@@ -12,6 +12,10 @@ backend/uploads/*
 frontend/.next/
 frontend/node_modules/
 
+# Root (accidental installs)
+node_modules/
+package-lock.json
+
 # OS
 .DS_Store
 Thumbs.db

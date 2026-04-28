@@ -2,6 +2,7 @@ import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -129,6 +130,7 @@ export default function RootLayout({ children }) {
         />
         <UserProvider>{children}</UserProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
