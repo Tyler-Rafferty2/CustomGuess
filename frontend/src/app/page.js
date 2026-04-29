@@ -69,10 +69,7 @@ function FaceSVG({ hue, eliminated }) {
 function CharacterCard({ char, index }) {
   const isEliminated = char.state === "eliminated";
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.3, ease: [0, 0, 0.2, 1] }}
+    <div
       style={{
         position: "relative",
         background: T.surface0,
@@ -121,7 +118,7 @@ function CharacterCard({ char, index }) {
           </svg>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 
@@ -252,12 +249,9 @@ export default function Home() {
         }}>
 
           {/* RIGHT — Actions */}
-          <motion.div
+          <div
             className="content-col"
             style={{ width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 28 }}
-            initial={{ opacity: 0, x: 12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, ease: [0, 0, 0.2, 1], delay: 0.08 }}
           >
             {/* Headline */}
             <div>
@@ -352,7 +346,7 @@ export default function Home() {
 
             <div style={{ height: 1, background: T.border }} />
 
-          </motion.div>
+          </div>
 
         </div>
       </main>
