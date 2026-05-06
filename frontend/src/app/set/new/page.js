@@ -23,8 +23,8 @@ function NewSetForm() {
 
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const [isPublic, setIsPublic] = useState(false);
-    const [showPublicModal, setShowPublicModal] = useState(false);
+    const [isPublic, setIsPublic] = useState(true);
+    const [showGuidelinesModal, setShowGuidelinesModal] = useState(false);
     const [publicAcknowledged, setPublicAcknowledged] = useState(false);
     const [coverPreview, setCoverPreview] = useState(null);
     const [coverFile, setCoverFile] = useState(null);
@@ -118,18 +118,14 @@ function NewSetForm() {
         image.src = coverOriginal;
     };
 
-    const handleSave = async () => {
-        if (!name.trim()) { setError("Set name is required."); return; }
-        if (images.length < MIN_CHARACTERS) { setError(`A set must have at least ${MIN_CHARACTERS} characters.`); return; }
-        const blankName = images.findIndex(img => !img.name.trim());
-        if (blankName !== -1) { setError(`Character ${blankName + 1} is missing a name.`); return; }
+    const doSave = async (publicOverride) => {
         setSaving(true);
         setError(null);
 
         const formData = new FormData();
         formData.append("name", name.trim());
         formData.append("description", description);
-        formData.append("public", isPublic);
+        formData.append("public", publicOverride);
 
         if (coverFile) formData.append("coverImage", coverFile);
 
@@ -157,6 +153,15 @@ function NewSetForm() {
         }
     };
 
+    const handleSave = () => {
+        if (!name.trim()) { setError("Set name is required."); return; }
+        if (images.length < MIN_CHARACTERS) { setError(`A set must have at least ${MIN_CHARACTERS} characters.`); return; }
+        const blankName = images.findIndex(img => !img.name.trim());
+        if (blankName !== -1) { setError(`Character ${blankName + 1} is missing a name.`); return; }
+        if (isPublic && !publicAcknowledged) { setShowGuidelinesModal(true); return; }
+        doSave(isPublic);
+    };
+
     return (
         <div style={{ minHeight: "100vh", background: T.bg }}>
             <style>{`
@@ -178,7 +183,7 @@ function NewSetForm() {
                 <section style={card}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                         <h2 style={{ ...sectionHeading, margin: 0 }}>Details</h2>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => isPublic ? setIsPublic(false) : setShowPublicModal(true)}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }} onClick={() => setIsPublic(p => !p)}>
                             {isPublic ? <Globe size={15} color={T.accent} /> : <Lock size={15} color={T.text400} />}
                             <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: isPublic ? T.accent : T.text400 }}>
                                 {isPublic ? "Public" : "Private"}
@@ -290,13 +295,13 @@ function NewSetForm() {
                 </div>
             </main>
 
-            {/* Public acknowledgment modal */}
-            {showPublicModal && (
+            {/* Guidelines modal */}
+            {showGuidelinesModal && (
                 <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(26,21,16,0.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
                     <div style={{ background: T.surface0, borderRadius: 6, padding: 28, width: "100%", maxWidth: 620, border: `1px solid ${T.border}` }}>
-                        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700, color: T.text900, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Make this set public?</h2>
+                        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 700, color: T.text900, letterSpacing: "-0.02em", margin: "0 0 6px" }}>Your set will be public</h2>
                         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text600, margin: "0 0 20px", lineHeight: 1.6 }}>
-                            Public sets are visible to all players. Before publishing, please confirm the following:
+                            Before publishing, please confirm it meets our content guidelines — or keep it private.
                         </p>
                         <ul style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text600, lineHeight: 1.8, paddingLeft: 18, margin: "0 0 20px" }}>
                             <li>All images are ones you own or have rights to use</li>
@@ -318,13 +323,18 @@ function NewSetForm() {
                             </span>
                         </label>
                         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                            <button onClick={() => { setShowPublicModal(false); setPublicAcknowledged(false); }} style={ghostBtn}>Cancel</button>
                             <button
-                                onClick={() => { setIsPublic(true); setShowPublicModal(false); setPublicAcknowledged(false); }}
+                                onClick={() => { setShowGuidelinesModal(false); setPublicAcknowledged(false); setIsPublic(false); doSave(false); }}
+                                style={ghostBtn}
+                            >
+                                Make Private Instead
+                            </button>
+                            <button
+                                onClick={() => { setShowGuidelinesModal(false); doSave(true); }}
                                 disabled={!publicAcknowledged}
                                 style={{ ...primaryBtn, opacity: publicAcknowledged ? 1 : 0.4, cursor: publicAcknowledged ? "pointer" : "not-allowed" }}
                             >
-                                Make Public
+                                Publish Public
                             </button>
                         </div>
                     </div>

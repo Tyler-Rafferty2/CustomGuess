@@ -34,3 +34,7 @@ terraform/*.tfstate
 terraform/*.tfstate.backup
 
 guesswho-backend.service
+
+scripts/
+
+sets/
