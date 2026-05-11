@@ -115,8 +115,14 @@ export default function Signup() {
 
     return (
         <>
+        <style>{`
+            @media (max-width: 768px) {
+                html, body { overflow: hidden; }
+                .signup-root { height: 100dvh; min-height: 0 !important; overflow: hidden; }
+            }
+        `}</style>
         <Navbar />
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-[#F7F3EE] p-6 font-sans">
+        <div className="signup-root flex items-center justify-center min-h-[calc(100vh-64px)] bg-[#F7F3EE] p-6 font-sans">
             <div className="w-full max-w-md bg-[#FFFFFF] border border-[#DDD5CA] rounded-[6px] p-8">
                 <h1 className="text-[26px] leading-[1.1] tracking-[-0.02em] font-bold text-center mb-6 font-serif text-[#1A1510]">
                     Create an Account

@@ -45,9 +45,15 @@ export default function Signin() {
 
     return (
         <>
+        <style>{`
+            @media (max-width: 768px) {
+                html, body { overflow: hidden; }
+                .signin-root { height: 100dvh; min-height: 0 !important; overflow: hidden; }
+            }
+        `}</style>
         <Navbar />
         {/* --bg (#F7F3EE) */}
-        <div className="flex items-center justify-center min-h-[calc(100vh-64px)] bg-[#F7F3EE] p-6 font-sans">
+        <div className="signin-root flex items-center justify-center min-h-[calc(100vh-64px)] bg-[#F7F3EE] p-6 font-sans">
 
             {/* --surface-0 (#FFFFFF) with --border (#DDD5CA) and strict 6px radius */}
             <div className="w-full max-w-md bg-[#FFFFFF] border border-[#DDD5CA] rounded-[6px] p-8">

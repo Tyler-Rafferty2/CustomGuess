@@ -672,7 +672,6 @@ function BottomTabBar({ pathname, onNavigate }) {
             display: "flex",
             alignItems: "flex-start",
             zIndex: 100,
-            paddingBottom: "env(safe-area-inset-bottom)",
         }}>
             {tabs.map(({ label, href, Icon }) => {
                 const isActive = href === "/" ? pathname === "/" : pathname?.startsWith(href);
@@ -682,6 +681,7 @@ function BottomTabBar({ pathname, onNavigate }) {
                         onClick={() => onNavigate(href)}
                         style={{
                             flex: 1,
+                            height: 56,
                             display: "flex", flexDirection: "column",
                             alignItems: "center", justifyContent: "center",
                             gap: 3,
