@@ -916,9 +916,9 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery]);
 
-    // Public sets: page navigation (skip 1 to avoid double-fetch with above)
+    // Public sets: page navigation
     useEffect(() => {
-        if (user === undefined || publicPage === 1) return;
+        if (user === undefined) return;
         loadSetsPublic(publicPage, sortOrder, searchQuery);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [publicPage]);
@@ -934,7 +934,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
 
     // My sets: page navigation
     useEffect(() => {
-        if (user?.isGuest === false && myPage > 1) {
+        if (user?.isGuest === false) {
             loadSets(myPage, searchQuery);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
