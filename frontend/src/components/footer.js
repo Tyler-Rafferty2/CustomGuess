@@ -5,7 +5,7 @@ export default function Footer() {
     <>
       <style>{`
         @media (max-width: 768px) {
-          .site-footer { margin-bottom: 56px; padding: 12px 12px !important; }
+          .site-footer { margin-bottom: calc(56px + env(safe-area-inset-bottom)); padding: 12px 12px !important; }
           .site-footer .footer-links { gap: 12px !important; flex-wrap: nowrap !important; }
           .site-footer .footer-link { font-size: 10px !important; }
           .site-footer .footer-copy { font-size: 10px !important; white-space: nowrap; }

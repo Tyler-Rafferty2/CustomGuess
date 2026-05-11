@@ -666,10 +666,11 @@ function BottomTabBar({ pathname, onNavigate }) {
     return (
         <nav style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
-            height: 56,
+            height: "calc(56px + env(safe-area-inset-bottom))",
             background: T.surface0,
             borderTop: `1px solid ${T.border}`,
             display: "flex",
+            alignItems: "flex-start",
             zIndex: 100,
             paddingBottom: "env(safe-area-inset-bottom)",
         }}>
