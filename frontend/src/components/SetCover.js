@@ -1,6 +1,24 @@
 import { API_URL } from '@/lib/api';
 const DEFAULT_STYLE = { width: "100%", height: 120, display: "block" };
 
+// Question mark positions: [x, y, fontSize, opacity]
+const QMARKS = [
+    [20, 30, 28, 0.18],
+    [70, 22, 22, 0.13],
+    [118, 34, 32, 0.20],
+    [168, 18, 20, 0.12],
+    [210, 28, 26, 0.16],
+    [44, 72, 24, 0.14],
+    [92, 80, 30, 0.19],
+    [145, 68, 22, 0.13],
+    [192, 76, 28, 0.17],
+    [10, 95, 18, 0.10],
+    [230, 90, 20, 0.11],
+    [60, 108, 26, 0.15],
+    [120, 100, 20, 0.12],
+    [175, 104, 24, 0.14],
+];
+
 function DefaultCover({ style }) {
     const { width, height, borderRadius, ...rest } = style;
     return (
@@ -11,32 +29,35 @@ function DefaultCover({ style }) {
             preserveAspectRatio="xMidYMid slice"
         >
             <rect width="240" height="120" fill="#F2EDE7" />
-
-            {/* Grid of person silhouettes */}
-            {[
-                { cx: 40,  cy: 48 },
-                { cx: 90,  cy: 44 },
-                { cx: 140, cy: 50 },
-                { cx: 190, cy: 46 },
-                { cx: 65,  cy: 90 },
-                { cx: 115, cy: 86 },
-                { cx: 165, cy: 92 },
-            ].map(({ cx, cy }, i) => (
-                <g key={i} opacity={0.55 - i * 0.03}>
-                    {/* Head */}
-                    <circle cx={cx} cy={cy - 12} r={7} fill="#D9572B" opacity="0.35" />
-                    {/* Body */}
-                    <path
-                        d={`M${cx - 9} ${cy + 16} Q${cx - 10} ${cy} ${cx} ${cy} Q${cx + 10} ${cy} ${cx + 9} ${cy + 16}`}
-                        fill="#D9572B"
-                        opacity="0.25"
-                    />
-                </g>
+            {QMARKS.map(([x, y, size, opacity], i) => (
+                <text
+                    key={i}
+                    x={x}
+                    y={y}
+                    fontSize={size}
+                    fontFamily="Fraunces, Georgia, serif"
+                    fontWeight="700"
+                    fill="#D9572B"
+                    opacity={opacity}
+                    userSelect="none"
+                >
+                    ?
+                </text>
             ))}
-
-            {/* Subtle grid lines */}
-            <line x1="0" y1="60" x2="240" y2="60" stroke="#DDD5CA" strokeWidth="0.5" />
-            <line x1="120" y1="0" x2="120" y2="120" stroke="#DDD5CA" strokeWidth="0.5" />
+            {/* Central large mark */}
+            <text
+                x="120"
+                y="78"
+                fontSize="52"
+                fontFamily="Fraunces, Georgia, serif"
+                fontWeight="700"
+                fill="#D9572B"
+                opacity="0.22"
+                textAnchor="middle"
+                userSelect="none"
+            >
+                ?
+            </text>
         </svg>
     );
 }
