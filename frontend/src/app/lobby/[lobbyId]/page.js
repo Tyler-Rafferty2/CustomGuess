@@ -1023,13 +1023,15 @@ export default function LobbyPage() {
                         </div>
 
                         {/* Stats */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: questionLog.length > 0 ? '1fr 1fr' : '1fr', gap: 'var(--s3)', marginBottom: 'var(--s4)' }}>
+                            {questionLog.length > 0 && (
                             <div className="gw-card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
                                 <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em' }}>
                                     {questionLog.length}
                                 </p>
                                 <span className="gw-label" style={{ marginTop: 2, display: 'block' }}>Questions Asked</span>
                             </div>
+                            )}
                             <div className="gw-card" style={{ padding: 'var(--s3)', textAlign: 'center' }}>
                                 <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 24, color: 'var(--text-900)', margin: 0, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
                                     {timePlayed ?? '—'}
