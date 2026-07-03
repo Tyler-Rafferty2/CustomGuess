@@ -134,8 +134,8 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, p
     if len(characters) < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
     }
-    if len(characters) > 50 {
-        return nil, fmt.Errorf("a set can have at most 50 characters")
+    if len(characters) > 150 {
+        return nil, fmt.Errorf("a set can have at most 150 characters")
     }
     if minCharacters < 6 {
         minCharacters = 6
@@ -216,8 +216,8 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     if totalCount < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
     }
-    if totalCount > 50 {
-        return nil, fmt.Errorf("a set can have at most 50 characters")
+    if totalCount > 150 {
+        return nil, fmt.Errorf("a set can have at most 150 characters")
     }
     if minCharacters < 6 {
         minCharacters = 6

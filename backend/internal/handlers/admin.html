@@ -472,6 +472,8 @@ body {
             <th>Type</th>
             <th>Games</th>
             <th>Joined</th>
+            <th>Last Login</th>
+            <th>Last Played</th>
             <th></th>
             <th></th>
           </tr>
@@ -634,7 +636,7 @@ async function loadUsers() {
     usersTotal = d.total;
     const tbody = document.getElementById('users-tbody');
     if (!d.users || d.users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No users found.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No users found.</td></tr>`;
     } else {
       tbody.innerHTML = d.users.map(u => `
         <tr>
@@ -643,6 +645,8 @@ async function loadUsers() {
           <td><span class="badge ${u.is_guest ? 'badge--guest' : 'badge--reg'}">${u.is_guest ? 'Guest' : 'Registered'}</span></td>
           <td>${u.game_count}</td>
           <td>${fmtDate(u.created_at)}</td>
+          <td>${u.last_login ? fmtDate(u.last_login) : '—'}</td>
+          <td>${u.last_played ? fmtDate(u.last_played) : '—'}</td>
           <td><button class="btn-ghost-sm" onclick="openUserSets('${escHtml(u.id)}','${escHtml(u.username)}')">Sets</button></td>
           <td><button class="btn-danger-sm" onclick="deleteUser('${escHtml(u.id)}','${escHtml(u.username)}')">Delete</button></td>
         </tr>

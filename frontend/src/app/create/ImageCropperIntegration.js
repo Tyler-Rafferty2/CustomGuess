@@ -15,7 +15,7 @@ const MIN_CROP = 50;
 
 // triggerEdit: when set to a number, opens the crop modal for that index.
 // Parent should reset it to null after passing (use a counter so the same index re-triggers).
-export default function ImageCropperIntegration({ images, setImages, triggerEdit = null }) {
+export default function ImageCropperIntegration({ images, setImages, triggerEdit = null, disabled = false }) {
     const [editingIndex, setEditingIndex] = useState(null);
     const [cropBox, setCropBox] = useState({ x: 50, y: 50, width: 280, height: 280 });
     const [canvasSize, setCanvasSize] = useState(MAX_CANVAS);
@@ -193,18 +193,19 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
         <div>
             {/* Drop zone */}
             <div
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={handleDrop}
-                onDragOver={(e) => { e.preventDefault(); setDropHover(true); }}
-                onDragLeave={() => setDropHover(false)}
+                onClick={() => { if (!disabled) fileInputRef.current?.click(); }}
+                onDrop={(e) => { if (!disabled) handleDrop(e); else e.preventDefault(); }}
+                onDragOver={(e) => { e.preventDefault(); if (!disabled) setDropHover(true); }}
+                onDragLeave={() => { if (!disabled) setDropHover(false); }}
                 style={{
-                    border: `2px dashed ${dropHover ? T.accent : T.border}`,
+                    border: `2px dashed ${T.border}`,
                     borderRadius: 6,
                     padding: "28px 24px",
                     textAlign: "center",
-                    cursor: "pointer",
-                    background: dropHover ? T.accentLight : T.surface1,
+                    cursor: disabled ? "not-allowed" : "pointer",
+                    background: disabled ? T.surface2 : dropHover ? T.accentLight : T.surface1,
                     transition: "all 150ms ease-out",
+                    opacity: disabled ? 0.55 : 1,
                 }}
             >
                 <input
@@ -215,9 +216,9 @@ export default function ImageCropperIntegration({ images, setImages, triggerEdit
                     style={{ display: "none" }}
                     onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ''; }}
                 />
-                <Upload size={22} color={dropHover ? T.accent : T.text400} style={{ margin: "0 auto 8px" }} />
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: dropHover ? T.accent : T.text600, margin: "0 0 4px", fontWeight: 500 }}>
-                    Drop images here or click to browse
+                <Upload size={22} color={T.text400} style={{ margin: "0 auto 8px" }} />
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: disabled ? T.text400 : dropHover ? T.accent : T.text600, margin: "0 0 4px", fontWeight: 500 }}>
+                    {disabled ? "Character limit reached" : "Drop images here or click to browse"}
                 </p>
                 <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
                     Each image will be auto-cropped to square — you can adjust after

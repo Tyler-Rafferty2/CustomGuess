@@ -8,12 +8,14 @@ import (
 
 const staleLobbyThreshold = 30 * time.Minute
 const staleGameOverThreshold = 5 * time.Minute
+const staleMessageThreshold = 7 * 24 * time.Hour
 
 func StartLobbyCleanup(db *gorm.DB) {
     ticker := time.NewTicker(3 * time.Minute)
     go func() {
         for range ticker.C {
             cleanupStaleLobbies(db)
+            cleanupStaleMessages(db)
         }
     }()
 }
@@ -33,5 +35,17 @@ func cleanupStaleLobbies(db *gorm.DB) {
 
     if result.RowsAffected > 0 {
         log.Printf("cleaned up %d stale/completed lobbies", result.RowsAffected)
+    }
+}
+
+func cleanupStaleMessages(db *gorm.DB) {
+    cutoff := time.Now().Add(-staleMessageThreshold)
+    result := db.Where("created_at < ?", cutoff).Delete(&models.StoredMessage{})
+    if result.Error != nil {
+        log.Printf("message cleanup error: %v", result.Error)
+        return
+    }
+    if result.RowsAffected > 0 {
+        log.Printf("cleaned up %d stale messages", result.RowsAffected)
     }
 }

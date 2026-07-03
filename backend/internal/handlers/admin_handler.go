@@ -87,19 +87,25 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	type adminUserRow struct {
-		ID        string    `json:"id"`
-		Email     string    `json:"email"`
-		Username  string    `json:"username"`
-		IsGuest   bool      `json:"is_guest"`
-		CreatedAt time.Time `json:"created_at"`
-		GameCount int64     `json:"game_count"`
+		ID         string     `json:"id"`
+		Email      string     `json:"email"`
+		Username   string     `json:"username"`
+		IsGuest    bool       `json:"is_guest"`
+		CreatedAt  time.Time  `json:"created_at"`
+		GameCount  int64      `json:"game_count"`
+		LastLogin  *time.Time `json:"last_login"`
+		LastPlayed *time.Time `json:"last_played"`
 	}
 
 	filter := r.URL.Query().Get("filter")
 
 	query := h.DB.Table("users").
-		Select("users.id, users.email, users.username, users.is_guest, users.created_at, COUNT(game_records.id) AS game_count").
+		Select(`users.id, users.email, users.username, users.is_guest, users.created_at,
+			COUNT(DISTINCT game_records.id) AS game_count,
+			MAX(sessions.created_at) AS last_login,
+			MAX(game_records.finished_at) AS last_played`).
 		Joins("LEFT JOIN game_records ON game_records.user_id = users.id").
+		Joins("LEFT JOIN sessions ON sessions.user_id = users.id").
 		Group("users.id").
 		Order("users.created_at DESC")
 

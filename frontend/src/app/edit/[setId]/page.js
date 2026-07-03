@@ -17,6 +17,14 @@ const T = {
 };
 
 const MIN_CHARACTERS = 6;
+const MAX_CHARACTERS = 150;
+
+function charCounterProps(count) {
+    if (count < MIN_CHARACTERS) return { color: "#C0392B", label: `${count} / ${MIN_CHARACTERS} minimum` };
+    if (count >= MAX_CHARACTERS) return { color: "#C0392B", label: `${count} / ${MAX_CHARACTERS} — limit reached` };
+    if (count >= 140) return { color: "#D97706", label: `${count} / ${MAX_CHARACTERS}` };
+    return { color: "#A0937F", label: `${count} / ${MAX_CHARACTERS}` };
+}
 
 function EditSetForm() {
     const { user } = useContext(UserContext);
@@ -454,8 +462,8 @@ function EditSetForm() {
                 <section style={card}>
                     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
                         <h2 style={{ ...sectionHeading, margin: 0 }}>Characters</h2>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: totalCount < MIN_CHARACTERS ? T.stateOut : T.text400 }}>
-                            {totalCount} / {MIN_CHARACTERS} minimum
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: charCounterProps(totalCount).color }}>
+                            {charCounterProps(totalCount).label}
                         </span>
                     </div>
 
@@ -536,7 +544,7 @@ function EditSetForm() {
                         {existingChars.length > 0 && (
                             <p style={{ ...label, marginBottom: 10 }}>Add New</p>
                         )}
-                        <ImageCropperIntegration images={newImages} setImages={setNewImages} triggerEdit={cropTrigger} />
+                        <ImageCropperIntegration images={newImages} setImages={setNewImages} triggerEdit={cropTrigger} disabled={totalCount >= MAX_CHARACTERS} />
                     </div>
 
                 </section>
@@ -553,8 +561,8 @@ function EditSetForm() {
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={saving || !name.trim() || totalCount < MIN_CHARACTERS}
-                                style={{ ...primaryBtn, opacity: saving || !name.trim() || totalCount < MIN_CHARACTERS ? 0.5 : 1, cursor: saving || !name.trim() || totalCount < MIN_CHARACTERS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                                disabled={saving || !name.trim() || totalCount < MIN_CHARACTERS || totalCount > MAX_CHARACTERS}
+                                style={{ ...primaryBtn, opacity: saving || !name.trim() || totalCount < MIN_CHARACTERS || totalCount > MAX_CHARACTERS ? 0.5 : 1, cursor: saving || !name.trim() || totalCount < MIN_CHARACTERS || totalCount > MAX_CHARACTERS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
                             >
                                 {saving && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
                                 {saving ? "Saving…" : "Save Changes"}

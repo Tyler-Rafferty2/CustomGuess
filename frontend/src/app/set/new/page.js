@@ -15,6 +15,14 @@ const T = {
 };
 
 const MIN_CHARACTERS = 6;
+const MAX_CHARACTERS = 150;
+
+function charCounterProps(count) {
+    if (count < MIN_CHARACTERS) return { color: "#C0392B", label: `${count} / ${MIN_CHARACTERS} minimum` };
+    if (count >= MAX_CHARACTERS) return { color: "#C0392B", label: `${count} / ${MAX_CHARACTERS} — limit reached` };
+    if (count >= 140) return { color: "#D97706", label: `${count} / ${MAX_CHARACTERS}` };
+    return { color: "#A0937F", label: `${count} / ${MAX_CHARACTERS}` };
+}
 
 function NewSetForm() {
     const { user } = useContext(UserContext);
@@ -266,11 +274,11 @@ function NewSetForm() {
                 <section style={card}>
                     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
                         <h2 style={{ ...sectionHeading, margin: 0 }}>Characters</h2>
-                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: images.length < MIN_CHARACTERS ? T.stateOut : T.text400 }}>
-                            {images.length} / {MIN_CHARACTERS} minimum
+                        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: charCounterProps(images.length).color }}>
+                            {charCounterProps(images.length).label}
                         </span>
                     </div>
-                    <ImageCropperIntegration images={images} setImages={setImages} />
+                    <ImageCropperIntegration images={images} setImages={setImages} disabled={images.length >= MAX_CHARACTERS} />
 
                 </section>
 
@@ -285,8 +293,8 @@ function NewSetForm() {
                         </button>
                         <button
                             onClick={handleSave}
-                            disabled={saving || !name.trim() || images.length < MIN_CHARACTERS}
-                            style={{ ...primaryBtn, opacity: saving || !name.trim() || images.length < MIN_CHARACTERS ? 0.5 : 1, cursor: saving || !name.trim() || images.length < MIN_CHARACTERS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
+                            disabled={saving || !name.trim() || images.length < MIN_CHARACTERS || images.length > MAX_CHARACTERS}
+                            style={{ ...primaryBtn, opacity: saving || !name.trim() || images.length < MIN_CHARACTERS || images.length > MAX_CHARACTERS ? 0.5 : 1, cursor: saving || !name.trim() || images.length < MIN_CHARACTERS || images.length > MAX_CHARACTERS ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}
                         >
                             {saving && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
                             {saving ? "Creating…" : "Create Set"}
