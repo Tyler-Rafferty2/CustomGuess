@@ -313,6 +313,9 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
         return nil, err
     }
 
+    if s.Hub != nil {
+        s.Hub.InvalidateLobbyStatics(lobby.ID.String())
+    }
     s.broadcastLobbyUpdate(lobby.ID.String())
     return &lobby, nil
 }
@@ -447,6 +450,9 @@ func (s *LobbyService) SetPlayerUnready(user *models.User, lobbyID uuid.UUID) er
         return err
     }
 
+    if s.Hub != nil {
+        s.Hub.InvalidateLobbyStatics(lobbyID.String())
+    }
     s.broadcastLobbyUpdate(lobbyID.String())
     return nil
 }
@@ -460,6 +466,10 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
     player.Ready = true
     if err := s.DB.Save(&player).Error; err != nil {
         return false, err
+    }
+
+    if s.Hub != nil {
+        s.Hub.InvalidateLobbyStatics(lobbyID.String())
     }
 
     // Check if all players in the lobby are ready

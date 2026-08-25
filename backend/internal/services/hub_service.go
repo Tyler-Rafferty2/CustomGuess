@@ -7,6 +7,16 @@ import (
 	"github.com/tyler-rafferty2/GuessWho/internal/models"
 )
 
+// lobbyStatics holds the parts of a lobby that never change once the lobby's two
+// players and character set are set: the player roster (minus Ready toggles), the
+// character set, and the lobby's character snapshot. Caching these avoids re-fetching
+// them from Postgres on every WebSocket message.
+type lobbyStatics struct {
+	Players         []models.Player
+	CharacterSet    models.CharacterSet
+	LobbyCharacters []models.LobbyCharacter
+}
+
 type Hub struct {
 	lobbies          map[string]map[string]*models.Client
 	broadcast        chan models.Message
@@ -15,6 +25,9 @@ type Hub struct {
 	mu               sync.RWMutex
 	disconnectTimers map[string]*time.Timer
 	disconnectMu     sync.Mutex
+
+	staticCache   map[string]*lobbyStatics
+	staticCacheMu sync.RWMutex
 	// DisconnectHandler is called after the 2-minute grace period expires for a disconnected in-game player.
 	DisconnectHandler func(playerID, lobbyID string)
 	// PreGameDisconnectHandler is called after the 30-second grace period for pre-game disconnects.
@@ -42,7 +55,33 @@ func NewHub() *Hub {
 		disconnectTimers:   make(map[string]*time.Timer),
 		turnTimers:         make(map[string]*time.Timer),
 		suppressDisconnect: make(map[string]bool),
+		staticCache:        make(map[string]*lobbyStatics),
 	}
+}
+
+// getLobbyStatics returns the cached static portion of a lobby, if present.
+func (h *Hub) getLobbyStatics(lobbyID string) (*lobbyStatics, bool) {
+	h.staticCacheMu.RLock()
+	defer h.staticCacheMu.RUnlock()
+	s, ok := h.staticCache[lobbyID]
+	return s, ok
+}
+
+// setLobbyStatics caches the static portion of a lobby.
+func (h *Hub) setLobbyStatics(lobbyID string, s *lobbyStatics) {
+	h.staticCacheMu.Lock()
+	defer h.staticCacheMu.Unlock()
+	h.staticCache[lobbyID] = s
+}
+
+// InvalidateLobbyStatics drops the cached static portion of a lobby, forcing the
+// next read to re-fetch it from Postgres. Call this whenever a lobby's players,
+// character set, or character snapshot change (e.g. a second player joining, or a
+// ready-state toggle).
+func (h *Hub) InvalidateLobbyStatics(lobbyID string) {
+	h.staticCacheMu.Lock()
+	defer h.staticCacheMu.Unlock()
+	delete(h.staticCache, lobbyID)
 }
 
 // SuppressNextDisconnect marks a player's next WS disconnect as intentional so the
@@ -145,6 +184,7 @@ func (h *Hub) Run() {
 					// Clean up empty lobbies
 					if lobbySize == 0 {
 						delete(h.lobbies, client.LobbyID)
+						h.InvalidateLobbyStatics(client.LobbyID)
 						log.Printf("Lobby %s removed (empty)", client.LobbyID)
 					}
 					log.Printf("Client unregistered: %s (%s) from lobby %s. Lobby size: %d", client.Username, client.ID, client.LobbyID, lobbySize)

@@ -31,7 +31,7 @@ func NewWebSocketService(hub *Hub, conn *websocket.Conn, lobbyService *LobbyServ
 }
 
 func (ws *WebSocketService) BroadcastLobbyUpdate(lobbyID string) {
-	lobby, err := getLobbyFromDB(lobbyID)
+	lobby, err := ws.getLobby(lobbyID)
 	if err != nil {
 		log.Printf("Error fetching lobby for update: %v", err)
 		return
@@ -108,7 +108,7 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 		log.Printf("ReadPump received message: Type=%s, Content=%s, LobbyID=%s, Username=%s",
 			message.Type, message.Content, message.LobbyID, message.Username)
 
-		lobby, err := getLobbyFromDB(client.LobbyID)
+		lobby, err := ws.getLobby(client.LobbyID)
 		log.Printf("Current turn in lobby %s: %v", lobby.ID, lobby.TurnID)
 		log.Printf("You are %s", client.ID)
 		log.Printf("You are really %s", client.PlayerId)
@@ -152,18 +152,16 @@ func (ws *WebSocketService) ReadPump(client *models.Client) {
 			if err != nil {
 				log.Printf("Error swapping turn: %v", err)
 			}
-			// After swap: restart timer for the new turn player (the asker)
-			if err == nil && lobby.TurnTimerSeconds > 0 && !lobby.TurnTimerPaused {
-				updatedLobby, dbErr := getLobbyFromDB(client.LobbyID)
-				if dbErr == nil && updatedLobby.TurnID != nil {
-					now := time.Now()
-					config.DB.Model(updatedLobby).Updates(map[string]interface{}{
-						"turn_started_at":   now,
-						"turn_remaining_ms": 0,
-					})
-					ws.hub.StartTurnTimer(client.LobbyID, updatedLobby.TurnID.String(),
-						time.Duration(updatedLobby.TurnTimerSeconds)*time.Second)
-				}
+			// After swap: restart timer for the new turn player (the asker).
+			// lobbySwapTurn already mutated lobby.TurnID in place, so no refetch is needed.
+			if err == nil && lobby.TurnTimerSeconds > 0 && !lobby.TurnTimerPaused && lobby.TurnID != nil {
+				now := time.Now()
+				config.DB.Model(lobby).Updates(map[string]interface{}{
+					"turn_started_at":   now,
+					"turn_remaining_ms": 0,
+				})
+				ws.hub.StartTurnTimer(client.LobbyID, lobby.TurnID.String(),
+					time.Duration(lobby.TurnTimerSeconds)*time.Second)
 			}
 		} else if message.Channel == "game" {
 			// A question was asked: restart timer targeting the responder (non-turn player).
@@ -245,18 +243,40 @@ func saveMessageToDB(msg models.Message) {
 	}
 }
 
-func getLobbyFromDB(lobbyID string) (*models.Lobby, error) {
-	var lobby models.Lobby
+// getLobby fetches a lobby's mutable scalar fields fresh from Postgres on every call,
+// but serves its static associations (Players, CharacterSet, LobbyCharacters) from the
+// hub's in-memory cache once they've been loaded once for this lobby. These associations
+// don't change after a lobby's two players have joined, so re-fetching them on every
+// WebSocket message (previously the dominant source of DB egress) is wasted work.
+func (ws *WebSocketService) getLobby(lobbyID string) (*models.Lobby, error) {
 	lobbyUUID, err := uuid.Parse(lobbyID)
 	if err != nil {
-		// handle invalid UUID
+		return nil, err
 	}
+
+	if statics, ok := ws.hub.getLobbyStatics(lobbyID); ok {
+		var lobby models.Lobby
+		if err := config.DB.First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
+			return nil, err
+		}
+		lobby.Players = statics.Players
+		lobby.CharacterSet = statics.CharacterSet
+		lobby.LobbyCharacters = statics.LobbyCharacters
+		return &lobby, nil
+	}
+
+	var lobby models.Lobby
 	if err := config.DB.Preload("Players").
 		Preload("CharacterSet").
 		Preload("LobbyCharacters").
 		First(&lobby, "id = ?", lobbyUUID).Error; err != nil {
 		return nil, err
 	}
+	ws.hub.setLobbyStatics(lobbyID, &lobbyStatics{
+		Players:         lobby.Players,
+		CharacterSet:    lobby.CharacterSet,
+		LobbyCharacters: lobby.LobbyCharacters,
+	})
 	return &lobby, nil
 }
 
