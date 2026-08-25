@@ -472,7 +472,7 @@ export default function Profile() {
                                                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
                                                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                                         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400, margin: 0 }}>
-                                                            {set.characters?.length ?? 0} char{set.characters?.length !== 1 ? "s" : ""}
+                                                            {set.characterCount ?? 0} char{set.characterCount !== 1 ? "s" : ""}
                                                         </p>
                                                         <span style={{ display: "flex", alignItems: "center", gap: 3, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text400 }} title="Times played">
                                                             <Play size={11} strokeWidth={2} />

@@ -877,6 +877,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [chatFeature, setChatFeature] = useState(true);
     const [turnTimerSeconds, setTurnTimerSeconds] = useState(0);
     const [previewSet, setPreviewSet] = useState(null);
+    const [loadingSetId, setLoadingSetId] = useState(null);
     const [reportingSet, setReportingSet] = useState(null);
     const [reportReason, setReportReason] = useState('');
     const [reportSubmitting, setReportSubmitting] = useState(false);
@@ -992,6 +993,43 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             setPublicSets(data.sets ?? []);
             setPublicTotal(data.total ?? 0);
         } catch { setError("Network error"); } finally { setLoadingPublic(false); }
+    };
+
+    // Set list responses no longer embed the full character roster (only cover
+    // image + metadata), so selecting or previewing a set fetches its characters
+    // on demand instead of shipping every set's full roster on every list page.
+    const fetchFullSet = async (setId) => {
+        const res = await apiFetch(`/player/set/public/${setId}`, {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Something went wrong");
+        return data;
+    };
+
+    const handleSelectSet = async (set) => {
+        if (set.characters) { setSelectedSet(set); return; }
+        setLoadingSetId(set.id);
+        try {
+            setSelectedSet(await fetchFullSet(set.id));
+        } catch {
+            setError("Failed to load set details");
+        } finally {
+            setLoadingSetId(null);
+        }
+    };
+
+    const handlePreviewSet = async (set) => {
+        if (set.characters) { setPreviewSet(set); return; }
+        setLoadingSetId(set.id);
+        try {
+            setPreviewSet(await fetchFullSet(set.id));
+        } catch {
+            setError("Failed to load set details");
+        } finally {
+            setLoadingSetId(null);
+        }
     };
 
     const handleCreateLobby = async () => {
@@ -1198,14 +1236,19 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                         key={set.id}
                                         role="listitem"
                                         className={`set-card${selectedSet?.id === set.id ? " set-card--selected" : ""}`}
-                                        onClick={() => setSelectedSet(set)}
+                                        onClick={() => handleSelectSet(set)}
                                         tabIndex={0}
-                                        onKeyDown={(e) => e.key === "Enter" && setSelectedSet(set)}
+                                        onKeyDown={(e) => e.key === "Enter" && handleSelectSet(set)}
                                         aria-pressed={selectedSet?.id === set.id}
                                     >
                                         <div className="set-card__img-wrap">
                                             <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: "100%", borderRadius: 0 }} />
-                                            {selectedSet?.id === set.id && (
+                                            {loadingSetId === set.id && (
+                                                <div className="set-card__check" aria-hidden="true">
+                                                    <div className="spinner" style={{ width: 14, height: 14 }} />
+                                                </div>
+                                            )}
+                                            {loadingSetId !== set.id && selectedSet?.id === set.id && (
                                                 <div className="set-card__check" aria-hidden="true">
                                                     <Check size={14} strokeWidth={3} />
                                                 </div>
@@ -1223,7 +1266,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                             )}
                                             <button
                                                 className="set-card__preview-btn"
-                                                onClick={(e) => { e.stopPropagation(); setPreviewSet(set); }}
+                                                onClick={(e) => { e.stopPropagation(); handlePreviewSet(set); }}
                                                 aria-label={`Preview ${set.name}`}
                                             >
                                                 <Eye size={12} />

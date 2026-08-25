@@ -17,9 +17,10 @@ type PlayerService struct {
 
 type CharacterSetResponse struct {
     models.CharacterSet
-    LikeCount   int    `json:"likeCount"`
-    LikedByMe   bool   `json:"likedByMe"`
-    CreatorName string `json:"creator"`
+    LikeCount      int    `json:"likeCount"`
+    LikedByMe      bool   `json:"likedByMe"`
+    CreatorName    string `json:"creator"`
+    CharacterCount int    `json:"characterCount"`
 }
 
 type SetListParams struct {
@@ -94,13 +95,35 @@ func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.U
         usernameMap[u.ID] = u.Username
     }
 
+    // Batch fetch character counts (aggregated — avoids fetching every character row
+    // just to show a count badge in set listings).
+    type charCount struct {
+        SetID uuid.UUID
+        Cnt   int
+    }
+    var charCounts []charCount
+    s.DB.Model(&models.Character{}).
+        Select("set_id, COUNT(*) as cnt").
+        Where("set_id IN ?", setIDs).
+        Group("set_id").
+        Scan(&charCounts)
+    charCountMap := make(map[uuid.UUID]int, len(charCounts))
+    for _, cc := range charCounts {
+        charCountMap[cc.SetID] = cc.Cnt
+    }
+
     result := make([]CharacterSetResponse, len(sets))
     for i, set := range sets {
+        characterCount := charCountMap[set.ID]
+        if len(set.Characters) > 0 {
+            characterCount = len(set.Characters)
+        }
         result[i] = CharacterSetResponse{
-            CharacterSet: set,
-            LikeCount:    countMap[set.ID],
-            LikedByMe:    likedMap[set.ID],
-            CreatorName:  usernameMap[set.UserID],
+            CharacterSet:   set,
+            LikeCount:      countMap[set.ID],
+            LikedByMe:      likedMap[set.ID],
+            CreatorName:    usernameMap[set.UserID],
+            CharacterCount: characterCount,
         }
     }
     return result
@@ -179,6 +202,25 @@ func (s *PlayerService) GetSetByID(user *models.User, setID uuid.UUID) (*Charact
     return &results[0], nil
 }
 
+// GetPublicSetByID fetches a single set with its full character roster for
+// preview/selection purposes. Unlike GetSetByID (owner-only), this also permits
+// fetching any set that's public, so guests and other users can preview sets
+// they don't own from the public gallery.
+func (s *PlayerService) GetPublicSetByID(callerID *uuid.UUID, setID uuid.UUID) (*CharacterSetResponse, error) {
+    var set models.CharacterSet
+    query := s.DB.Preload("Characters")
+    if callerID != nil {
+        query = query.Where("id = ? AND (public = ? OR user_id = ?)", setID, true, *callerID)
+    } else {
+        query = query.Where("id = ? AND public = ?", setID, true)
+    }
+    if err := query.First(&set).Error; err != nil {
+        return nil, fmt.Errorf("set not found: %w", err)
+    }
+    results := s.attachLikes([]models.CharacterSet{set}, callerID)
+    return &results[0], nil
+}
+
 func (s *PlayerService) GetSets(user *models.User, params SetListParams) (SetListResult, error) {
     if params.Page < 1 {
         params.Page = 1
@@ -202,7 +244,6 @@ func (s *PlayerService) GetSets(user *models.User, params SetListParams) (SetLis
     err := base.Order("created_at DESC").
         Limit(params.PageSize).
         Offset((params.Page-1)*params.PageSize).
-        Preload("Characters").
         Find(&sets).Error
     if err != nil {
         return SetListResult{}, fmt.Errorf("failed to get character sets: %w", err)
@@ -330,7 +371,6 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
     err := base.
         Limit(params.PageSize).
         Offset((params.Page-1)*params.PageSize).
-        Preload("Characters").
         Find(&sets).Error
     if err != nil {
         return SetListResult{}, fmt.Errorf("failed to get character sets: %w", err)

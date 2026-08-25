@@ -374,6 +374,28 @@ func (h *PlayerHandler) GetSetFromPublicHandler(w http.ResponseWriter, r *http.R
     json.NewEncoder(w).Encode(result)
 }
 
+// GET /set/public/{setId}
+func (h *PlayerHandler) GetPublicSetByIDHandler(w http.ResponseWriter, r *http.Request) {
+    var callerID *uuid.UUID
+    if user := middleware.GetUserFromContext(r); user != nil {
+        callerID = &user.ID
+    }
+
+    setID, err := uuid.Parse(chi.URLParam(r, "setId"))
+    if err != nil {
+        http.Error(w, "invalid setId", http.StatusBadRequest)
+        return
+    }
+
+    result, err := h.Service.GetPublicSetByID(callerID, setID)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusNotFound)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(result)
+}
+
 // POST /set/{setId}/like
 func (h *PlayerHandler) ToggleLikeHandler(w http.ResponseWriter, r *http.Request) {
     user := middleware.GetUserFromContext(r)
