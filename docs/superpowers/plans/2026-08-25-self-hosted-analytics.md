@@ -300,8 +300,10 @@ git commit -m "Add reverse-proxy handler for self-hosted analytics"
 - Modify: `backend/internal/routes/routes.go`
 
 **Interfaces:**
-- Consumes: `middleware.AdminEmailMiddleware` (Task 1), `handlers.NewAnalyticsProxyHandler(targetURL, stripPrefix string) http.Handler` (Task 2), existing `userMiddleware` (already constructed in this file via `middleware.NewUserMiddleware(sessionService)`).
+- Consumes: `middleware.AdminEmailMiddleware` (Task 1), `handlers.NewAnalyticsProxyHandler(targetURL, stripPrefix string) http.Handler` (Task 2), existing `optionalUserMiddleware` (already constructed in this file via `middleware.NewOptionalUserMiddleware(sessionService)`, used today for the `/player` public routes).
 - Produces: `/analytics-collect/*` — an intentionally public, ungated route — consumed by the frontend's tracking script tag (Task 7).
+
+**Correction from Task 1 review:** the plan originally called for chaining the strict `userMiddleware` (`NewUserMiddleware`) before `AdminEmailMiddleware`. That middleware itself returns `401` for a missing/invalid session — before `AdminEmailMiddleware` ever runs — which would leak a 401 to unauthenticated visitors and violate the "never 401/403, only 404" global constraint. Use `optionalUserMiddleware` instead: it never rejects, it just leaves the user unset in context when there's no valid session, so `AdminEmailMiddleware` is the sole gate and always returns 404 uniformly (nil user, wrong email — both cases already covered by Task 1's implementation and tests).
 
 The Umami container's internal port is fixed at `3300` on the host in Task 6's deployment (Umami's own internal port is `3000`; `3300:3000` is the host mapping). Two routes are mounted against this one target, with different middleware:
 - `/admin/analytics/*` — gated (dashboard UI). Only the admin should ever reach Umami's login screen at all.
@@ -315,7 +317,7 @@ In `backend/internal/routes/routes.go`, after the existing `r.Route("/admin", ..
 	const umamiTarget = "http://127.0.0.1:3300"
 
 	r.Route("/admin/analytics", func(r chi.Router) {
-		r.Use(userMiddleware)
+		r.Use(optionalUserMiddleware)
 		r.Use(middleware.AdminEmailMiddleware)
 		r.Handle("/*", handlers.NewAnalyticsProxyHandler(umamiTarget, "/admin/analytics"))
 	})
