@@ -145,4 +145,14 @@ func MountRoutes(r chi.Router) {
 		r.Delete("/sets/{id}", adminHandler.DeleteSet)
 		r.Post("/sets/{id}/clear-reports", adminHandler.ClearReports)
 	})
+
+	const umamiTarget = "http://127.0.0.1:3300"
+
+	r.Route("/admin/analytics", func(r chi.Router) {
+		r.Use(optionalUserMiddleware)
+		r.Use(middleware.AdminEmailMiddleware)
+		r.Handle("/*", handlers.NewAnalyticsProxyHandler(umamiTarget, "/admin/analytics"))
+	})
+
+	r.Handle("/analytics-collect/*", handlers.NewAnalyticsProxyHandler(umamiTarget, "/analytics-collect"))
 }
