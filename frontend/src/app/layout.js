@@ -1,8 +1,7 @@
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next"
+import { API_URL } from "@/lib/api";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -129,9 +128,13 @@ export default function RootLayout({ children }) {
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
+        <script
+          async
+          defer
+          data-website-id="REPLACE_WITH_UMAMI_WEBSITE_ID"
+          src={`${API_URL}/analytics-collect/script.js`}
+        />
         <UserProvider>{children}</UserProvider>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );
