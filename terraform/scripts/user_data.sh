@@ -11,6 +11,9 @@ systemctl enable docker
 systemctl start docker
 usermod -aG docker ec2-user
 
+# Shared network so containers can reach each other by container name
+docker network create guesswho-net 2>/dev/null || true
+
 # ── App directory & env file ───────────────────────────────────
 mkdir -p /opt/backend
 
@@ -28,7 +31,7 @@ R2_ACCOUNT_ID=${r2_account_id}
 R2_ACCESS_KEY_ID=${r2_access_key_id}
 R2_SECRET_ACCESS_KEY=${r2_secret_access_key}
 ALLOWED_ORIGINS=${allowed_origins}
-UMAMI_URL=http://host.docker.internal:3300
+UMAMI_URL=http://guesswho-analytics:3000
 ENVEOF
 
 chmod 600 /opt/backend/.env
@@ -93,7 +96,7 @@ ExecStartPre=-/usr/bin/docker rm -f guesswho-backend
 ExecStart=/usr/bin/docker run --rm \\
     --name guesswho-backend \\
     --env-file /opt/backend/.env \\
-    --add-host=host.docker.internal:host-gateway \\
+    --network guesswho-net \\
     -p 127.0.0.1:8080:8080 \\
     ${ecr_url}:latest
 ExecStop=/usr/bin/docker stop guesswho-backend
@@ -124,7 +127,7 @@ ExecStart=/usr/bin/docker run --rm \
     -e POSTGRES_PASSWORD=umami \
     -e POSTGRES_DB=umami \
     -v /opt/analytics-db:/var/lib/postgresql/data \
-    -p 127.0.0.1:5433:5432 \
+    --network guesswho-net \
     postgres:16-alpine
 ExecStop=/usr/bin/docker stop guesswho-analytics-db
 
@@ -145,9 +148,9 @@ RestartSec=10
 ExecStartPre=-/usr/bin/docker rm -f guesswho-analytics
 ExecStart=/usr/bin/docker run --rm \
     --name guesswho-analytics \
-    -e DATABASE_URL=postgresql://umami:umami@host.docker.internal:5433/umami \
+    -e DATABASE_URL=postgresql://umami:umami@guesswho-analytics-db:5432/umami \
     -e APP_SECRET=${analytics_app_secret} \
-    --add-host=host.docker.internal:host-gateway \
+    --network guesswho-net \
     -p 127.0.0.1:3300:3000 \
     ghcr.io/umami-software/umami:postgresql-latest
 ExecStop=/usr/bin/docker stop guesswho-analytics
