@@ -131,7 +131,7 @@ export default function RootLayout({ children }) {
         <script
           async
           defer
-          data-website-id="REPLACE_WITH_UMAMI_WEBSITE_ID"
+          data-website-id="82b27817-dfc1-424d-af39-bea327b77cbb"
           src={`${API_URL}/analytics-collect/script.js`}
         />
         <UserProvider>{children}</UserProvider>
