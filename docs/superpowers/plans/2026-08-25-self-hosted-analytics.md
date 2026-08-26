@@ -2,19 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace Vercel Analytics with self-hosted Umami, reachable only through an authenticated proxy route so only the admin account (tjraff5@gmail.com) can ever load the dashboard.
+> **Post-implementation revision:** Tasks 1-7 below were implemented and reviewed as originally written (an in-browser dashboard proxy at `/admin/analytics/*`, gated by `AdminEmailMiddleware`). A final whole-branch review then verified against the real Umami image that this design doesn't work — Umami's Next.js build loads assets from absolute paths and cannot be subpath-hosted, so the dashboard would render blank — and separately found the public tracker route was an unauthenticated wildcard exposing Umami's login/auth API to the internet. Both were fixed in a follow-up commit: the dashboard proxy and `AdminEmailMiddleware` were removed entirely in favor of an SSH tunnel for dashboard access, and the public route was narrowed to two explicitly allowlisted paths. See the updated `docs/superpowers/specs/2026-08-25-self-hosted-analytics-design.md` for the current architecture — the task bodies below are left as historical record of what was actually built and reviewed at each step, not a fully current description of the shipped code.
 
-**Architecture:** Umami + a dedicated Postgres container run on the existing EC2 box, bound to `127.0.0.1` only. A new Go backend route group (`/admin/analytics/*`) sits behind a session-cookie auth-gate middleware and reverse-proxies matching requests to Umami. No new DNS, subdomain, or SSL cert — everything rides the existing nginx/cert on the current domain. The frontend adds one `<script>` tag pointed at the proxy route; Vercel's `<Analytics />`/`<SpeedInsights />` components are removed.
+**Goal:** Replace Vercel Analytics with self-hosted Umami. The public tracking script and its collection endpoint are reachable through the app's existing domain; the dashboard itself is viewed over an SSH tunnel, never through the public web app (see revision note above).
+
+**Architecture:** Umami + a dedicated Postgres container run on the existing EC2 box, bound to `127.0.0.1` only. The Go backend proxies exactly two allowlisted public paths (`GET /analytics-collect/script.js`, `POST /analytics-collect/api/send`) to Umami — no admin-gated route, no session-cookie check on any analytics path. No new DNS, subdomain, or SSL cert — everything rides the existing nginx/cert on the current domain. The frontend adds one `<script>` tag pointed at the proxy route; Vercel's `<Analytics />`/`<SpeedInsights />` components are removed.
 
 **Tech Stack:** Go (chi router, `net/http/httputil.ReverseProxy`), Docker (`ghcr.io/umami-software/umami:postgresql-latest`, `postgres:16-alpine`), Next.js (root layout script tag), Terraform/systemd for EC2 deployment.
 
-## Global Constraints
+## Global Constraints (as revised — see post-implementation revision note above)
 
 - Umami's DB must be a dedicated Postgres instance, isolated from Supabase — per the spec's requirement not to reintroduce Supabase egress load (see `docs/superpowers/specs/2026-08-25-self-hosted-analytics-design.md`).
-- The auth-gate middleware must return `404 Not Found` for missing/non-admin sessions, never `401`/`403` — the route must not hint at its own existence.
-- Admin identity check is by email (`user.Email == os.Getenv("ADMIN_EMAIL")`), not user ID.
 - Umami and its Postgres container must bind to `127.0.0.1` only, never a public interface — same isolation pattern as the existing `guesswho-backend` container.
-- No new Terraform-managed networking (no new security group rule, Elastic IP, or DNS record).
+- No new Terraform-managed networking (no new security group rule, Elastic IP, or DNS record) — dashboard access is via SSH tunnel over the existing key, not a public route.
+- The public proxy route must allowlist exactly the two paths the tracker needs (`GET /analytics-collect/script.js`, `POST /analytics-collect/api/send`) — never a wildcard subtree, which would also expose Umami's login page and auth API publicly.
+- ~~Auth-gate middleware / admin-email check~~ — removed. There is no admin-gated analytics route in the shipped code; the dashboard has no path reachable from the public web app at all.
 
 ---
 
