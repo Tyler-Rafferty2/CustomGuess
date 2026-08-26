@@ -28,6 +28,7 @@ R2_ACCOUNT_ID=${r2_account_id}
 R2_ACCESS_KEY_ID=${r2_access_key_id}
 R2_SECRET_ACCESS_KEY=${r2_secret_access_key}
 ALLOWED_ORIGINS=${allowed_origins}
+ADMIN_EMAIL=${admin_email}
 ENVEOF
 
 chmod 600 /opt/backend/.env
@@ -102,3 +103,56 @@ SERVICEEOF
 
 systemctl daemon-reload
 systemctl enable guesswho-backend
+
+# ── Analytics DB (Postgres) systemd service ─────────────────────
+mkdir -p /opt/analytics-db
+
+cat > /etc/systemd/system/guesswho-analytics-db.service << 'SERVICEEOF'
+[Unit]
+Description=GuessWho Analytics DB (Postgres)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/docker rm -f guesswho-analytics-db
+ExecStart=/usr/bin/docker run --rm \
+    --name guesswho-analytics-db \
+    -e POSTGRES_USER=umami \
+    -e POSTGRES_PASSWORD=umami \
+    -e POSTGRES_DB=umami \
+    -v /opt/analytics-db:/var/lib/postgresql/data \
+    -p 127.0.0.1:5433:5432 \
+    postgres:16-alpine
+ExecStop=/usr/bin/docker stop guesswho-analytics-db
+
+[Install]
+WantedBy=multi-user.target
+SERVICEEOF
+
+# ── Analytics (Umami) systemd service ────────────────────────────
+cat > /etc/systemd/system/guesswho-analytics.service << 'SERVICEEOF'
+[Unit]
+Description=GuessWho Analytics (Umami)
+After=docker.service network-online.target guesswho-analytics-db.service
+Requires=docker.service guesswho-analytics-db.service
+
+[Service]
+Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/docker rm -f guesswho-analytics
+ExecStart=/usr/bin/docker run --rm \
+    --name guesswho-analytics \
+    -e DATABASE_URL=postgresql://umami:umami@host.docker.internal:5433/umami \
+    -e APP_SECRET=0022f66afdc60d90bafa8b01717ac6389b40f855a3a7aee983c91d50bfb61081 \
+    --add-host=host.docker.internal:host-gateway \
+    -p 127.0.0.1:3300:3000 \
+    ghcr.io/umami-software/umami:postgresql-latest
+ExecStop=/usr/bin/docker stop guesswho-analytics
+
+[Install]
+WantedBy=multi-user.target
+SERVICEEOF
+
+systemctl enable guesswho-analytics-db guesswho-analytics

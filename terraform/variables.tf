@@ -83,3 +83,10 @@ variable "app_base_url" {
   description = "Public HTTPS URL of this backend (e.g. https://api.yourdomain.duckdns.org)"
   type        = string
 }
+
+# ── Analytics ────────────────────────────────────────────────────
+
+variable "admin_email" {
+  description = "Email of the account allowed to access self-hosted analytics"
+  type        = string
+}
