@@ -86,11 +86,6 @@ variable "app_base_url" {
 
 # ── Analytics ────────────────────────────────────────────────────
 
-variable "admin_email" {
-  description = "Email of the account allowed to access self-hosted analytics"
-  type        = string
-}
-
 variable "analytics_app_secret" {
   description = "Session-signing secret for the self-hosted Umami analytics instance"
   type        = string

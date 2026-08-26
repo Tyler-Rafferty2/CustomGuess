@@ -28,7 +28,7 @@ R2_ACCOUNT_ID=${r2_account_id}
 R2_ACCESS_KEY_ID=${r2_access_key_id}
 R2_SECRET_ACCESS_KEY=${r2_secret_access_key}
 ALLOWED_ORIGINS=${allowed_origins}
-ADMIN_EMAIL=${admin_email}
+UMAMI_URL=http://host.docker.internal:3300
 ENVEOF
 
 chmod 600 /opt/backend/.env
@@ -93,6 +93,7 @@ ExecStartPre=-/usr/bin/docker rm -f guesswho-backend
 ExecStart=/usr/bin/docker run --rm \\
     --name guesswho-backend \\
     --env-file /opt/backend/.env \\
+    --add-host=host.docker.internal:host-gateway \\
     -p 127.0.0.1:8080:8080 \\
     ${ecr_url}:latest
 ExecStop=/usr/bin/docker stop guesswho-backend
@@ -155,4 +156,5 @@ ExecStop=/usr/bin/docker stop guesswho-analytics
 WantedBy=multi-user.target
 SERVICEEOF
 
-systemctl enable guesswho-analytics-db guesswho-analytics
+systemctl daemon-reload
+systemctl enable --now guesswho-analytics-db guesswho-analytics

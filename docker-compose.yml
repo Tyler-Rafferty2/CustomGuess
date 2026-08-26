@@ -37,6 +37,7 @@ services:
       - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
       - ADMIN_TOKEN=${ADMIN_TOKEN}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3080}
+      - UMAMI_URL=http://umami:3000
     restart: unless-stopped
 
   umami-db:
