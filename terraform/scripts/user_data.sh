@@ -145,7 +145,7 @@ ExecStartPre=-/usr/bin/docker rm -f guesswho-analytics
 ExecStart=/usr/bin/docker run --rm \
     --name guesswho-analytics \
     -e DATABASE_URL=postgresql://umami:umami@host.docker.internal:5433/umami \
-    -e APP_SECRET=0022f66afdc60d90bafa8b01717ac6389b40f855a3a7aee983c91d50bfb61081 \
+    -e APP_SECRET=${analytics_app_secret} \
     --add-host=host.docker.internal:host-gateway \
     -p 127.0.0.1:3300:3000 \
     ghcr.io/umami-software/umami:postgresql-latest

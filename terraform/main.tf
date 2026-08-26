@@ -170,6 +170,8 @@ resource "aws_instance" "backend" {
     r2_secret_access_key = var.r2_secret_access_key
     allowed_origins      = var.allowed_origins
     app_base_url         = var.app_base_url
+    admin_email          = var.admin_email
+    analytics_app_secret = var.analytics_app_secret
   })
 
   root_block_device {
