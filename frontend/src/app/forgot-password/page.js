@@ -78,7 +78,7 @@ export default function ForgotPassword() {
                 ) : (
                     <div className="text-center">
                         <p className="text-[14px] text-[#5C5047] mt-2 mb-6">
-                            If that email is registered, a reset link is on its way. Check your inbox.
+                            If that email is registered, a reset link is on its way. Check your inbox (it may take a few minutes to arrive).
                         </p>
                         <Link
                             href="/signin"
