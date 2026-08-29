@@ -160,6 +160,11 @@ func (h *UserHandler) ResetPasswordHandler(w http.ResponseWriter, r *http.Reques
     }
     json.NewDecoder(r.Body).Decode(&req)
 
+    if msg := validatePassword(req.Password); msg != "" {
+        http.Error(w, msg, http.StatusBadRequest)
+        return
+    }
+
     if err := h.Service.ResetPassword(req.Token, req.Password); err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
