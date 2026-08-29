@@ -18,7 +18,7 @@ func MountRoutes(r chi.Router) {
 	go chatHub.Run()
 
 	// Create services
-	emailService := services.NewEmailService(os.Getenv("RESEND_API_KEY"))
+	emailService := services.NewEmailService(os.Getenv("RESEND_API_KEY"), os.Getenv("RESEND_FROM_EMAIL"))
 	appBaseURL := os.Getenv("APP_BASE_URL")
 	if appBaseURL == "" {
 		appBaseURL = "http://localhost:3080"

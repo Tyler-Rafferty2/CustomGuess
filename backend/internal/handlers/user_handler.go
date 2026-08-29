@@ -2,6 +2,7 @@ package handlers
 
 import (
     "encoding/json"
+    "log"
     "net/http"
     "strings"
     "unicode"
@@ -144,7 +145,9 @@ func (h *UserHandler) ForgotPasswordHandler(w http.ResponseWriter, r *http.Reque
     json.NewDecoder(r.Body).Decode(&req)
 
     // Always return 200 to avoid leaking whether an email exists
-    h.Service.ForgotPassword(req.Email)
+    if err := h.Service.ForgotPassword(req.Email); err != nil {
+        log.Printf("forgot-password: failed to send reset email: %v", err)
+    }
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(map[string]string{"message": "If that email exists, a reset link has been sent."})
 }

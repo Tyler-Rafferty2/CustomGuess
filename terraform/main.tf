@@ -165,6 +165,7 @@ resource "aws_instance" "backend" {
     db_name              = var.db_name
     db_sslmode           = var.db_sslmode
     resend_api_key       = var.resend_api_key
+    resend_from_email    = var.resend_from_email
     r2_account_id        = var.r2_account_id
     r2_access_key_id     = var.r2_access_key_id
     r2_secret_access_key = var.r2_secret_access_key

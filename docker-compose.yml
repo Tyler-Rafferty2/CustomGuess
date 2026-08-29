@@ -31,6 +31,7 @@ services:
       - DB_NAME=postgres
       - DB_SSLMODE=require
       - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3080}
       - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
       - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}

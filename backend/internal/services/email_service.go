@@ -7,10 +7,13 @@ type EmailService struct {
 	from   string
 }
 
-func NewEmailService(apiKey string) *EmailService {
+func NewEmailService(apiKey, from string) *EmailService {
+	if from == "" {
+		from = "onboarding@resend.dev"
+	}
 	return &EmailService{
 		client: resend.NewClient(apiKey),
-		from:   "onboarding@resend.dev",
+		from:   from,
 	}
 }
 

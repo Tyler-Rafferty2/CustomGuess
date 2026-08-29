@@ -26,6 +26,7 @@ DB_PASSWORD=${db_password}
 DB_NAME=${db_name}
 DB_SSLMODE=${db_sslmode}
 RESEND_API_KEY=${resend_api_key}
+RESEND_FROM_EMAIL=${resend_from_email}
 APP_BASE_URL=${app_base_url}
 R2_ACCOUNT_ID=${r2_account_id}
 R2_ACCESS_KEY_ID=${r2_access_key_id}

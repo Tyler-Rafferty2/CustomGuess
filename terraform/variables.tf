@@ -53,6 +53,12 @@ variable "resend_api_key" {
   sensitive   = true
 }
 
+variable "resend_from_email" {
+  description = "Verified sender address for transactional emails (e.g. noreply@customguess.com)"
+  type        = string
+  default     = "onboarding@resend.dev"
+}
+
 # ── Cloudflare R2 ───────────────────────────────────────────────
 
 variable "r2_account_id" {
