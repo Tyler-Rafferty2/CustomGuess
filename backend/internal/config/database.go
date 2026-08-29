@@ -4,6 +4,7 @@ import (
     "fmt"
     "log"
     "os"
+    "time"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
     "github.com/tyler-rafferty2/GuessWho/internal/models"
@@ -34,6 +35,16 @@ func ConnectDB() {
 
     // Store global reference
     DB = db
+
+    // Cap the pool below Supabase's session-mode pooler limit (60 connections)
+    // so the app reuses connections instead of exhausting the pooler.
+    sqlDB, err := db.DB()
+    if err != nil {
+        log.Fatal("Failed to get underlying sql.DB:", err)
+    }
+    sqlDB.SetMaxOpenConns(30)
+    sqlDB.SetMaxIdleConns(15)
+    sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
     // Auto migrate your models
     err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{}, &models.Character{}, &models.LobbyCharacter{}, &models.User{}, &models.StoredMessage{}, &models.GameRecord{}, &models.SetLike{}, &models.Session{}, &models.SetReport{})
