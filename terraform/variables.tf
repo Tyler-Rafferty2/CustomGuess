@@ -54,7 +54,7 @@ variable "resend_api_key" {
 }
 
 variable "resend_from_email" {
-  description = "Verified sender address for transactional emails (e.g. noreply@customguess.com)"
+  description = "Verified sender address for transactional emails (e.g. support@customguess.com)"
   type        = string
   default     = "onboarding@resend.dev"
 }
