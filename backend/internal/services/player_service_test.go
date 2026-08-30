@@ -32,3 +32,17 @@ func TestSetListParams_EmptyCategoriesIsZeroValue(t *testing.T) {
         t.Fatalf("expected zero-value SetListParams to have no categories, got %v", p.Categories)
     }
 }
+
+// GetPublicSets must validate params.Categories before touching the DB, so
+// that an unknown category value in a public-listing request produces an
+// error (surfaced by the handler as 400) instead of silently matching zero
+// rows or reaching a nil DB. Since validation runs first, s.DB can stay nil
+// here — a bug that let an invalid category slip past validation would
+// panic on the nil DB rather than pass silently.
+func TestGetPublicSets_RejectsUnknownCategory(t *testing.T) {
+    svc := &PlayerService{}
+    _, err := svc.GetPublicSets(nil, SetListParams{Categories: []string{"bogus"}})
+    if err == nil {
+        t.Fatal("expected error for unknown category in public set listing")
+    }
+}

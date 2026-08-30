@@ -373,6 +373,16 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
         params.PageSize = 12
     }
 
+    if len(params.Categories) > 0 {
+        categoryFilter := make([]models.Category, len(params.Categories))
+        for i, c := range params.Categories {
+            categoryFilter[i] = models.Category(c)
+        }
+        if err := validateCategories(categoryFilter); err != nil {
+            return SetListResult{}, err
+        }
+    }
+
     base := s.DB.Model(&models.CharacterSet{}).
         Where("character_sets.public = ?", true).
         Where("character_sets.report_count < ?", reportThreshold)
