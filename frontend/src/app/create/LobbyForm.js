@@ -209,6 +209,8 @@ const DESIGN_TOKENS = `
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
     margin-bottom: var(--s3);
   }
   .set-card__meta {
