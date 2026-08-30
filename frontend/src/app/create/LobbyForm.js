@@ -243,6 +243,20 @@ const DESIGN_TOKENS = `
     color: var(--state-live);
     border-color: #C2E0D0;
   }
+  .set-card__categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: var(--s2);
+  }
+  .set-card__badge--category {
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    background: var(--surface-1);
+    color: var(--text-400);
+    border: none;
+  }
 
   /* ── Empty / Loading States ── */
   .state-empty {
@@ -1326,6 +1340,26 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                         <div className="set-card__body">
                                             <h3 className="set-card__name">{set.name}</h3>
                                             <p className="set-card__desc">{set.description}</p>
+                                            {setView === "public" && (() => {
+                                                const validCats = (set.categories ?? [])
+                                                    .map(v => CATEGORIES.find(c => c.value === v))
+                                                    .filter(Boolean);
+                                                if (validCats.length === 0) return null;
+                                                const shown = validCats.slice(0, 2);
+                                                const extra = validCats.slice(2);
+                                                return (
+                                                    <div className="set-card__categories">
+                                                        {shown.map(cat => (
+                                                            <span key={cat.value} className="set-card__badge set-card__badge--category">{cat.label}</span>
+                                                        ))}
+                                                        {extra.length > 0 && (
+                                                            <span className="set-card__badge set-card__badge--category" title={extra.map(c => c.label).join(", ")}>
+                                                                +{extra.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
                                             <div className="set-card__meta">
                                                 {set.creator && (
                                                     <span className="set-card__creator">by {set.creator}</span>
@@ -1335,12 +1369,6 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                                         {set.isPublic ? "Public" : "Private"}
                                                     </span>
                                                 )}
-                                                {setView === "public" && (set.categories ?? []).map(catValue => {
-                                                    const cat = CATEGORIES.find(c => c.value === catValue);
-                                                    return cat ? (
-                                                        <span key={catValue} className="set-card__badge">{cat.label}</span>
-                                                    ) : null;
-                                                })}
                                                 <span className="set-card__like-btn" style={{ cursor: "default", color: "var(--text-400)" }} title="Times played">
                                                     <Play size={12} strokeWidth={2} />
                                                     {set.playCount ?? 0}
