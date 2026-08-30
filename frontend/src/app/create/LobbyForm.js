@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from '@/lib/api';
+import { CATEGORIES } from "@/lib/categories";
 
 import { useState, useEffect } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -451,6 +452,23 @@ const DESIGN_TOKENS = `
   }
   .sort-select:hover { border-color: var(--border-strong); }
   .sort-select:focus { border-color: var(--accent); }
+  .category-chip {
+    height: 28px;
+    padding: 0 var(--s3);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface-0);
+    color: var(--text-600);
+    font-family: 'DM Sans', sans-serif;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .category-chip--active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
 
   /* ── Like button ── */
   .set-card__like-btn {
@@ -864,6 +882,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [searchDraft, setSearchDraft] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [sortOrder, setSortOrder] = useState("most-popular");
+    const [selectedCategories, setSelectedCategories] = useState([]);
     const [publicSets, setPublicSets] = useState([]);
     const [mySets, setMySets] = useState([]);
     const [publicPage, setPublicPage] = useState(1);
@@ -893,7 +912,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     useEffect(() => {
         if (user === undefined) return;
         setPublicPage(1);
-        loadSetsPublic(1, sortOrder, searchQuery);
+        loadSetsPublic(1, sortOrder, searchQuery, selectedCategories);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
@@ -901,15 +920,23 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     useEffect(() => {
         if (user === undefined) return;
         setPublicPage(1);
-        loadSetsPublic(1, sortOrder, searchQuery);
+        loadSetsPublic(1, sortOrder, searchQuery, selectedCategories);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sortOrder]);
+
+    // Public sets: category filter change → reset to page 1
+    useEffect(() => {
+        if (user === undefined) return;
+        setPublicPage(1);
+        loadSetsPublic(1, sortOrder, searchQuery, selectedCategories);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedCategories]);
 
     // Both tabs: debounced search change → reset to page 1
     useEffect(() => {
         if (user === undefined) return;
         setPublicPage(1);
-        loadSetsPublic(1, sortOrder, searchQuery);
+        loadSetsPublic(1, sortOrder, searchQuery, selectedCategories);
         if (user?.isGuest === false) {
             setMyPage(1);
             loadSets(1, searchQuery);
@@ -920,7 +947,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     // Public sets: page navigation
     useEffect(() => {
         if (user === undefined) return;
-        loadSetsPublic(publicPage, sortOrder, searchQuery);
+        loadSetsPublic(publicPage, sortOrder, searchQuery, selectedCategories);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [publicPage]);
 
@@ -980,11 +1007,12 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
         } catch { setError("Network error"); } finally { setLoadingMy(false); }
     };
 
-    const loadSetsPublic = async (page, sort, search) => {
+    const loadSetsPublic = async (page, sort, search, categories) => {
         setLoadingPublic(true); setError(null);
         try {
             const headers = { "Content-Type": "application/json" };
             const params = new URLSearchParams({ page, pageSize: PAGE_SIZE, sort: sort || "most-popular", search: search || "" });
+            (categories || []).forEach(c => params.append("categories", c));
             const res = await apiFetch(`/player/set/public?${params}`, {
                 method: "GET", headers,
             });
@@ -1192,6 +1220,22 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                         <option value="liked">My Liked Sets</option>
                                     )}
                                 </select>
+                                {CATEGORIES.map(cat => {
+                                    const active = selectedCategories.includes(cat.value);
+                                    return (
+                                        <button
+                                            key={cat.value}
+                                            type="button"
+                                            className={`category-chip${active ? " category-chip--active" : ""}`}
+                                            aria-pressed={active}
+                                            onClick={() => setSelectedCategories(prev =>
+                                                prev.includes(cat.value) ? prev.filter(c => c !== cat.value) : [...prev, cat.value]
+                                            )}
+                                        >
+                                            {cat.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         )}
 
@@ -1285,6 +1329,12 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                                         {set.isPublic ? "Public" : "Private"}
                                                     </span>
                                                 )}
+                                                {setView === "public" && (set.categories ?? []).map(catValue => {
+                                                    const cat = CATEGORIES.find(c => c.value === catValue);
+                                                    return cat ? (
+                                                        <span key={catValue} className="set-card__badge">{cat.label}</span>
+                                                    ) : null;
+                                                })}
                                                 <span className="set-card__like-btn" style={{ cursor: "default", color: "var(--text-400)" }} title="Times played">
                                                     <Play size={12} strokeWidth={2} />
                                                     {set.playCount ?? 0}
