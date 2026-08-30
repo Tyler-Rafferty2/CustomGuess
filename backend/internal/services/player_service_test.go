@@ -25,3 +25,10 @@ func TestValidateCategories_EmptyIsValid(t *testing.T) {
         t.Fatalf("expected empty categories to be valid, got %v", err)
     }
 }
+
+func TestSetListParams_EmptyCategoriesIsZeroValue(t *testing.T) {
+    var p SetListParams
+    if len(p.Categories) != 0 {
+        t.Fatalf("expected zero-value SetListParams to have no categories, got %v", p.Categories)
+    }
+}

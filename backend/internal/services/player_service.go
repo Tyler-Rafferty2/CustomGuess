@@ -25,10 +25,11 @@ type CharacterSetResponse struct {
 }
 
 type SetListParams struct {
-    Page     int    // 1-indexed
-    PageSize int
-    Sort     string // "most-popular" | "most-liked" | "newest" | "liked"
-    Search   string
+    Page       int    // 1-indexed
+    PageSize   int
+    Sort       string // "most-popular" | "most-liked" | "newest" | "liked"
+    Search     string
+    Categories []string
 }
 
 type SetListResult struct {
@@ -379,6 +380,10 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
     if params.Search != "" {
         like := "%" + strings.ToLower(params.Search) + "%"
         base = base.Where("LOWER(character_sets.name) LIKE ? OR LOWER(character_sets.description) LIKE ?", like, like)
+    }
+
+    if len(params.Categories) > 0 {
+        base = base.Where("character_sets.id IN (SELECT set_id FROM set_categories WHERE category IN ?)", params.Categories)
     }
 
     if params.Sort == "liked" && callerID != nil {

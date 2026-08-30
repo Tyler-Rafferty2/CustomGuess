@@ -124,11 +124,21 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
 
     minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
 
+    rawCategories := r.Form["categories[]"]
+    categories := make([]models.Category, 0, len(rawCategories))
+    for _, c := range rawCategories {
+        categories = append(categories, models.Category(c))
+    }
+
     // Call the service
-    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL, minCharacters, nil)
+    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL, minCharacters, categories)
     if err != nil {
         if err.Error() == "set limit reached" {
             http.Error(w, "You have reached the maximum number of sets (100)", http.StatusForbidden)
+            return
+        }
+        if strings.HasPrefix(err.Error(), "invalid category") {
+            http.Error(w, err.Error(), http.StatusBadRequest)
             return
         }
         http.Error(w, "Failed to create set", http.StatusInternalServerError)
@@ -274,7 +284,14 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
         nameUpdates[kc.ID] = kc.Name
     }
     minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
-    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates, minCharacters, nil)
+
+    rawCategories := r.Form["categories[]"]
+    categories := make([]models.Category, 0, len(rawCategories))
+    for _, c := range rawCategories {
+        categories = append(categories, models.Category(c))
+    }
+
+    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates, minCharacters, categories)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
@@ -358,11 +375,13 @@ func (h *PlayerHandler) GetSetFromPublicHandler(w http.ResponseWriter, r *http.R
     if sort == "" {
         sort = "most-popular"
     }
+    categories := r.URL.Query()["categories"]
     params := services.SetListParams{
-        Page:     page,
-        PageSize: pageSize,
-        Sort:     sort,
-        Search:   r.URL.Query().Get("search"),
+        Page:       page,
+        PageSize:   pageSize,
+        Sort:       sort,
+        Search:     r.URL.Query().Get("search"),
+        Categories: categories,
     }
 
     result, err := h.Service.GetPublicSets(callerID, params)
