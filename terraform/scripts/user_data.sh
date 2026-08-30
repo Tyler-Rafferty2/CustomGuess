@@ -95,6 +95,7 @@ RestartSec=10
 ExecStartPre=/bin/bash -c 'aws ecr get-login-password --region ${aws_region} | docker login --username AWS --password-stdin ${ecr_url}'
 ExecStartPre=-/usr/bin/docker rm -f guesswho-backend
 ExecStart=/usr/bin/docker run --rm \\
+    --pull always \\
     --name guesswho-backend \\
     --env-file /opt/backend/.env \\
     --network guesswho-net \\
