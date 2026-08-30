@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from '@/lib/api';
+import { CATEGORIES } from "@/lib/categories";
 
 import { useState, useRef, useContext, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -41,8 +42,7 @@ function NewSetForm() {
     const [coverCropBox, setCoverCropBox] = useState({ x: 50, y: 50, width: 200, height: 200 });
     const [coverDragging, setCoverDragging] = useState(null);
     const [images, setImages] = useState([]);
-    const [tags, setTags] = useState([]);
-    const [tagInput, setTagInput] = useState("");
+    const [categories, setCategories] = useState([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
 
@@ -134,6 +134,7 @@ function NewSetForm() {
         formData.append("name", name.trim());
         formData.append("description", description);
         formData.append("public", publicOverride);
+        categories.forEach(c => formData.append("categories[]", c));
 
         if (coverFile) formData.append("coverImage", coverFile);
 
@@ -237,35 +238,36 @@ function NewSetForm() {
                                 <label style={label}>Description</label>
                                 <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" rows={3} style={{ ...input, height: "auto", resize: "none" }} />
                             </div>
-                            {/* TODO: Tags — add pre-launch
                             <div>
-                                <label style={label}>Tags</label>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 10px", background: T.surface0, border: `1px solid ${T.border}`, borderRadius: 6, minHeight: 40, alignItems: "center" }}>
-                                    {tags.map((tag, i) => (
-                                        <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", background: T.surface1, border: `1px solid ${T.border}`, borderRadius: 4, fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: T.text600 }}>
-                                            {tag}
-                                            <button onClick={() => setTags(tags.filter((_, j) => j !== i))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: T.text400, fontSize: 14 }}>×</button>
-                                        </span>
-                                    ))}
-                                    <input
-                                        value={tagInput}
-                                        onChange={e => setTagInput(e.target.value)}
-                                        onKeyDown={e => {
-                                            if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
-                                                e.preventDefault();
-                                                setTags(prev => [...prev, tagInput.trim()]);
-                                                setTagInput("");
-                                            } else if (e.key === "Backspace" && !tagInput && tags.length) {
-                                                setTags(tags.slice(0, -1));
-                                            }
-                                        }}
-                                        placeholder={tags.length === 0 ? "Add tags…" : ""}
-                                        style={{ border: "none", outline: "none", fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: T.text900, background: "transparent", flex: 1, minWidth: 80 }}
-                                    />
+                                <label style={label}>Categories</label>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                    {CATEGORIES.map(cat => {
+                                        const selected = categories.includes(cat.value);
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={cat.value}
+                                                onClick={() => setCategories(prev =>
+                                                    prev.includes(cat.value) ? prev.filter(c => c !== cat.value) : [...prev, cat.value]
+                                                )}
+                                                style={{
+                                                    padding: "4px 10px",
+                                                    borderRadius: 6,
+                                                    border: `1px solid ${selected ? T.accent : T.border}`,
+                                                    background: selected ? T.accent : T.surface0,
+                                                    color: selected ? "#fff" : T.text600,
+                                                    fontFamily: "'DM Sans', sans-serif",
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                {cat.label}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: T.text400, marginTop: 4, marginBottom: 0 }}>Press Enter or comma to add a tag</p>
                             </div>
-                            */}
                         </div>
                     </div>
                 </section>
