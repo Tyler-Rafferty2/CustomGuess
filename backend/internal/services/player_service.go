@@ -17,10 +17,11 @@ type PlayerService struct {
 
 type CharacterSetResponse struct {
     models.CharacterSet
-    LikeCount      int    `json:"likeCount"`
-    LikedByMe      bool   `json:"likedByMe"`
-    CreatorName    string `json:"creator"`
-    CharacterCount int    `json:"characterCount"`
+    LikeCount      int               `json:"likeCount"`
+    LikedByMe      bool              `json:"likedByMe"`
+    CreatorName    string            `json:"creator"`
+    CharacterCount int               `json:"characterCount"`
+    Categories     []models.Category `json:"categories"`
 }
 
 type SetListParams struct {
@@ -112,11 +113,25 @@ func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.U
         charCountMap[cc.SetID] = cc.Cnt
     }
 
+    // Batch fetch categories
+    var setCategories []models.SetCategory
+    s.DB.Model(&models.SetCategory{}).
+        Where("set_id IN ?", setIDs).
+        Find(&setCategories)
+    categoriesBySetID := make(map[uuid.UUID][]models.Category, len(setIDs))
+    for _, sc := range setCategories {
+        categoriesBySetID[sc.SetID] = append(categoriesBySetID[sc.SetID], sc.Category)
+    }
+
     result := make([]CharacterSetResponse, len(sets))
     for i, set := range sets {
         characterCount := charCountMap[set.ID]
         if len(set.Characters) > 0 {
             characterCount = len(set.Characters)
+        }
+        categories := categoriesBySetID[set.ID]
+        if categories == nil {
+            categories = []models.Category{}
         }
         result[i] = CharacterSetResponse{
             CharacterSet:   set,
@@ -124,6 +139,7 @@ func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.U
             LikedByMe:      likedMap[set.ID],
             CreatorName:    usernameMap[set.UserID],
             CharacterCount: characterCount,
+            Categories:     categories,
         }
     }
     return result
@@ -146,7 +162,7 @@ func (s *PlayerService) GetPlayers(user *models.User) ([]models.Player, error) {
 }
 
 //create a set
-func (s *PlayerService) CreateSet(user *models.User, name, description string, public bool, characters []models.Character, coverImage string, minCharacters int) (*models.CharacterSet, error) {
+func (s *PlayerService) CreateSet(user *models.User, name, description string, public bool, characters []models.Character, coverImage string, minCharacters int, categories []models.Category) (*models.CharacterSet, error) {
     var count int64
     if err := s.DB.Model(&models.CharacterSet{}).Where("user_id = ?", user.ID).Count(&count).Error; err != nil {
         return nil, fmt.Errorf("failed to check set count")
@@ -159,6 +175,9 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, p
     }
     if len(characters) > 150 {
         return nil, fmt.Errorf("a set can have at most 150 characters")
+    }
+    if err := validateCategories(categories); err != nil {
+        return nil, err
     }
     if minCharacters < 6 {
         minCharacters = 6
@@ -185,6 +204,12 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, p
 
     if err := s.DB.Create(set).Error; err != nil {
         return nil, err
+    }
+
+    for _, c := range categories {
+        if err := s.DB.Create(&models.SetCategory{SetID: set.ID, Category: c}).Error; err != nil {
+            return nil, err
+        }
     }
 
     return set, nil
@@ -252,13 +277,16 @@ func (s *PlayerService) GetSets(user *models.User, params SetListParams) (SetLis
     return SetListResult{Sets: s.attachLikes(sets, &user.ID), Total: total}, nil
 }
 
-func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character, nameUpdates map[uuid.UUID]string, minCharacters int) (*models.CharacterSet, error) {
+func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, description string, public bool, coverImage string, keepCharacterIDs []uuid.UUID, newCharacters []models.Character, nameUpdates map[uuid.UUID]string, minCharacters int, categories []models.Category) (*models.CharacterSet, error) {
     totalCount := len(keepCharacterIDs) + len(newCharacters)
     if totalCount < 6 {
         return nil, fmt.Errorf("a set must have at least 6 characters")
     }
     if totalCount > 150 {
         return nil, fmt.Errorf("a set can have at most 150 characters")
+    }
+    if err := validateCategories(categories); err != nil {
+        return nil, err
     }
     if minCharacters < 6 {
         minCharacters = 6
@@ -280,6 +308,15 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     }
     if err := s.DB.Save(&set).Error; err != nil {
         return nil, err
+    }
+
+    if err := s.DB.Where("set_id = ?", setID).Delete(&models.SetCategory{}).Error; err != nil {
+        return nil, err
+    }
+    for _, c := range categories {
+        if err := s.DB.Create(&models.SetCategory{SetID: setID, Category: c}).Error; err != nil {
+            return nil, err
+        }
     }
 
     // Delete characters not in the keep list
@@ -491,6 +528,15 @@ func (s *PlayerService) GetStats(user *models.User) (*StatsResponse, error) {
 }
 
 const reportThreshold = 5
+
+func validateCategories(categories []models.Category) error {
+    for _, c := range categories {
+        if !models.IsValidCategory(c) {
+            return fmt.Errorf("invalid category: %s", c)
+        }
+    }
+    return nil
+}
 
 func (s *PlayerService) ReportSet(reporterID uuid.UUID, setID uuid.UUID, reason models.ReportReason) error {
     switch reason {

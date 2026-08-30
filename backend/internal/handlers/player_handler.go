@@ -125,7 +125,7 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
     minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
 
     // Call the service
-    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL, minCharacters)
+    set, err := h.Service.CreateSet(user, name, description, public, characters, coverImageURL, minCharacters, nil)
     if err != nil {
         if err.Error() == "set limit reached" {
             http.Error(w, "You have reached the maximum number of sets (100)", http.StatusForbidden)
@@ -274,7 +274,7 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
         nameUpdates[kc.ID] = kc.Name
     }
     minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
-    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates, minCharacters)
+    set, err := h.Service.UpdateSet(user, setID, name, description, public, coverImageURL, keepIDs, newCharacters, nameUpdates, minCharacters, nil)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
         return
