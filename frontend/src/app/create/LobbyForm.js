@@ -2,7 +2,7 @@
 import { apiFetch } from '@/lib/api';
 import { CATEGORIES } from "@/lib/categories";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { imgUrl } from "@/lib/imgUrl";
 import { useRouter } from "next/navigation";
 import SetCover from '@/components/SetCover';
@@ -215,6 +215,8 @@ const DESIGN_TOKENS = `
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--s2);
   }
   .set-card__creator { font-size: var(--text-xs); color: var(--text-400); font-weight: 500; }
   .set-card__rating {
@@ -437,6 +439,7 @@ const DESIGN_TOKENS = `
     align-items: center;
     gap: var(--s2);
     margin-bottom: var(--s4);
+    flex-wrap: wrap;
   }
   .sort-select {
     height: 32px;
@@ -463,6 +466,7 @@ const DESIGN_TOKENS = `
     font-size: var(--text-xs);
     font-weight: 600;
     cursor: pointer;
+    flex-shrink: 0;
   }
   .category-chip--active {
     background: var(--accent);
@@ -901,6 +905,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [reportReason, setReportReason] = useState('');
     const [reportSubmitting, setReportSubmitting] = useState(false);
     const [reportedSetIds, setReportedSetIds] = useState(new Set());
+    const categoriesInitialMount = useRef(true);
 
     // Debounce searchDraft → searchQuery
     useEffect(() => {
@@ -926,6 +931,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
 
     // Public sets: category filter change → reset to page 1
     useEffect(() => {
+        if (categoriesInitialMount.current) { categoriesInitialMount.current = false; return; }
         if (user === undefined) return;
         setPublicPage(1);
         loadSetsPublic(1, sortOrder, searchQuery, selectedCategories);

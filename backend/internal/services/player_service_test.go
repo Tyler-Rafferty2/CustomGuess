@@ -46,3 +46,38 @@ func TestGetPublicSets_RejectsUnknownCategory(t *testing.T) {
         t.Fatal("expected error for unknown category in public set listing")
     }
 }
+
+// dedupeCategories must strip repeated values while preserving first-seen
+// order, since CreateSet/UpdateSet insert one SetCategory row per entry into
+// a table keyed on (set_id, category) — a duplicate value would otherwise
+// violate that composite primary key mid-insert.
+func TestDedupeCategories(t *testing.T) {
+    in := []models.Category{models.CategoryAnime, models.CategoryAnime, models.CategorySports}
+    got := dedupeCategories(in)
+    want := []models.Category{models.CategoryAnime, models.CategorySports}
+    if len(got) != len(want) {
+        t.Fatalf("expected %v, got %v", want, got)
+    }
+    for i := range want {
+        if got[i] != want[i] {
+            t.Fatalf("expected %v, got %v", want, got)
+        }
+    }
+}
+
+func TestDedupeCategories_EmptyAndNil(t *testing.T) {
+    if got := dedupeCategories(nil); len(got) != 0 {
+        t.Fatalf("expected empty slice for nil input, got %v", got)
+    }
+    if got := dedupeCategories([]models.Category{}); len(got) != 0 {
+        t.Fatalf("expected empty slice for empty input, got %v", got)
+    }
+}
+
+func TestDedupeCategories_NoDuplicatesUnchanged(t *testing.T) {
+    in := []models.Category{models.CategorySports, models.CategoryAnime}
+    got := dedupeCategories(in)
+    if len(got) != 2 || got[0] != models.CategorySports || got[1] != models.CategoryAnime {
+        t.Fatalf("expected order preserved, got %v", got)
+    }
+}

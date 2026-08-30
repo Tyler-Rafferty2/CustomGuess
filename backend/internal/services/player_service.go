@@ -180,6 +180,7 @@ func (s *PlayerService) CreateSet(user *models.User, name, description string, p
     if err := validateCategories(categories); err != nil {
         return nil, err
     }
+    categories = dedupeCategories(categories)
     if minCharacters < 6 {
         minCharacters = 6
     }
@@ -289,6 +290,7 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     if err := validateCategories(categories); err != nil {
         return nil, err
     }
+    categories = dedupeCategories(categories)
     if minCharacters < 6 {
         minCharacters = 6
     }
@@ -551,6 +553,21 @@ func validateCategories(categories []models.Category) error {
         }
     }
     return nil
+}
+
+// dedupeCategories removes duplicate category values, preserving the order
+// in which each category first appears.
+func dedupeCategories(categories []models.Category) []models.Category {
+    seen := make(map[models.Category]bool, len(categories))
+    result := make([]models.Category, 0, len(categories))
+    for _, c := range categories {
+        if seen[c] {
+            continue
+        }
+        seen[c] = true
+        result = append(result, c)
+    }
+    return result
 }
 
 func (s *PlayerService) ReportSet(reporterID uuid.UUID, setID uuid.UUID, reason models.ReportReason) error {
