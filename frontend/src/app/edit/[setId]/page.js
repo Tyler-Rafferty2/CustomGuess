@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from '@/lib/api';
+import { CATEGORIES } from "@/lib/categories";
 
 import { useState, useEffect, useContext, useRef, Suspense } from "react";
 import { imgUrl } from "@/lib/imgUrl";
@@ -44,6 +45,7 @@ function EditSetForm() {
     // Metadata
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
+    const [categories, setCategories] = useState([]);
     const [isPublic, setIsPublic] = useState(false);
     const [coverPreview, setCoverPreview] = useState(null);
     const [coverFile, setCoverFile] = useState(null);
@@ -91,6 +93,7 @@ function EditSetForm() {
                 setSet(found);
                 setName(found.name ?? "");
                 setDescription(found.description ?? "");
+                setCategories(found.categories ?? []);
                 setIsPublic(found.public ?? false);
                 setCoverPreview(found.coverImageName ? imgUrl(found.coverImageName) : null);
                 setExistingChars((found.characters ?? []).map(c => ({ id: c.id, name: c.name, image: c.image })));
@@ -318,6 +321,7 @@ function EditSetForm() {
         formData.append("name", name.trim());
         formData.append("description", description);
         formData.append("public", isPublic);
+        categories.forEach(c => formData.append("categories[]", c));
         if (coverFile) formData.append("coverImage", coverFile);
 
         const toKeep = existingChars.filter(c => !c.croppedFile);
@@ -453,6 +457,36 @@ function EditSetForm() {
                             <div>
                                 <label style={label}>Description</label>
                                 <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description" rows={3} style={{ ...input, height: "auto", resize: "none" }} />
+                            </div>
+                            <div>
+                                <label style={label}>Categories</label>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                    {CATEGORIES.map(cat => {
+                                        const selected = categories.includes(cat.value);
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={cat.value}
+                                                onClick={() => setCategories(prev =>
+                                                    prev.includes(cat.value) ? prev.filter(c => c !== cat.value) : [...prev, cat.value]
+                                                )}
+                                                style={{
+                                                    padding: "4px 10px",
+                                                    borderRadius: 6,
+                                                    border: `1px solid ${selected ? T.accent : T.border}`,
+                                                    background: selected ? T.accent : T.surface0,
+                                                    color: selected ? "#fff" : T.text600,
+                                                    fontFamily: "'DM Sans', sans-serif",
+                                                    fontSize: 12,
+                                                    fontWeight: 600,
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                {cat.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
                     </div>
