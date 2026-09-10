@@ -9,6 +9,7 @@ services:
       - "3080:3000"
     environment:
       - NODE_ENV=development
+      - INTERNAL_API_URL=http://backend:8080
     volumes:
       - ./frontend:/app
       - node_modules_cache:/app/node_modules
@@ -23,6 +24,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       - DB_HOST=aws-1-us-east-1.pooler.supabase.com
       - DB_PORT=5432

@@ -5,10 +5,10 @@ export default function Footer() {
     <>
       <style>{`
         @media (max-width: 768px) {
-          .site-footer { margin-bottom: calc(56px + env(safe-area-inset-bottom)); padding: 12px 12px !important; }
-          .site-footer .footer-links { gap: 12px !important; flex-wrap: nowrap !important; }
+          .site-footer { margin-bottom: calc(56px + env(safe-area-inset-bottom)); padding: 12px 12px !important; flex-direction: column !important; align-items: flex-start !important; }
+          .site-footer .footer-links { gap: 8px 12px !important; flex-wrap: wrap !important; }
           .site-footer .footer-link { font-size: 10px !important; }
-          .site-footer .footer-copy { font-size: 10px !important; white-space: nowrap; }
+          .site-footer .footer-copy { font-size: 10px !important; white-space: normal !important; }
           .footer-support { display: none !important; }
         }
       `}</style>
@@ -23,6 +23,15 @@ export default function Footer() {
         fontFamily: "'DM Sans', sans-serif",
       }}>
       <div className="footer-links" style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+        <Link href="/gallery" className="footer-link" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
+          Browse Sets
+        </Link>
+        <Link href="/how-to-play" className="footer-link" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
+          How to Play
+        </Link>
+        <Link href="/about" className="footer-link" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
+          About
+        </Link>
         <Link href="/terms" className="footer-link" style={{ fontSize: 12, color: "#A0937F", textDecoration: "none" }}>
           Terms
         </Link>

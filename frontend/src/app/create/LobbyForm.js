@@ -11,7 +11,9 @@ import Navbar from "@/components/navbar";
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 // ─── Design Token Injection ───────────────────────────────────────────────────
-const DESIGN_TOKENS = `
+// Exported so CreateGameModal (used outside this page, e.g. from the gallery)
+// can reuse the exact same button/toggle/char-picker styles.
+export const DESIGN_TOKENS = `
   :root {
     --bg:             #F7F3EE;
     --surface-0:      #FFFFFF;

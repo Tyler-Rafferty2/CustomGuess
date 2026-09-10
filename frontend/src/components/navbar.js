@@ -4,7 +4,7 @@ import { apiFetch } from '@/lib/api';
 import { useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
-import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User, Swords } from "lucide-react";
+import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User, Swords, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import useMediaQuery from '@mui/material/useMediaQuery';
 
@@ -30,6 +30,7 @@ const T = {
 
 const NAV_ITEMS = [
     { label: "Home", href: "/", Icon: Home },
+    { label: "Browse Sets", href: "/gallery", Icon: LayoutGrid },
     { label: "Create Lobby", href: "/create", Icon: PlusSquare },
     { label: "Lobbies", href: "/lobby", Icon: Users },
 ];
@@ -659,9 +660,10 @@ function LeaveModal({ open, onCancel, onConfirm }) {
 
 function BottomTabBar({ pathname, onNavigate }) {
     const tabs = [
-        { label: "Home",   href: "/",       Icon: Home },
-        { label: "Create", href: "/create", Icon: PlusSquare },
-        { label: "Browse", href: "/lobby",  Icon: Users },
+        { label: "Home",   href: "/",        Icon: Home },
+        { label: "Sets",   href: "/gallery", Icon: LayoutGrid },
+        { label: "Create", href: "/create",  Icon: PlusSquare },
+        { label: "Browse", href: "/lobby",   Icon: Users },
     ];
     return (
         <nav style={{

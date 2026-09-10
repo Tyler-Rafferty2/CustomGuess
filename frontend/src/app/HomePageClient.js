@@ -1,5 +1,6 @@
 "use client";
 import { apiFetch } from '@/lib/api';
+import Link from "next/link";
 
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
@@ -225,10 +226,10 @@ export default function HomePageClient() {
         }
 
         @media (max-width: 768px) {
-          html, body { overflow: hidden; }
-          .home-root { height: 100vh; height: 100dvh; min-height: 0 !important; overflow: hidden; }
+          .home-root { min-height: 100vh; min-height: 100dvh; }
           .home-main { padding: 24px 20px !important; }
-          .seo-section { display: none; }
+          .seo-section { padding: 32px 20px !important; }
+          .seo-grid { grid-template-columns: 1fr !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -350,7 +351,7 @@ export default function HomePageClient() {
 
         </div>
       </main>
-      {/* SEO content — hidden on mobile (overflow locked), visible on desktop */}
+      {/* SEO content — real, crawlable content describing the game */}
       <section className="seo-section" style={{
         background: T.surface1,
         borderTop: `1px solid ${T.border}`,
@@ -371,7 +372,7 @@ export default function HomePageClient() {
             CustomGuess is a free online version of custom Guess Who that lets you play with your own photos and characters. Create a game, pick a secret character, and challenge a friend to find yours using only yes/no questions, just like the classic board game, but fully customizable.
           </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          <div className="seo-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
             <div>
               <h3 style={{
                 fontFamily: "'DM Sans', sans-serif",
@@ -402,6 +403,23 @@ export default function HomePageClient() {
                 No app, no account required. Play custom Guess Who directly in your browser with real-time multiplayer. One player creates the game, shares a code, and both players are live in seconds.
               </p>
             </div>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginTop: 28 }}>
+            <Link href="/how-to-play" style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 14, fontWeight: 600, color: T.accent,
+              textDecoration: "none",
+            }}>
+              Read the full rules and strategy tips →
+            </Link>
+            <Link href="/gallery" style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 14, fontWeight: 600, color: T.accent,
+              textDecoration: "none",
+            }}>
+              Browse community character sets →
+            </Link>
           </div>
         </div>
       </section>
