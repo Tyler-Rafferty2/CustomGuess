@@ -56,7 +56,18 @@ func (s *AnalyticsService) TrackEvent(name string, data map[string]any) {
 			return
 		}
 
-		resp, err := s.client.Post(s.baseURL+"/api/send", "application/json", bytes.NewReader(body))
+		req, err := http.NewRequest(http.MethodPost, s.baseURL+"/api/send", bytes.NewReader(body))
+		if err != nil {
+			log.Printf("warn: analytics event %q request build failed: %v", name, err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		// Umami's isbot-based bot filter discards events from Go's default
+		// "Go-http-client" User-Agent (silently returns 200 {"beep":"boop"}),
+		// so spoof a browser UA to get server-side events actually recorded.
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36")
+
+		resp, err := s.client.Do(req)
 		if err != nil {
 			log.Printf("warn: analytics event %q send failed: %v", name, err)
 			return
