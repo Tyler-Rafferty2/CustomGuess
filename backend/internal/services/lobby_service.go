@@ -16,14 +16,16 @@ import (
 )
 
 type LobbyService struct {
-    DB  *gorm.DB
-    Hub *Hub 
+    DB        *gorm.DB
+    Hub       *Hub
+    Analytics *AnalyticsService
 }
 
 func NewLobbyService(db *gorm.DB, hub *Hub) *LobbyService {
     return &LobbyService{
-        DB:  db,
-        Hub: hub,
+        DB:        db,
+        Hub:       hub,
+        Analytics: NewAnalyticsService(),
     }
 }
 
@@ -246,6 +248,8 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
     lobby.TurnID = &player.ID
     s.DB.Save(lobby)
 
+    s.Analytics.TrackEvent("lobby_created", map[string]any{"private": private})
+
     return lobby, nil
 }
 
@@ -317,6 +321,9 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
         s.Hub.InvalidateLobbyStatics(lobby.ID.String())
     }
     s.broadcastLobbyUpdate(lobby.ID.String())
+
+    s.Analytics.TrackEvent("lobby_joined", nil)
+
     return &lobby, nil
 }
 
@@ -490,6 +497,7 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
                 s.DB.Model(&models.CharacterSet{}).
                     Where("id = ?", lobby.CharacterSetID).
                     UpdateColumn("play_count", gorm.Expr("play_count + 1"))
+                s.Analytics.TrackEvent("game_started", nil)
             }
             // Start turn timer for first player if enabled
             if s.Hub != nil && lobby.TurnTimerSeconds > 0 && lobby.TurnID != nil {
@@ -1157,6 +1165,8 @@ func (s *LobbyService) writeGameRecords(lobby *models.Lobby, players []models.Pl
 
     now := *lobby.GameOverAt
 
+    s.Analytics.TrackEvent("game_finished", map[string]any{"isForfeit": isForfeit})
+
     var durationSeconds *int
     if lobby.GameStartedAt != nil {
         d := int(now.Sub(*lobby.GameStartedAt).Seconds())
@@ -1218,4 +1228,34 @@ func (s *LobbyService) writeGameRecords(lobby *models.Lobby, players []models.Pl
             log.Printf("warn: failed to write GameRecord for user %s: %v", p.UserID, err)
         }
     }
+}
+
+func (s *LobbyService) SubmitFeedback(user *models.User, lobbyID uuid.UUID, rating int, comment string) error {
+    if rating < 1 || rating > 5 {
+        return errors.New("rating must be between 1 and 5")
+    }
+
+    var lobby models.Lobby
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return err
+    }
+
+    inLobby := false
+    for _, p := range lobby.Players {
+        if p.UserID == user.ID || p.GuestID == user.ID {
+            inLobby = true
+            break
+        }
+    }
+    if !inLobby {
+        return errors.New("player not found in lobby")
+    }
+
+    return s.DB.Create(&models.GameFeedback{
+        ID:      uuid.New(),
+        LobbyID: lobbyID,
+        UserID:  user.ID,
+        Rating:  rating,
+        Comment: comment,
+    }).Error
 }

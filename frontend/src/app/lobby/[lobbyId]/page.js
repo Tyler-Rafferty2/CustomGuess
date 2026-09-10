@@ -11,7 +11,7 @@ import ChatApp from '@/components/chatapp';
 import Navbar from "@/components/navbar";
 import GameSend from '@/components/gameSend';
 import SetCover from '@/components/SetCover';
-import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare } from "lucide-react";
+import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 import Grid from '@mui/material/Grid';
@@ -278,6 +278,15 @@ export default function LobbyPage() {
     const disconnectIntervalRef = useRef(null);
     const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
     const [isLeavingGame, setIsLeavingGame] = useState(false);
+
+    // Post-game feedback state
+    const [feedbackRating, setFeedbackRating] = useState(0);
+    const [feedbackHoverRating, setFeedbackHoverRating] = useState(0);
+    const [feedbackComment, setFeedbackComment] = useState("");
+    const [feedbackShowComment, setFeedbackShowComment] = useState(false);
+    const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+    const [feedbackDone, setFeedbackDone] = useState(false);
+    const [feedbackDismissed, setFeedbackDismissed] = useState(false);
     const [answerToast, setAnswerToast] = useState(null);
     const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
     const isMobile = useMediaQuery('(max-width: 768px)');
@@ -384,6 +393,23 @@ export default function LobbyPage() {
             setSentRematchSetName(null);
         } catch (err) {
             // console.error("Cancel rematch error:", err);
+        }
+    };
+
+    const submitFeedback = async () => {
+        if (feedbackRating < 1) return;
+        setFeedbackSubmitting(true);
+        try {
+            await apiFetch(`/lobby/${lobbyID}/feedback`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rating: feedbackRating, comment: feedbackComment.trim() }),
+            });
+            setFeedbackDone(true);
+        } catch (err) {
+            // console.error("Submit feedback error:", err);
+        } finally {
+            setFeedbackSubmitting(false);
         }
     };
 
@@ -1039,6 +1065,73 @@ export default function LobbyPage() {
                                 <span className="gw-label" style={{ marginTop: 2, display: 'block' }}>Time Played</span>
                             </div>
                         </div>
+
+                        {/* Feedback */}
+                        {!feedbackDismissed && (
+                            <div className="gw-card" style={{ padding: 'var(--s4)', marginBottom: 'var(--s4)' }}>
+                                {feedbackDone ? (
+                                    <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: 'var(--text-600)', textAlign: 'center', margin: 0 }}>
+                                        Thanks for the feedback!
+                                    </p>
+                                ) : (
+                                    <>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--s3)' }}>
+                                            <span className="gw-label">How was that game?</span>
+                                            <button
+                                                onClick={() => setFeedbackDismissed(true)}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex', color: 'var(--text-400)' }}
+                                                aria-label="Dismiss feedback"
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 'var(--s2)', justifyContent: 'center', marginBottom: feedbackShowComment ? 'var(--s3)' : 0 }}>
+                                            {[1, 2, 3, 4, 5].map((n) => (
+                                                <button
+                                                    key={n}
+                                                    onClick={() => { setFeedbackRating(n); setFeedbackShowComment(true); }}
+                                                    onMouseEnter={() => setFeedbackHoverRating(n)}
+                                                    onMouseLeave={() => setFeedbackHoverRating(0)}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, display: 'flex' }}
+                                                    aria-label={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                                                >
+                                                    <Star
+                                                        size={28}
+                                                        color={(feedbackHoverRating || feedbackRating) >= n ? 'var(--accent)' : 'var(--border-strong)'}
+                                                        fill={(feedbackHoverRating || feedbackRating) >= n ? 'var(--accent)' : 'none'}
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {feedbackShowComment && (
+                                            <>
+                                                <textarea
+                                                    value={feedbackComment}
+                                                    onChange={(e) => setFeedbackComment(e.target.value)}
+                                                    placeholder="Anything you'd like to add? (optional)"
+                                                    rows={2}
+                                                    maxLength={500}
+                                                    style={{
+                                                        width: '100%', resize: 'vertical', fontFamily: "'DM Sans', sans-serif", fontSize: 13,
+                                                        color: 'var(--text-900)', background: 'var(--surface-1)', border: '1px solid var(--border)',
+                                                        borderRadius: 'var(--r)', padding: 'var(--s2) var(--s3)', marginBottom: 'var(--s3)', boxSizing: 'border-box',
+                                                    }}
+                                                />
+                                                <button
+                                                    className="gw-btn-primary"
+                                                    style={{ width: '100%', height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--s2)' }}
+                                                    onClick={submitFeedback}
+                                                    disabled={feedbackSubmitting}
+                                                >
+                                                    {feedbackSubmitting && <Loader2 size={14} style={{ animation: 'gw-spin 1s linear infinite' }} />}
+                                                    {feedbackSubmitting ? 'Submitting…' : 'Submit Feedback'}
+                                                </button>
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
 
                         {/* Actions */}
                         {rematchDeclinedToast && (

@@ -345,3 +345,35 @@ func (h *LobbyHandler) ForfeitHandler(w http.ResponseWriter, r *http.Request) {
 
     json.NewEncoder(w).Encode(lobby)
 }
+
+// POST /lobby/{lobbyID}/feedback
+func (h *LobbyHandler) SubmitFeedbackHandler(w http.ResponseWriter, r *http.Request) {
+    user := middleware.GetUserFromContext(r)
+
+    lobbyID, err := uuid.Parse(chi.URLParam(r, "lobbyID"))
+    if err != nil {
+        http.Error(w, "invalid lobbyID", http.StatusBadRequest)
+        return
+    }
+
+    var req struct {
+        Rating  int    `json:"rating"`
+        Comment string `json:"comment"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    if err := h.Service.SubmitFeedback(user, lobbyID, req.Rating, req.Comment); err != nil {
+        switch err.Error() {
+        case "rating must be between 1 and 5", "player not found in lobby":
+            http.Error(w, err.Error(), http.StatusBadRequest)
+        default:
+            http.Error(w, "failed to submit feedback", http.StatusInternalServerError)
+        }
+        return
+    }
+
+    w.WriteHeader(http.StatusNoContent)
+}

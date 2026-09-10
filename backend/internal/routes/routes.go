@@ -91,6 +91,7 @@ func MountRoutes(r chi.Router) {
 			r.Post("/{lobbyID}/rematch", lobbyHandler.RequestRematchHandler)
 			r.Post("/{lobbyID}/rematch/accept", lobbyHandler.AcceptRematchHandler)
 			r.Post("/{lobbyID}/rematch/decline", lobbyHandler.DeclineRematchHandler)
+			r.Post("/{lobbyID}/feedback", lobbyHandler.SubmitFeedbackHandler)
 
 			r.With(middleware.StrictRateLimitMiddleware).Post("/move", lobbyHandler.MakeMoveHandler)
 			r.With(middleware.StrictRateLimitMiddleware).Post("/guess", lobbyHandler.GuessLobbyHandler)
