@@ -10,6 +10,12 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
+variable "ami_id" {
+  description = "Amazon Linux 2023 AMI id, pinned deliberately (not a `most_recent` lookup) so applies don't force-replace the running instance. Update this on purpose to roll to a newer image."
+  type        = string
+  default     = "ami-02b3d83d84b07786d"
+}
+
 variable "key_name" {
   description = "Name of an existing EC2 key pair for SSH access"
   type        = string

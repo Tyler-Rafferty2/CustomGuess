@@ -11,22 +11,11 @@ data "aws_subnets" "default" {
   }
 }
 
-# ── Latest Amazon Linux 2023 AMI ───────────────────────────────
-
-data "aws_ami" "amazon_linux_2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-2023.*-x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-}
+# ── Amazon Linux 2023 AMI ───────────────────────────────────────
+# Pinned via var.ami_id (see variables.tf) instead of `most_recent = true` —
+# a floating "latest" lookup forces an instance replace (destroying the
+# running containers + analytics DB volume) every time AWS publishes a new
+# AMI. Bump var.ami_id deliberately when you want to roll to a new image.
 
 # ── Security Group ─────────────────────────────────────────────
 
@@ -147,10 +136,45 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2.name
 }
 
+# ── IAM: CI user for GitHub Actions to push to ECR ─────────────
+
+resource "aws_iam_user" "ci_deploy" {
+  name = "guesswho-ci-deploy"
+}
+
+resource "aws_iam_user_policy" "ci_deploy_ecr_push" {
+  name = "guesswho-ci-ecr-push"
+  user = aws_iam_user.ci_deploy.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "ecr:GetAuthorizationToken"
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+        ]
+        Resource = aws_ecr_repository.backend.arn
+      }
+    ]
+  })
+}
+
 # ── EC2 Instance ───────────────────────────────────────────────
 
 resource "aws_instance" "backend" {
-  ami                    = data.aws_ami.amazon_linux_2023.id
+  ami                    = var.ami_id
   instance_type          = var.instance_type
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.backend.id]

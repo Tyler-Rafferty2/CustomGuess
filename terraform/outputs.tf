@@ -8,6 +8,11 @@ output "ecr_repository_url" {
   value       = aws_ecr_repository.backend.repository_url
 }
 
+output "ci_deploy_iam_user" {
+  description = "IAM user for GitHub Actions — generate an access key for this user and add it to repo secrets"
+  value       = aws_iam_user.ci_deploy.name
+}
+
 output "ssh_command" {
   description = "SSH command to connect to the instance"
   value       = "ssh -i ~/.ssh/${var.key_name}.pem ec2-user@${aws_eip.backend.public_ip}"
