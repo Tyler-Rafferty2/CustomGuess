@@ -8,6 +8,7 @@ import SetCover from "@/components/SetCover";
 import { CATEGORIES } from "@/lib/categories";
 import { imgUrl } from "@/lib/imgUrl";
 import PlaySetButton from "./PlaySetButton";
+import ShareSetButton from "./ShareSetButton";
 
 async function fetchSet(id) {
   const res = await fetch(`${SERVER_API_URL}/player/set/public/${id}`, { next: { revalidate: 3600 } });
@@ -117,7 +118,10 @@ export default async function SetGalleryPage({ params }) {
           </p>
         )}
 
-        <PlaySetButton set={set} />
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s3)" }}>
+          <PlaySetButton set={set} />
+          <ShareSetButton set={set} />
+        </div>
 
         {(set.characters || []).length > 0 && (
           <Section title={`Characters in ${set.name}`}>

@@ -11,8 +11,10 @@ import ChatApp from '@/components/chatapp';
 import Navbar from "@/components/navbar";
 import GameSend from '@/components/gameSend';
 import SetCover from '@/components/SetCover';
-import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X } from "lucide-react";
+import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
+import ShareModal from "@/components/ShareModal";
+import { buildGameShareContent } from "@/lib/shareMessage";
 
 import Grid from '@mui/material/Grid';
 import Paper from '@mui/material/Paper';
@@ -278,6 +280,7 @@ export default function LobbyPage() {
     const disconnectIntervalRef = useRef(null);
     const [opponentLeftAfterGame, setOpponentLeftAfterGame] = useState(false);
     const [isLeavingGame, setIsLeavingGame] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
 
     // Post-game feedback state
     const [feedbackRating, setFeedbackRating] = useState(0);
@@ -959,6 +962,12 @@ export default function LobbyPage() {
         const isWinner = currentPlayer?.id === lobby.winner;
         const myChar = gameState?.secretCharacter;
         const opponentChar = gameState?.opponentCharacter;
+        const shareContent = buildGameShareContent({
+            characterSet: lobby.characterSet,
+            isWinner,
+            questionCount: questionLog.length,
+            siteOrigin: typeof window !== "undefined" ? window.location.origin : "",
+        });
 
         let timePlayed = null;
         if (lobby.createdAt && lobby.gameOverAt) {
@@ -1173,7 +1182,26 @@ export default function LobbyPage() {
                                 {isLeavingGame && <Loader2 size={15} style={{ animation: 'gw-spin 1s linear infinite' }} />}
                                 {isLeavingGame ? 'Leaving…' : 'Back to Home'}
                             </button>
+                            <button
+                                className="gw-btn-ghost"
+                                style={{ flex: 1, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--s2)' }}
+                                onClick={() => setShareModalOpen(true)}
+                            >
+                                <Share2 size={15} color="var(--text-900)" />
+                                Share
+                            </button>
                         </div>
+
+                        {shareModalOpen && (
+                            <ShareModal
+                                open={shareModalOpen}
+                                onClose={() => setShareModalOpen(false)}
+                                url={shareContent.url}
+                                title={lobby.characterSet?.name ?? "CustomGuess"}
+                                message={shareContent.message}
+                                eventContext="postgame"
+                            />
+                        )}
 
                         {/* Rematch set picker modal */}
                         {rematchModalOpen && (
