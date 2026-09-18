@@ -32,7 +32,11 @@ func MountRoutes(r chi.Router) {
 	chatHub.TurnExpiredHandler = lobbyService.ForfeitByPlayerID
 
 	wsHandler := handlers.NewWebSocketHandler(chatHub, lobbyService)
-	playerService := services.NewPlayerService(config.DB)
+	var setCache services.SetCache
+	if config.Redis != nil {
+		setCache = services.NewRedisSetCache(config.Redis)
+	}
+	playerService := services.NewPlayerService(config.DB, setCache)
 	gameStateService := services.NewGameStateService(config.DB)
 
 	// Create handler structs
@@ -132,7 +136,7 @@ func MountRoutes(r chi.Router) {
 
 	r.Get("/ws", wsHandler.HandleWebSocket)
 
-	adminHandler := &handlers.AdminHandler{DB: config.DB}
+	adminHandler := &handlers.AdminHandler{DB: config.DB, Cache: setCache, Redis: config.Redis}
 	r.With(middleware.AdminMiddleware).Get("/admin-ui", adminHandler.ServeUI)
 	r.Route("/admin", func(r chi.Router) {
 		r.Use(middleware.AdminMiddleware)

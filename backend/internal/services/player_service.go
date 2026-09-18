@@ -3,6 +3,8 @@ package services
 import (
     "errors"
     "fmt"
+    "sort"
+    "strconv"
     "strings"
     "time"
 
@@ -12,7 +14,8 @@ import (
 )
 
 type PlayerService struct {
-    DB *gorm.DB
+    DB    *gorm.DB
+    Cache SetCache
 }
 
 type CharacterSetResponse struct {
@@ -146,8 +149,35 @@ func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.U
     return result
 }
 
-func NewPlayerService(db *gorm.DB) *PlayerService {
-    return &PlayerService{DB: db}
+func NewPlayerService(db *gorm.DB, cache SetCache) *PlayerService {
+    return &PlayerService{DB: db, Cache: cache}
+}
+
+// getCachedPublicSet returns a cached public set, stripped of any stored
+// LikedByMe value (the cache is shared across viewers, so a cached like
+// status could otherwise leak between callers). A nil Cache is always a miss.
+func (s *PlayerService) getCachedPublicSet(setID uuid.UUID) (CharacterSetResponse, bool) {
+    if s.Cache == nil {
+        return CharacterSetResponse{}, false
+    }
+    cached, ok := s.Cache.GetSet(setID)
+    if !ok {
+        return CharacterSetResponse{}, false
+    }
+    resp := *cached
+    resp.LikedByMe = false
+    return resp, true
+}
+
+// cachePublicSet stores a set's response for reuse by other viewers. Private
+// sets (visible only via the owner-preview path) are never cached, since a
+// cache hit has no per-viewer access check.
+func (s *PlayerService) cachePublicSet(setID uuid.UUID, resp CharacterSetResponse) {
+    if s.Cache == nil || !resp.Public {
+        return
+    }
+    resp.LikedByMe = false
+    s.Cache.SetSet(setID, resp)
 }
 
 // Get all players by user
@@ -234,6 +264,13 @@ func (s *PlayerService) GetSetByID(user *models.User, setID uuid.UUID) (*Charact
 // fetching any set that's public, so guests and other users can preview sets
 // they don't own from the public gallery.
 func (s *PlayerService) GetPublicSetByID(callerID *uuid.UUID, setID uuid.UUID) (*CharacterSetResponse, error) {
+    if cached, ok := s.getCachedPublicSet(setID); ok {
+        if callerID != nil {
+            cached.LikedByMe = s.isSetLikedByUser(setID, *callerID)
+        }
+        return &cached, nil
+    }
+
     var set models.CharacterSet
     query := s.DB.Preload("Characters")
     if callerID != nil {
@@ -244,8 +281,15 @@ func (s *PlayerService) GetPublicSetByID(callerID *uuid.UUID, setID uuid.UUID) (
     if err := query.First(&set).Error; err != nil {
         return nil, fmt.Errorf("set not found: %w", err)
     }
-    results := s.attachLikes([]models.CharacterSet{set}, callerID)
-    return &results[0], nil
+    resp := s.attachLikes([]models.CharacterSet{set}, callerID)[0]
+    s.cachePublicSet(setID, resp)
+    return &resp, nil
+}
+
+func (s *PlayerService) isSetLikedByUser(setID, userID uuid.UUID) bool {
+    var count int64
+    s.DB.Model(&models.SetLike{}).Where("set_id = ? AND user_id = ?", setID, userID).Count(&count)
+    return count > 0
 }
 
 func (s *PlayerService) GetSets(user *models.User, params SetListParams) (SetListResult, error) {
@@ -353,6 +397,9 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     if err := s.DB.Preload("Characters").First(&set, "id = ?", setID).Error; err != nil {
         return nil, err
     }
+    if s.Cache != nil {
+        s.Cache.InvalidateSet(setID)
+    }
     return &set, nil
 }
 
@@ -363,6 +410,9 @@ func (s *PlayerService) DeleteSet(user *models.User, setID uuid.UUID) error {
     }
     if result.RowsAffected == 0 {
         return fmt.Errorf("set not found or not owned by user")
+    }
+    if s.Cache != nil {
+        s.Cache.InvalidateSet(setID)
     }
     return nil
 }
@@ -383,6 +433,13 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
         if err := validateCategories(categoryFilter); err != nil {
             return SetListResult{}, err
         }
+    }
+
+    if cached, ok := s.getCachedList(params); ok {
+        if callerID != nil {
+            s.refillLikedByMe(*callerID, cached.Sets)
+        }
+        return cached, nil
     }
 
     base := s.DB.Model(&models.CharacterSet{}).
@@ -430,7 +487,79 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
         return SetListResult{}, fmt.Errorf("failed to get character sets: %w", err)
     }
 
-    return SetListResult{Sets: s.attachLikes(sets, callerID), Total: total}, nil
+    result := SetListResult{Sets: s.attachLikes(sets, callerID), Total: total}
+    s.cacheList(params, result)
+    return result, nil
+}
+
+// buildListCacheKey derives a stable cache key from the params that affect a
+// public listing's contents. Categories are sorted first so equivalent
+// requests submitted in a different order share a cache entry.
+func buildListCacheKey(params SetListParams) string {
+    categories := append([]string(nil), params.Categories...)
+    sort.Strings(categories)
+    return "sets:list:" + strconv.Itoa(params.Page) + ":" + strconv.Itoa(params.PageSize) + ":" +
+        params.Sort + ":" + strings.Join(categories, ",")
+}
+
+// isListCacheable excludes queries whose results are either caller-specific
+// (sort=liked returns only sets the caller liked) or effectively unique
+// (a search term), since caching either wastes Redis memory or leaks data
+// between callers.
+func isListCacheable(params SetListParams) bool {
+    return params.Search == "" && params.Sort != "liked"
+}
+
+// getCachedList returns a cached listing with any stored LikedByMe values
+// stripped (the cache is shared across viewers, so a stored like status
+// could otherwise leak between callers). A nil Cache is always a miss.
+func (s *PlayerService) getCachedList(params SetListParams) (SetListResult, bool) {
+    if s.Cache == nil || !isListCacheable(params) {
+        return SetListResult{}, false
+    }
+    cached, ok := s.Cache.GetList(buildListCacheKey(params))
+    if !ok {
+        return SetListResult{}, false
+    }
+    result := *cached
+    for i := range result.Sets {
+        result.Sets[i].LikedByMe = false
+    }
+    return result, true
+}
+
+func (s *PlayerService) cacheList(params SetListParams, result SetListResult) {
+    if s.Cache == nil || !isListCacheable(params) {
+        return
+    }
+    for i := range result.Sets {
+        result.Sets[i].LikedByMe = false
+    }
+    s.Cache.SetList(buildListCacheKey(params), result)
+}
+
+// refillLikedByMe fills in LikedByMe for a caller on a batch of sets that
+// came from the cache (and so have it stripped), mirroring the DB-path
+// behavior of attachLikes without needing every other field cached per-user.
+func (s *PlayerService) refillLikedByMe(callerID uuid.UUID, sets []CharacterSetResponse) {
+    if len(sets) == 0 {
+        return
+    }
+    setIDs := make([]uuid.UUID, len(sets))
+    for i, set := range sets {
+        setIDs[i] = set.ID
+    }
+    var likedIDs []uuid.UUID
+    s.DB.Model(&models.SetLike{}).
+        Where("user_id = ? AND set_id IN ?", callerID, setIDs).
+        Pluck("set_id", &likedIDs)
+    liked := make(map[uuid.UUID]bool, len(likedIDs))
+    for _, id := range likedIDs {
+        liked[id] = true
+    }
+    for i := range sets {
+        sets[i].LikedByMe = liked[sets[i].ID]
+    }
 }
 
 func (s *PlayerService) ToggleLike(userID, setID uuid.UUID) (likeCount int, likedByMe bool, err error) {
@@ -454,6 +583,9 @@ func (s *PlayerService) ToggleLike(userID, setID uuid.UUID) (likeCount int, like
         likeCount = int(count)
         return nil
     })
+    if err == nil && s.Cache != nil {
+        s.Cache.InvalidateSet(setID)
+    }
     return
 }
 

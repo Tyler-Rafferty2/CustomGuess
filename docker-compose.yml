@@ -43,6 +43,14 @@ services:
       - ADMIN_TOKEN=${ADMIN_TOKEN}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3080}
       - UMAMI_URL=http://umami:3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    restart: unless-stopped
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
     restart: unless-stopped
 
   umami-db:

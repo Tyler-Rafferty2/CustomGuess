@@ -12,7 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/tyler-rafferty2/GuessWho/internal/models"
+	"github.com/tyler-rafferty2/GuessWho/internal/services"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +22,9 @@ import (
 var adminHTML string
 
 type AdminHandler struct {
-	DB *gorm.DB
+	DB    *gorm.DB
+	Cache services.SetCache
+	Redis *redis.Client
 }
 
 func (h *AdminHandler) writeJSON(w http.ResponseWriter, status int, v any) {
@@ -60,7 +64,7 @@ func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	h.DB.Model(&models.CharacterSet{}).Where("public = true").Count(&publicSets)
 	h.DB.Model(&models.SetReport{}).Count(&totalReports)
 
-	h.writeJSON(w, http.StatusOK, map[string]int64{
+	stats := map[string]any{
 		"total_users":           registeredUsers + guestUsers,
 		"registered_users":      registeredUsers,
 		"guest_users":           guestUsers,
@@ -71,7 +75,16 @@ func (h *AdminHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 		"total_character_sets":  totalSets,
 		"public_character_sets": publicSets,
 		"total_reports":         totalReports,
-	})
+	}
+
+	if h.Redis != nil {
+		hits, misses, rate := services.CacheHitRate(h.Redis)
+		stats["set_cache_hits"] = hits
+		stats["set_cache_misses"] = misses
+		stats["set_cache_hit_rate"] = rate
+	}
+
+	h.writeJSON(w, http.StatusOK, stats)
 }
 
 // GET /admin/users?page=1&limit=50
@@ -290,6 +303,9 @@ func (h *AdminHandler) DeleteSet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.DB.Delete(&models.CharacterSet{}, uid)
+	if h.Cache != nil {
+		h.Cache.InvalidateSet(uid)
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -352,5 +368,8 @@ func (h *AdminHandler) ClearReports(w http.ResponseWriter, r *http.Request) {
 	}
 	h.DB.Where("set_id = ?", uid).Delete(&models.SetReport{})
 	h.DB.Model(&models.CharacterSet{}).Where("id = ?", uid).Update("report_count", 0)
+	if h.Cache != nil {
+		h.Cache.InvalidateSet(uid)
+	}
 	h.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
