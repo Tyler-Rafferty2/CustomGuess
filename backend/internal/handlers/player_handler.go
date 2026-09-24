@@ -17,6 +17,7 @@ import (
 
     "github.com/aws/aws-sdk-go-v2/aws"
     "github.com/aws/aws-sdk-go-v2/service/s3"
+    "golang.org/x/sync/errgroup"
     "github.com/tyler-rafferty2/GuessWho/internal/config"
     "github.com/tyler-rafferty2/GuessWho/internal/services"
     "github.com/tyler-rafferty2/GuessWho/internal/middleware"
@@ -82,18 +83,16 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
 
     // Handle cover image
     var coverImageURL string
+    var uploads []uploadJob
     coverFile, coverHeader, err := r.FormFile("coverImage")
     if err == nil {
         defer coverFile.Close()
-        coverImageURL, err = saveFile(coverFile, coverHeader.Filename)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
-            return
-        }
+        uploads = append(uploads, uploadJob{file: coverFile, filename: coverHeader.Filename, dest: &coverImageURL})
     }
 
     // Handle characters
     characters := []models.Character{}
+    var charFiles []indexedFile
     for i := 0; ; i++ {
         log.Println("Processing character", i)
 
@@ -109,7 +108,7 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
         var imageURL string
         if err == nil {
             defer file.Close()
-            imageURL, err = saveFile(file, header.Filename)
+            charFiles = append(charFiles, indexedFile{index: i, file: file, filename: header.Filename})
         } else {
             // fallback: maybe Base64 string
             log.Println("No file uploaded for", err, "checking for Base64 string")
@@ -120,6 +119,15 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
             Name: truncate(charName, 28),
             Image: imageURL,
         })
+    }
+
+    // Upload cover + character images to R2 concurrently
+    for _, cf := range charFiles {
+        uploads = append(uploads, uploadJob{file: cf.file, filename: cf.filename, dest: &characters[cf.index].Image})
+    }
+    if err := uploadImages(r.Context(), uploads); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
     }
 
     minCharacters, _ := strconv.Atoi(r.FormValue("minCharacters"))
@@ -157,8 +165,48 @@ func truncate(s string, max int) string {
     return s
 }
 
+// maxConcurrentUploads caps parallel R2 uploads per request. saveFile buffers
+// each image in memory, so this also bounds per-request memory use.
+const maxConcurrentUploads = 8
+
+// uploadJob is one image to upload; the resulting public URL is written to dest.
+type uploadJob struct {
+    file     multipart.File
+    filename string
+    dest     *string
+}
+
+// indexedFile is a character image waiting to be uploaded. index points into
+// the characters slice, since pointers into it aren't stable until it's fully built.
+type indexedFile struct {
+    index    int
+    file     multipart.File
+    filename string
+}
+
+// uploadImages uploads all jobs to R2 concurrently. If any upload fails, the
+// remaining uploads are cancelled and the first error is returned.
+func uploadImages(ctx context.Context, jobs []uploadJob) error {
+    g, ctx := errgroup.WithContext(ctx)
+    g.SetLimit(maxConcurrentUploads)
+    for _, job := range jobs {
+        g.Go(func() error {
+            if err := ctx.Err(); err != nil {
+                return err
+            }
+            url, err := saveFile(ctx, job.file, job.filename)
+            if err != nil {
+                return err
+            }
+            *job.dest = url
+            return nil
+        })
+    }
+    return g.Wait()
+}
+
 // Helper func — uploads to Cloudflare R2 and returns the public URL
-func saveFile(file multipart.File, originalFilename string) (string, error) {
+func saveFile(ctx context.Context, file multipart.File, originalFilename string) (string, error) {
     ext := strings.ToLower(filepath.Ext(originalFilename))
 
     allowedExts := map[string]bool{
@@ -183,7 +231,7 @@ func saveFile(file multipart.File, originalFilename string) (string, error) {
 
     filename := uuid.New().String() + ext
 
-    _, err = config.R2Client.PutObject(context.Background(), &s3.PutObjectInput{
+    _, err = config.R2Client.PutObject(ctx, &s3.PutObjectInput{
         Bucket:        aws.String(config.R2Bucket),
         Key:           aws.String(filename),
         Body:          bytes.NewReader(data),
@@ -228,14 +276,11 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
     public, _ := strconv.ParseBool(publicStr)
 
     var coverImageURL string
+    var uploads []uploadJob
     coverFile, coverHeader, err := r.FormFile("coverImage")
     if err == nil {
         defer coverFile.Close()
-        coverImageURL, err = saveFile(coverFile, coverHeader.Filename)
-        if err != nil {
-            http.Error(w, err.Error(), http.StatusBadRequest)
-            return
-        }
+        uploads = append(uploads, uploadJob{file: coverFile, filename: coverHeader.Filename, dest: &coverImageURL})
     }
 
     // Parse keep characters (id + updated name)
@@ -262,6 +307,7 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
 
     // Parse new characters
     var newCharacters []models.Character
+    var charFiles []indexedFile
     for i := 0; ; i++ {
         charName := r.FormValue(fmt.Sprintf("newCharacters[%d][name]", i))
         if charName == "" {
@@ -272,11 +318,20 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
         var imageURL string
         if err == nil {
             defer file.Close()
-            imageURL, _ = saveFile(file, header.Filename)
+            charFiles = append(charFiles, indexedFile{index: i, file: file, filename: header.Filename})
         } else {
             imageURL = r.FormValue(charImageKey)
         }
         newCharacters = append(newCharacters, models.Character{Name: truncate(charName, 28), Image: imageURL})
+    }
+
+    // Upload cover + new character images to R2 concurrently
+    for _, cf := range charFiles {
+        uploads = append(uploads, uploadJob{file: cf.file, filename: cf.filename, dest: &newCharacters[cf.index].Image})
+    }
+    if err := uploadImages(r.Context(), uploads); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
     }
 
     nameUpdates := make(map[uuid.UUID]string)
