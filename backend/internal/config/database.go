@@ -47,7 +47,7 @@ func ConnectDB() {
     sqlDB.SetConnMaxLifetime(5 * time.Minute)
 
     // Auto migrate your models
-    err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{}, &models.Character{}, &models.LobbyCharacter{}, &models.User{}, &models.StoredMessage{}, &models.GameRecord{}, &models.SetLike{}, &models.Session{}, &models.SetReport{}, &models.SetCategory{}, &models.GameFeedback{})
+    err = db.AutoMigrate(&models.Lobby{}, &models.Player{}, &models.GameState{}, &models.CharacterSet{}, &models.Character{}, &models.LobbyCharacter{}, &models.User{}, &models.StoredMessage{}, &models.GameRecord{}, &models.SetLike{}, &models.Session{}, &models.SetReport{}, &models.SetCategory{}, &models.GameFeedback{}, &models.PollVote{})
     if err != nil {
         log.Fatal("Failed to migrate database:", err)
     }

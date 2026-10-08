@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import Navbar from "../components/navbar";
 import Footer from "../components/footer";
+import FeaturePoll from "../components/FeaturePoll";
 import { useContext, useState } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
@@ -218,6 +219,7 @@ export default function HomePageClient() {
         @media (max-width: 1024px) {
           .board-col { display: none !important; }
           .content-col { max-width: 520px !important; }
+          .home-row { flex-direction: column; align-items: center !important; gap: 32px !important; }
         }
 
         @media (max-width: 640px) {
@@ -244,9 +246,10 @@ export default function HomePageClient() {
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "48px 24px",
       }}>
-        <div style={{
+        <div className="home-row" style={{
           width: "100%", margin: "0 auto",
-          display: "flex", justifyContent: "center",
+          display: "flex", justifyContent: "center", alignItems: "center",
+          gap: 48,
         }}>
 
           {/* RIGHT — Actions */}
@@ -348,6 +351,8 @@ export default function HomePageClient() {
             <div style={{ height: 1, background: T.border }} />
 
           </div>
+
+          <FeaturePoll />
 
         </div>
       </main>
