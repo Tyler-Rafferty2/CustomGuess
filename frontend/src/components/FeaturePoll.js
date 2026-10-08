@@ -116,10 +116,10 @@ export default function FeaturePoll() {
     >
       <style>{`
         .feature-poll {
-          width: 100%; max-width: 360px;
+          width: 100%; max-width: 320px;
           background: ${T.surface0}; border: 1px solid ${T.border};
-          border-radius: 6px; padding: 24px;
-          display: flex; flex-direction: column; gap: 16px;
+          border-radius: 6px; padding: 20px;
+          display: flex; flex-direction: column; gap: 12px;
         }
         .feature-poll__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .feature-poll__eyebrow {
@@ -140,10 +140,10 @@ export default function FeaturePoll() {
         .feature-poll__close:hover { color: ${T.text900}; background: ${T.surface1}; }
         .feature-poll__close:focus-visible { outline: 2px solid ${T.accent}; outline-offset: 2px; }
 
-        .feature-poll__options { display: flex; flex-direction: column; gap: 8px; border: none; }
+        .feature-poll__options { display: flex; flex-direction: column; gap: 6px; border: none; }
         .feature-poll__option {
           display: flex; gap: 12px; align-items: flex-start;
-          min-height: 44px; padding: 12px;
+          min-height: 44px; padding: 8px 12px;
           background: ${T.surface0}; border: 1px solid ${T.border}; border-radius: 6px;
           cursor: pointer; transition: border-color 150ms, background 150ms;
         }
@@ -162,10 +162,10 @@ export default function FeaturePoll() {
           content: ""; width: 8px; height: 8px; border-radius: 50%; background: ${T.accent};
         }
         .feature-poll__label { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; color: ${T.text900}; }
-        .feature-poll__desc { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; line-height: 1.5; color: ${T.text600}; margin-top: 2px; }
+        .feature-poll__desc { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; line-height: 1.5; color: ${T.text600}; margin-top: 0; }
 
         .feature-poll__comment {
-          width: 100%; height: 72px; padding: 12px; resize: none;
+          width: 100%; height: 56px; padding: 8px 12px; resize: none;
           background: ${T.surface0}; border: 1px solid ${T.border}; border-radius: 6px;
           font-family: 'DM Sans', sans-serif; font-size: 14px; line-height: 1.6; color: ${T.text900};
           outline: none; transition: border-color 150ms;
@@ -253,7 +253,7 @@ export default function FeaturePoll() {
             style={{
               gridArea: "1 / 1",
               visibility: mode === "vote" ? "visible" : "hidden",
-              display: "flex", flexDirection: "column", gap: 12,
+              display: "flex", flexDirection: "column", gap: 8,
             }}
           >
             <fieldset className="feature-poll__options">
@@ -316,7 +316,7 @@ export default function FeaturePoll() {
               style={{
                 gridArea: "1 / 1",
                 visibility: mode === "results" ? "visible" : "hidden",
-                display: "flex", flexDirection: "column", gap: 12,
+                display: "flex", flexDirection: "column", gap: 10,
               }}
             >
               {poll.options.map((o) => {
