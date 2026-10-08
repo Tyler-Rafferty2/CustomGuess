@@ -165,7 +165,7 @@ export default function FeaturePoll() {
         .feature-poll__desc { font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500; line-height: 1.5; color: ${T.text600}; margin-top: 2px; }
 
         .feature-poll__comment {
-          width: 100%; min-height: 72px; padding: 12px; resize: vertical;
+          width: 100%; height: 72px; padding: 12px; resize: none;
           background: ${T.surface0}; border: 1px solid ${T.border}; border-radius: 6px;
           font-family: 'DM Sans', sans-serif; font-size: 14px; line-height: 1.6; color: ${T.text900};
           outline: none; transition: border-color 150ms;
@@ -176,7 +176,7 @@ export default function FeaturePoll() {
           font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
           color: ${T.text400}; font-variant-numeric: tabular-nums;
         }
-        .feature-poll__error { font-family: 'DM Sans', sans-serif; font-size: 12px; color: ${T.stateOut}; }
+        .feature-poll__error { font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 1.5; color: ${T.stateOut}; }
 
         .feature-poll__submit {
           height: 44px; padding: 0 24px; align-self: flex-end;
@@ -241,99 +241,122 @@ export default function FeaturePoll() {
         </>
       )}
 
-      {!isGuest && mode === "vote" && (
-        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <fieldset className="feature-poll__options">
-            <legend className="feature-poll__meta" style={{ marginBottom: 4 }}>Pick one</legend>
-            {poll.options.map((o) => {
-              const isSel = selected === o.key;
-              return (
-                <label key={o.key} className={`feature-poll__option${isSel ? " feature-poll__option--selected" : ""}`}>
-                  <input
-                    type="radio"
-                    name="feature-poll"
-                    value={o.key}
-                    checked={isSel}
-                    onChange={() => setSelected(o.key)}
-                    className="feature-poll__radio"
-                  />
-                  <span className="feature-poll__dot" aria-hidden="true" />
-                  <span>
-                    <span className="feature-poll__label" style={{ display: "block" }}>{o.label}</span>
-                    <span className="feature-poll__desc" style={{ display: "block" }}>{o.description}</span>
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
+      {!isGuest && (
+        /* Both views share one grid cell so the card is always as tall as the
+           taller view — switching vote/results never resizes it (which would
+           re-center and shift the hero beside it). */
+        <div style={{ display: "grid" }}>
+          <form
+            onSubmit={submit}
+            inert={mode !== "vote"}
+            aria-hidden={mode !== "vote"}
+            style={{
+              gridArea: "1 / 1",
+              visibility: mode === "vote" ? "visible" : "hidden",
+              display: "flex", flexDirection: "column", gap: 12,
+            }}
+          >
+            <fieldset className="feature-poll__options">
+              <legend className="feature-poll__meta" style={{ marginBottom: 4 }}>Pick one</legend>
+              {poll.options.map((o) => {
+                const isSel = selected === o.key;
+                return (
+                  <label key={o.key} className={`feature-poll__option${isSel ? " feature-poll__option--selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="feature-poll"
+                      value={o.key}
+                      checked={isSel}
+                      onChange={() => setSelected(o.key)}
+                      className="feature-poll__radio"
+                    />
+                    <span className="feature-poll__dot" aria-hidden="true" />
+                    <span>
+                      <span className="feature-poll__label" style={{ display: "block" }}>{o.label}</span>
+                      <span className="feature-poll__desc" style={{ display: "block" }}>{o.description}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
 
-          <div>
-            <textarea
-              className="feature-poll__comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value.slice(0, MAX_COMMENT))}
-              maxLength={MAX_COMMENT}
-              placeholder="Something else? Tell us (optional)"
-              aria-label="Optional comment"
-            />
-            <div className="feature-poll__meta" style={{ textAlign: "right" }}>
-              {comment.length}/{MAX_COMMENT}
-            </div>
-          </div>
-
-          {error && <p className="feature-poll__error" role="alert">{error}</p>}
-
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            {hasVoted ? (
-              <button type="button" className="feature-poll__link" onClick={() => { setMode("results"); setError(""); }}>
-                Cancel
-              </button>
-            ) : <span />}
-            <button type="submit" className="feature-poll__submit" disabled={!selected || submitting}>
-              {submitting ? "Saving…" : hasVoted ? "Update vote" : "Vote"}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {!isGuest && mode === "results" && poll.results && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }} aria-live="polite">
-          {poll.options.map((o) => {
-            const pct = poll.results.percentages[o.key] ?? 0;
-            const mine = poll.myVote?.optionKey === o.key;
-            return (
-              <div key={o.key} className="feature-poll__result">
-                <div className={`feature-poll__result-row${mine ? " feature-poll__result-row--mine" : ""}`}>
-                  <span>{o.label}{mine && <span className="feature-poll__meta"> · your vote</span>}</span>
-                  <span className="feature-poll__pct">{pct}%</span>
-                </div>
-                <div className="feature-poll__track">
-                  <motion.div
-                    className={`feature-poll__bar${mine ? " feature-poll__bar--mine" : ""}`}
-                    initial={{ width: reduceMotion ? `${pct}%` : 0 }}
-                    animate={{ width: `${pct}%` }}
-                    transition={{ duration: reduceMotion ? 0 : 0.4, ease: EASE_OUT }}
-                  />
-                </div>
+            <div>
+              <textarea
+                className="feature-poll__comment"
+                value={comment}
+                onChange={(e) => setComment(e.target.value.slice(0, MAX_COMMENT))}
+                maxLength={MAX_COMMENT}
+                placeholder="Something else? Tell us (optional)"
+                aria-label="Optional comment"
+              />
+              {/* Error shares the counter's row so showing it doesn't add height */}
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span className="feature-poll__error" role="alert">{error}</span>
+                <span className="feature-poll__meta">{comment.length}/{MAX_COMMENT}</span>
               </div>
-            );
-          })}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-            <span className="feature-poll__meta">
-              Thanks for voting · {poll.results.total} {poll.results.total === 1 ? "vote" : "votes"}
-            </span>
-            <button
-              type="button"
-              className="feature-poll__link"
-              onClick={() => {
-                setSelected(poll.myVote?.optionKey ?? null);
-                setComment(poll.myVote?.comment ?? "");
-                setMode("vote");
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+              {hasVoted ? (
+                <button type="button" className="feature-poll__link" onClick={() => { setMode("results"); setError(""); }}>
+                  Cancel
+                </button>
+              ) : <span />}
+              <button type="submit" className="feature-poll__submit" disabled={!selected || submitting}>
+                {submitting ? "Saving…" : hasVoted ? "Update vote" : "Vote"}
+              </button>
+            </div>
+          </form>
+
+          {poll.results && (
+            <div
+              inert={mode !== "results"}
+              aria-hidden={mode !== "results"}
+              aria-live="polite"
+              style={{
+                gridArea: "1 / 1",
+                visibility: mode === "results" ? "visible" : "hidden",
+                display: "flex", flexDirection: "column", gap: 12,
               }}
             >
-              Change vote
-            </button>
-          </div>
+              {poll.options.map((o) => {
+                const pct = poll.results.percentages[o.key] ?? 0;
+                const mine = poll.myVote?.optionKey === o.key;
+                return (
+                  <div key={o.key} className="feature-poll__result">
+                    <div className={`feature-poll__result-row${mine ? " feature-poll__result-row--mine" : ""}`}>
+                      <span>{o.label}{mine && <span className="feature-poll__meta"> · your vote</span>}</span>
+                      <span className="feature-poll__pct">{pct}%</span>
+                    </div>
+                    <div className="feature-poll__track">
+                      <motion.div
+                        className={`feature-poll__bar${mine ? " feature-poll__bar--mine" : ""}`}
+                        initial={{ width: reduceMotion ? `${pct}%` : 0 }}
+                        animate={{ width: `${pct}%` }}
+                        transition={{ duration: reduceMotion ? 0 : 0.4, ease: EASE_OUT }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <span className="feature-poll__meta">
+                  Thanks for voting · {poll.results.total} {poll.results.total === 1 ? "vote" : "votes"}
+                </span>
+                <button
+                  type="button"
+                  className="feature-poll__link"
+                  onClick={() => {
+                    setSelected(poll.myVote?.optionKey ?? null);
+                    setComment(poll.myVote?.comment ?? "");
+                    setMode("vote");
+                  }}
+                >
+                  Change vote
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </motion.aside>
