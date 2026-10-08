@@ -423,6 +423,7 @@ body {
   <button class="nav-tab" data-section="users">Users</button>
   <button class="nav-tab" data-section="lobbies">Lobbies</button>
   <button class="nav-tab" data-section="content">Content</button>
+  <button class="nav-tab" data-section="poll">Poll</button>
 </nav>
 
 <main class="main">
@@ -517,6 +518,19 @@ body {
       <button class="btn btn-ghost" onclick="loadReports()">Refresh</button>
     </div>
     <div id="reports-list"></div>
+  </section>
+
+  <!-- Poll -->
+  <section id="section-poll" hidden>
+    <div class="section-header">
+      <div class="section-title" id="poll-title">Feature Poll</div>
+      <button class="btn btn-ghost" onclick="loadPoll()">Refresh</button>
+    </div>
+    <div class="stats-grid" id="poll-counts"></div>
+    <div class="section-header" style="margin-top:24px">
+      <div class="section-title">Comments</div>
+    </div>
+    <div id="poll-comments"></div>
   </section>
 
 </main>
@@ -851,6 +865,32 @@ function handleOverlayClick(e) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
+
+// ─── Poll ─────────────────────────────────────────────────────────────────────
+async function loadPoll() {
+  try {
+    const d = await apiFetch('/admin/poll');
+    document.getElementById('poll-title').textContent = `${d.question} (${d.total} votes)`;
+    document.getElementById('poll-counts').innerHTML = d.options.map(o => {
+      const pct = d.total ? Math.round(o.count * 100 / d.total) : 0;
+      return `<div class="stat-card"><div class="stat-label">${escHtml(o.label)}</div><div class="stat-value">${o.count} <span style="font-size:13px;color:var(--text-400)">${pct}%</span></div></div>`;
+    }).join('');
+    const labels = Object.fromEntries(d.options.map(o => [o.key, o.label]));
+    const container = document.getElementById('poll-comments');
+    if (!d.comments.length) {
+      container.innerHTML = '<div class="empty-state">No comments yet.</div>';
+      return;
+    }
+    container.innerHTML = d.comments.map(c => `
+      <div class="stat-card" style="margin-bottom:8px">
+        <div class="stat-label">${escHtml(c.username || 'unknown')} · ${escHtml(labels[c.optionKey] || c.optionKey)} · ${fmtDateTime(c.updatedAt)}</div>
+        <div style="margin-top:4px;white-space:pre-wrap">${escHtml(c.comment)}</div>
+      </div>`).join('');
+  } catch (e) {
+    showToast('Failed to load poll: ' + e.message, 'error');
+  }
+}
+sectionLoaders.poll = loadPoll;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadStats();

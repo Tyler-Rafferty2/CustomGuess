@@ -373,3 +373,62 @@ func (h *AdminHandler) ClearReports(w http.ResponseWriter, r *http.Request) {
 	}
 	h.writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
+
+// GET /admin/poll — vote counts and comments for the current homepage poll
+func (h *AdminHandler) GetPollResults(w http.ResponseWriter, r *http.Request) {
+	poll := services.CurrentPoll
+
+	var counts []struct {
+		OptionKey string
+		Count     int64
+	}
+	if err := h.DB.Model(&models.PollVote{}).
+		Select("option_key, COUNT(*) AS count").
+		Where("poll_id = ?", poll.ID).
+		Group("option_key").
+		Scan(&counts).Error; err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load counts"})
+		return
+	}
+	byKey := map[string]int64{}
+	for _, c := range counts {
+		byKey[c.OptionKey] = c.Count
+	}
+
+	type optionRow struct {
+		Key   string `json:"key"`
+		Label string `json:"label"`
+		Count int64  `json:"count"`
+	}
+	options := make([]optionRow, 0, len(poll.Options))
+	var total int64
+	for _, o := range poll.Options {
+		options = append(options, optionRow{Key: o.Key, Label: o.Label, Count: byKey[o.Key]})
+		total += byKey[o.Key]
+	}
+
+	type commentRow struct {
+		OptionKey string    `json:"optionKey"`
+		Comment   string    `json:"comment"`
+		Username  string    `json:"username"`
+		UpdatedAt time.Time `json:"updatedAt"`
+	}
+	comments := []commentRow{}
+	if err := h.DB.Table("poll_votes").
+		Select("poll_votes.option_key, poll_votes.comment, users.username, poll_votes.updated_at").
+		Joins("LEFT JOIN users ON users.id = poll_votes.user_id").
+		Where("poll_votes.poll_id = ? AND poll_votes.comment <> ''", poll.ID).
+		Order("poll_votes.updated_at DESC").
+		Scan(&comments).Error; err != nil {
+		h.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to load comments"})
+		return
+	}
+
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"pollId":   poll.ID,
+		"question": poll.Question,
+		"total":    total,
+		"options":  options,
+		"comments": comments,
+	})
+}

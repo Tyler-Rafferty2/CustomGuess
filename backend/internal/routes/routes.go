@@ -157,6 +157,7 @@ func MountRoutes(r chi.Router) {
 		r.Get("/reports", adminHandler.ListReports)
 		r.Delete("/sets/{id}", adminHandler.DeleteSet)
 		r.Post("/sets/{id}/clear-reports", adminHandler.ClearReports)
+		r.Get("/poll", adminHandler.GetPollResults)
 	})
 
 	umamiTarget := os.Getenv("UMAMI_URL")
