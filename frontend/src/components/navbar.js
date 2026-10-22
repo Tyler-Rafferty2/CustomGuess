@@ -4,6 +4,7 @@ import { apiFetch } from '@/lib/api';
 import { useContext, useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { UserContext } from "@/context/UserContext";
+import FriendsDropdown from "@/components/social/FriendsDropdown";
 import { LogOut, Settings, HelpCircle, Volume2, VolumeX, X, Home, PlusSquare, Users, ChevronDown, User, Swords, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -381,7 +382,7 @@ export default function Navbar() {
                         <Logo onClick={() => router.push("/")} />
                         {!isLoading && (
                             user && !user.isGuest
-                                ? makeUserDropdown(true)
+                                ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}><FriendsDropdown />{makeUserDropdown(true)}</div>
                                 : <GhostButton onClick={() => router.push("/signin")} label="Sign in" />
                         )}
                     </div>
@@ -458,7 +459,7 @@ export default function Navbar() {
                             )}
                             <div style={{ minWidth: 148, display: "flex", justifyContent: "flex-end" }}>
                                 {!isLoading && (user && !user.isGuest
-                                    ? makeUserDropdown(false)
+                                    ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}><FriendsDropdown />{makeUserDropdown(false)}</div>
                                     : (
                                         <div style={{ display: "flex", gap: 8 }}>
                                             <GhostButton onClick={() => router.push("/signin")} label="Sign in" />

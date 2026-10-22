@@ -24,16 +24,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
     environment:
-      - DB_HOST=aws-1-us-east-1.pooler.supabase.com
+      # Local Postgres (the "db" service below). To point at Supabase again, swap in:
+      #   DB_HOST=aws-1-us-east-1.pooler.supabase.com  DB_USER=postgres.dfikabshrqezrolrknxk
+      #   DB_PASSWORD=${DB_PASSWORD}  DB_NAME=postgres  DB_SSLMODE=require
+      # and re-add `dns: [8.8.8.8, 1.1.1.1]` (school wifi DNS can't resolve Supabase).
+      - DB_HOST=db
       - DB_PORT=5432
-      - DB_USER=postgres.dfikabshrqezrolrknxk
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=postgres
-      - DB_SSLMODE=require
+      - DB_USER=postgres
+      - DB_PASSWORD=example
+      - DB_NAME=mydb
+      - DB_SSLMODE=disable
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
       - APP_BASE_URL=${APP_BASE_URL:-http://localhost:3080}
@@ -47,7 +48,27 @@ services:
       - REDIS_PORT=6379
     restart: unless-stopped
     depends_on:
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=example
+      - POSTGRES_DB=mydb
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - app_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mydb"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -76,4 +97,5 @@ services:
 
 volumes:
   node_modules_cache:
+  app_db_data:
   umami_db_data:

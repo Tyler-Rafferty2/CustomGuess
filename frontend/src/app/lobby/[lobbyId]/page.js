@@ -14,6 +14,8 @@ import SetCover from '@/components/SetCover';
 import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 import ShareModal from "@/components/ShareModal";
+import EndGameAddFriend from "@/components/social/EndGameAddFriend";
+import LobbyInvitePanel from "@/components/social/LobbyInvitePanel";
 import { buildGameShareContent } from "@/lib/shareMessage";
 
 import Grid from '@mui/material/Grid';
@@ -1192,6 +1194,8 @@ export default function LobbyPage() {
                             </button>
                         </div>
 
+                        <EndGameAddFriend lobby={lobby} user={user} />
+
                         {shareModalOpen && (
                             <ShareModal
                                 open={shareModalOpen}
@@ -1405,6 +1409,9 @@ export default function LobbyPage() {
                                 {lobby?.code}
                             </p>
                         </div>
+                        {!user?.isGuest && lobby?.userId === user?.id && (
+                            <div style={{ marginTop: 'var(--s3)' }}><LobbyInvitePanel lobbyId={lobbyID} /></div>
+                        )}
                         <button
                             className="gw-btn-danger"
                             style={{ width: '100%', marginTop: 'var(--s3)', justifyContent: 'center' }}

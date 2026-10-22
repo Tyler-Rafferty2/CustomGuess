@@ -17,9 +17,17 @@ export function setGalleryPath(id, name) {
     return `/gallery/${base ? `${base}-${id}` : id}`;
 }
 
-// Extracts the set id (a UUID) from a /gallery/[slug] route param.
+// Builds the canonical /u/[slug] path for a user's public profile.
+export function userProfilePath(id, username) {
+    const base = slugify(username);
+    return `/u/${base ? `${base}-${id}` : id}`;
+}
+
+// Extracts the trailing UUID from a /gallery/[slug] or /u/[slug] route param.
 // The human-readable prefix is decorative and never trusted for lookups.
-export function parseSetIdFromSlug(slugParam) {
+export function parseIdFromSlug(slugParam) {
     const match = UUID_RE.exec(slugParam || "");
     return match ? match[0] : null;
 }
+
+export const parseSetIdFromSlug = parseIdFromSlug;
