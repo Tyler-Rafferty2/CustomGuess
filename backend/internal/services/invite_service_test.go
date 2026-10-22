@@ -132,19 +132,29 @@ func TestInvite_RecipientInGame_Rejected(t *testing.T) {
 	}
 }
 
-func TestInvite_LobbyNotPrivateOrNotCreator_Rejected(t *testing.T) {
+func TestInvite_NotCreatorOrNotWaiting_Rejected(t *testing.T) {
 	fx := newInviteFixture(time.Minute)
 	l := fx.lobbies.lobbies[fx.lobbyID]
-	l.Private = false
-	fx.lobbies.lobbies[fx.lobbyID] = l
-	if _, err := fx.svc.Send(fx.from, fx.to.ID, fx.lobbyID); !errors.Is(err, ErrInviteLobbyInvalid) {
-		t.Fatalf("public lobby: expected ErrInviteLobbyInvalid, got %v", err)
-	}
-	l.Private = true
 	l.CreatorUserID = uuid.New()
 	fx.lobbies.lobbies[fx.lobbyID] = l
 	if _, err := fx.svc.Send(fx.from, fx.to.ID, fx.lobbyID); !errors.Is(err, ErrInviteLobbyInvalid) {
 		t.Fatalf("not creator: expected ErrInviteLobbyInvalid, got %v", err)
+	}
+	l.CreatorUserID = fx.from.ID
+	l.PlayerCount = 2
+	fx.lobbies.lobbies[fx.lobbyID] = l
+	if _, err := fx.svc.Send(fx.from, fx.to.ID, fx.lobbyID); !errors.Is(err, ErrInviteLobbyInvalid) {
+		t.Fatalf("full lobby: expected ErrInviteLobbyInvalid, got %v", err)
+	}
+}
+
+func TestInvite_PublicLobbyAllowed(t *testing.T) {
+	fx := newInviteFixture(time.Minute)
+	l := fx.lobbies.lobbies[fx.lobbyID]
+	l.Private = false
+	fx.lobbies.lobbies[fx.lobbyID] = l
+	if _, err := fx.svc.Send(fx.from, fx.to.ID, fx.lobbyID); err != nil {
+		t.Fatalf("public waiting lobby should accept invites, got %v", err)
 	}
 }
 

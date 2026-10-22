@@ -15,7 +15,7 @@ const InviteTTL = 60 * time.Second
 var (
 	ErrNotFriends         = errors.New("you can only invite friends")
 	ErrFriendUnavailable  = errors.New("that friend isn't available right now")
-	ErrInviteLobbyInvalid = errors.New("invites need a private lobby you created that is still waiting for a player")
+	ErrInviteLobbyInvalid = errors.New("invites need a lobby you created that is still waiting for a player")
 	ErrInviteGone         = errors.New("this invite is no longer available")
 	ErrInGame             = errors.New("you're in a game")
 )
@@ -103,7 +103,9 @@ func (s *InviteService) Send(from *models.User, toUserID, lobbyID uuid.UUID) (*I
 		return nil, ErrFriendUnavailable
 	}
 	info, err := s.lobbies.InviteLobbyInfo(lobbyID)
-	if err != nil || info.CreatorUserID != from.ID || !info.Private || !info.joinable() {
+	// Public lobbies are allowed: the waiting-lobby panel invites into whatever lobby
+	// the user already made. Lobbies created *for* an invite are made private by the client.
+	if err != nil || info.CreatorUserID != from.ID || !info.joinable() {
 		return nil, ErrInviteLobbyInvalid
 	}
 

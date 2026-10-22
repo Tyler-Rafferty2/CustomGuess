@@ -891,6 +891,12 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
     const [selectedSet, setSelectedSet] = useState(null);
     const [selectSecret, setSelectSecret] = useState(false);
     const [isPrivate, setIsPrivate] = useState(false);
+    // /create?invite=<friendId>: the lobby is forced private and the invite is sent from the lobby page.
+    const [inviteTarget, setInviteTarget] = useState(null);
+    useEffect(() => {
+        const target = new URLSearchParams(window.location.search).get("invite");
+        if (target) { setInviteTarget(target); setIsPrivate(true); }
+    }, []);
 
     const [charSelectMode, setCharSelectMode] = useState('all'); // 'all' | 'random' | 'manual'
     const [randomCount, setRandomCount] = useState(null);
@@ -1093,7 +1099,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             const res = await apiFetch(`/lobby/create`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ setId: selectedSet.id, isPrivate, randomizeSecret, chatFeature, turnTimerSeconds, characterIds: getCharacterIds(), randomCount: charSelectMode === 'random' ? (randomCount ?? 0) : 0 }),
+                body: JSON.stringify({ setId: selectedSet.id, isPrivate: isPrivate || !!inviteTarget, randomizeSecret, chatFeature, turnTimerSeconds, characterIds: getCharacterIds(), randomCount: charSelectMode === 'random' ? (randomCount ?? 0) : 0 }),
             });
             const data = await res.json();
             if (res.status === 409) {
@@ -1103,7 +1109,7 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
             }
             if (!res.ok) { setError(data.error || "Something went wrong"); setIsCreating(false); return; }
             setLobby(data);
-            router.push(`/lobby/${data.id}`);
+            router.push(`/lobby/${data.id}${inviteTarget ? `?invite=${encodeURIComponent(inviteTarget)}` : ""}`);
         } catch { setError("Network error"); setIsCreating(false); }
     };
 
@@ -1667,14 +1673,15 @@ export default function CreateLobbyPage({ user, setError, setLobby, getPlayers, 
                                             : <Unlock size={16} className="toggle-row__icon" />
                                         }
                                         <div>
-                                            <div className="toggle-row__title">Private Lobby</div>
-                                            <div className="toggle-row__sub">Join with code or link only</div>
+                                            <div className="toggle-row__title">{inviteTarget ? "Private (invite)" : "Private Lobby"}</div>
+                                            <div className="toggle-row__sub">{inviteTarget ? "Invite lobbies are always private" : "Join with code or link only"}</div>
                                         </div>
                                     </div>
                                     <input
                                         id="is-private"
                                         type="checkbox"
-                                        checked={isPrivate}
+                                        checked={isPrivate || !!inviteTarget}
+                                        disabled={!!inviteTarget}
                                         onChange={(e) => setIsPrivate(e.target.checked)}
                                     />
                                 </label>

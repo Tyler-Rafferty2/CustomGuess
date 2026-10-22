@@ -15,6 +15,7 @@ import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X, S
 import { motion } from "framer-motion";
 import ShareModal from "@/components/ShareModal";
 import EndGameAddFriend from "@/components/social/EndGameAddFriend";
+import LobbyInvitePanel from "@/components/social/LobbyInvitePanel";
 import { buildGameShareContent } from "@/lib/shareMessage";
 
 import Grid from '@mui/material/Grid';
@@ -1397,6 +1398,7 @@ export default function LobbyPage() {
                                 </button>
                             </div>
                         </div>
+                        {!user?.isGuest && lobby?.userId === user?.id && <LobbyInvitePanel lobbyId={lobbyID} />}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', margin: 'var(--s6) 0' }}>
                             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                             <span className="gw-label">or join with code</span>
