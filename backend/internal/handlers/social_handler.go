@@ -85,3 +85,17 @@ func (h *SocialHandler) FollowFeedHandler(w http.ResponseWriter, r *http.Request
 	}
 	writeSocialJSON(w, feed)
 }
+
+// GET /profiles/{id}
+func (h *SocialHandler) GetProfileHandler(w http.ResponseWriter, r *http.Request) {
+	id, ok := uuidParam(w, r, "id")
+	if !ok {
+		return
+	}
+	profile, err := h.Profiles.Get(middleware.GetUserFromContext(r), id)
+	if err != nil {
+		writeSocialError(w, err)
+		return
+	}
+	writeSocialJSON(w, profile)
+}

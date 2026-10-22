@@ -39,6 +39,9 @@ func MountRoutes(r chi.Router) {
 	playerService := services.NewPlayerService(config.DB, setCache)
 	gameStateService := services.NewGameStateService(config.DB)
 	pollService := services.NewPollService(config.DB)
+	friendService := services.NewFriendService(config.DB)
+	followService := services.NewFollowService(config.DB, playerService)
+	profileService := &services.ProfileService{DB: config.DB, Friends: friendService, Follows: followService, Players: playerService}
 
 	// Create handler structs
 	userHandler := &handlers.UserHandler{Service: userService, SessionService: sessionService}
@@ -48,6 +51,7 @@ func MountRoutes(r chi.Router) {
 	playerHandler := &handlers.PlayerHandler{Service: playerService}
 	gameStateHandler := &handlers.GameStateHandler{Service: gameStateService}
 	pollHandler := &handlers.PollHandler{Service: pollService}
+	socialHandler := &handlers.SocialHandler{Follows: followService, Friends: friendService, Profiles: profileService}
 
 	userMiddleware := middleware.NewUserMiddleware(sessionService)
 
@@ -138,6 +142,15 @@ func MountRoutes(r chi.Router) {
 		r.Use(userMiddleware)
 		r.Get("/", pollHandler.GetPollHandler)
 		r.With(middleware.StrictRateLimitMiddleware).Post("/vote", pollHandler.VoteHandler)
+	})
+
+	r.With(optionalUserMiddleware).Get("/profiles/{id}", socialHandler.GetProfileHandler)
+
+	r.Route("/follows", func(r chi.Router) {
+		r.Use(userMiddleware)
+		r.Get("/", socialHandler.FollowFeedHandler)
+		r.Post("/{id}", socialHandler.FollowHandler)
+		r.Delete("/{id}", socialHandler.UnfollowHandler)
 	})
 
 	r.Post("/contact", contactHandler.SendContactHandler)
