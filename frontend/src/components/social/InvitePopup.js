@@ -7,7 +7,7 @@ import { SOCIAL_STYLES, initials } from "./socialStyles";
 
 const secondsLeft = (expiresAt) => Math.max(0, Math.min(60, Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 1000)));
 
-// Non-blocking invite card pinned to the bottom of the viewport.
+// Non-blocking invite card pinned to the top-right corner of the viewport.
 // Steps: "invite" → (optionally) "confirmLeave" → navigate; or "gone" if the invite died.
 export default function InvitePopup({ invite, onDone }) {
     const router = useRouter();
@@ -69,9 +69,9 @@ export default function InvitePopup({ invite, onDone }) {
     const motionProps = reduceMotion
         ? { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 }, transition: { duration: 0.15 } }
         : {
-            initial: { opacity: 0, y: 16 },
-            animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0, 0, 0.2, 1] } },
-            exit: { opacity: 0, y: 16, transition: { duration: 0.25, ease: [0.4, 0, 1, 1] } },
+            initial: { opacity: 0, x: 16 },
+            animate: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0, 0, 0.2, 1] } },
+            exit: { opacity: 0, x: 16, transition: { duration: 0.25, ease: [0.4, 0, 1, 1] } },
         };
 
     return (
@@ -83,8 +83,9 @@ export default function InvitePopup({ invite, onDone }) {
                 aria-describedby="invite-desc"
                 {...motionProps}
                 style={{
-                    position: "fixed", left: "50%", bottom: "var(--s5)", translateX: "-50%", zIndex: 400,
-                    width: "min(400px, calc(100vw - 32px))",
+                    // Top-right, just under the 56px navbar; on phones it spans the width with 16px gutters.
+                    position: "fixed", top: 72, right: 16, zIndex: 400,
+                    width: "min(380px, calc(100vw - 32px))",
                     background: "var(--surface-0)", border: "1px solid var(--border)", borderLeft: "3px solid var(--accent)",
                     borderRadius: "var(--r)", padding: "var(--s4)",
                     fontFamily: "'DM Sans', sans-serif",
