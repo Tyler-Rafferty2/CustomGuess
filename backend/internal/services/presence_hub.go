@@ -64,11 +64,10 @@ func (p *PresenceHub) Register(userID uuid.UUID, send chan PresenceEvent) (unreg
 	}
 	first := len(set) == 0
 	set[send] = struct{}{}
-	status := p.statusLocked(userID)
 	p.mu.Unlock()
 
 	if first {
-		p.notifyFriends(userID, status)
+		p.notifyFriends(userID)
 	}
 
 	var once sync.Once
@@ -82,7 +81,7 @@ func (p *PresenceHub) Register(userID uuid.UUID, send chan PresenceEvent) (unreg
 			}
 			p.mu.Unlock()
 			if last {
-				p.notifyFriends(userID, StatusOffline)
+				p.notifyFriends(userID)
 			}
 		})
 	}
@@ -141,12 +140,15 @@ func (p *PresenceHub) SetInGame(userIDs []uuid.UUID, inGame bool) {
 		after := p.statusLocked(id)
 		p.mu.Unlock()
 		if before != after {
-			p.notifyFriends(id, after)
+			p.notifyFriends(id)
 		}
 	}
 }
 
-func (p *PresenceHub) notifyFriends(userID uuid.UUID, status string) {
+// notifyFriends sends the user's current status to their friends. The status is
+// read after the (slow) friends lookup, so when two changes race — a tab closing
+// while a new one opens on reload — the last event any friend gets is current.
+func (p *PresenceHub) notifyFriends(userID uuid.UUID) {
 	if p.friends == nil {
 		return
 	}
@@ -155,7 +157,7 @@ func (p *PresenceHub) notifyFriends(userID uuid.UUID, status string) {
 		log.Printf("presence: failed to load friends of %s: %v", userID, err)
 		return
 	}
-	ev := PresenceEvent{Type: "presence", Data: presenceUpdate{UserID: userID, Status: status}}
+	ev := PresenceEvent{Type: "presence", Data: presenceUpdate{UserID: userID, Status: p.Status(userID)}}
 	for _, id := range ids {
 		p.SendToUser(id, ev)
 	}

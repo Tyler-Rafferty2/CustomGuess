@@ -32,6 +32,7 @@ const PAGE_STYLES = `
     font-family: 'DM Sans', sans-serif; font-size: var(--text-base);
   }
   .fp-input:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+  @media (pointer: coarse) { .fp-input { height: 44px; } }
   .fp-suggestions {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10; margin: 0; padding: var(--s1);
     list-style: none; background: var(--surface-0); border: 1px solid var(--border); border-radius: var(--r);

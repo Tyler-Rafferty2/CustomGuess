@@ -20,7 +20,8 @@ export const SOCIAL_STYLES = `
   .sb-btn--danger { background: transparent; color: var(--state-out); border-color: var(--border); }
   .sb-btn--danger:hover:not(:disabled) { background: var(--surface-1); border-color: var(--state-out); }
   .sb-btn--small { height: 32px; padding: 0 var(--s3); font-size: var(--text-sm); }
-  @media (pointer: coarse) { .sb-btn--small { min-height: 44px; } }
+  /* designSchema §9: 44px minimum touch targets on touch devices */
+  @media (pointer: coarse) { .sb-btn, .sb-btn--small { min-height: 44px; } }
 
   .sb-avatar {
     /* circular avatar: the one explicit exception to --r */

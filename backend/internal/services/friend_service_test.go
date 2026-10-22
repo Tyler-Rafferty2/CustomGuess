@@ -4,6 +4,7 @@ import (
 	"errors"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 )
 
 // fakeFriendStore is an in-memory FriendStore keyed on (requester, addressee).
+// Each method is atomic, like a single SQL statement, but calls can interleave.
 type fakeFriendStore struct {
+	mu    sync.Mutex
 	rows  map[[2]uuid.UUID]*models.Friendship
 	users map[uuid.UUID]*models.User
 }
@@ -22,6 +25,8 @@ func newFakeFriendStore() *fakeFriendStore {
 }
 
 func (f *fakeFriendStore) Get(a, b uuid.UUID) (*models.Friendship, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if r, ok := f.rows[[2]uuid.UUID{a, b}]; ok {
 		cp := *r
 		return &cp, nil
@@ -34,6 +39,8 @@ func (f *fakeFriendStore) Get(a, b uuid.UUID) (*models.Friendship, error) {
 }
 
 func (f *fakeFriendStore) Save(fr *models.Friendship) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	delete(f.rows, [2]uuid.UUID{fr.AddresseeID, fr.RequesterID})
 	cp := *fr
 	f.rows[[2]uuid.UUID{fr.RequesterID, fr.AddresseeID}] = &cp
@@ -41,11 +48,15 @@ func (f *fakeFriendStore) Save(fr *models.Friendship) error {
 }
 
 func (f *fakeFriendStore) Delete(requesterID, addresseeID uuid.UUID) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	delete(f.rows, [2]uuid.UUID{requesterID, addresseeID})
 	return nil
 }
 
 func (f *fakeFriendStore) ListForUser(userID uuid.UUID) ([]models.Friendship, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	out := []models.Friendship{}
 	for _, r := range f.rows {
 		if r.RequesterID == userID || r.AddresseeID == userID {
@@ -56,6 +67,8 @@ func (f *fakeFriendStore) ListForUser(userID uuid.UUID) ([]models.Friendship, er
 }
 
 func (f *fakeFriendStore) Usernames(ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	out := map[uuid.UUID]string{}
 	for _, id := range ids {
 		if u, ok := f.users[id]; ok {
@@ -66,6 +79,8 @@ func (f *fakeFriendStore) Usernames(ids []uuid.UUID) (map[uuid.UUID]string, erro
 }
 
 func (f *fakeFriendStore) FindRegisteredByUsername(username string) (*models.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	for _, u := range f.users {
 		if u.Username == username && !u.IsGuest {
 			return u, nil
@@ -75,11 +90,15 @@ func (f *fakeFriendStore) FindRegisteredByUsername(username string) (*models.Use
 }
 
 func (f *fakeFriendStore) UserIsRegistered(id uuid.UUID) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	u, ok := f.users[id]
 	return ok && !u.IsGuest, nil
 }
 
 func (f *fakeFriendStore) CountFriends(userID uuid.UUID) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	var n int64
 	for _, r := range f.rows {
 		if r.Status == models.FriendshipAccepted && (r.RequesterID == userID || r.AddresseeID == userID) {
@@ -90,6 +109,8 @@ func (f *fakeFriendStore) CountFriends(userID uuid.UUID) (int64, error) {
 }
 
 func (f *fakeFriendStore) SearchRegistered(prefix string, excludeID uuid.UUID, limit int) ([]UserSummary, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	out := []UserSummary{}
 	for _, u := range f.users {
 		if !u.IsGuest && u.ID != excludeID && strings.HasPrefix(strings.ToLower(u.Username), strings.ToLower(prefix)) {
@@ -352,6 +373,26 @@ func TestFriend_NotifiesBothUsersOnChange(t *testing.T) {
 	for _, ids := range calls {
 		if len(ids) != 2 || !((ids[0] == a.ID && ids[1] == b.ID) || (ids[0] == b.ID && ids[1] == a.ID)) {
 			t.Fatalf("notification must name both users, got %v", ids)
+		}
+	}
+}
+
+func TestFriend_SimultaneousMutualRequestsBecomeFriends(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		fx := newFriendFixture()
+		a, b := fx.user("a"), fx.user("b")
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() { defer wg.Done(); <-start; fx.svc.Request(a, b.ID) }()
+		go func() { defer wg.Done(); <-start; fx.svc.Request(b, a.ID) }()
+		close(start)
+		wg.Wait()
+
+		mustRel(t, fx, a, b, RelFriends)
+		mustRel(t, fx, b, a, RelFriends)
+		if n := len(fx.store.rows); n != 1 {
+			t.Fatalf("iteration %d: want exactly 1 row, got %d", i, n)
 		}
 	}
 }

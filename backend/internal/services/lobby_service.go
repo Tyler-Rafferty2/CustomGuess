@@ -5,6 +5,7 @@ import (
     "errors"
     "math/rand"
     "strings"
+    "sync"
     "time"
     "fmt"
     "log"
@@ -21,6 +22,20 @@ type LobbyService struct {
     Analytics *AnalyticsService
     // Presence is optional; when set, players are marked "in game" while a game runs.
     Presence  *PresenceHub
+
+    // joinLocks serialises joins per lobby code (single backend instance), so a
+    // capacity check and the join that follows it can't be split by another join.
+    joinLocks sync.Map
+}
+
+// ErrLobbyFull is returned when a lobby has no free seat.
+var ErrLobbyFull = errors.New("lobby is full")
+
+func (s *LobbyService) lockJoin(code string) (unlock func()) {
+    m, _ := s.joinLocks.LoadOrStore(code, &sync.Mutex{})
+    mu := m.(*sync.Mutex)
+    mu.Lock()
+    return mu.Unlock
 }
 
 func NewLobbyService(db *gorm.DB, hub *Hub) *LobbyService {
@@ -257,6 +272,13 @@ func (s *LobbyService) CreateLobby(user *models.User, setID uuid.UUID, private b
 
 // join an existing lobby
 func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby, error) {
+    unlock := s.lockJoin(code)
+    defer unlock()
+    return s.joinLobbyLocked(user, code)
+}
+
+// joinLobbyLocked is JoinLobby's body; callers must hold lockJoin(code).
+func (s *LobbyService) joinLobbyLocked(user *models.User, code string) (*models.Lobby, error) {
     existing, err := s.GetPlayerByUser(user)
     if err != nil {
         return nil, err
@@ -274,7 +296,7 @@ func (s *LobbyService) JoinLobby(user *models.User, code string) (*models.Lobby,
     }
 
     if len(lobby.Players) >= 2 {
-        return nil, errors.New("lobby is full")
+        return nil, ErrLobbyFull
     }
 
     // Load the lobby's character snapshot
@@ -901,6 +923,87 @@ func (s *LobbyService) IsGameStarted(lobbyID string) bool {
         return false
     }
     return lobby.GameStartedAt != nil && !lobby.GameOver
+}
+
+// LeaveBeforeStart leaves a lobby whose game has not started: the creator
+// cancels it, a joiner is removed. The start check is part of the write itself,
+// so a game that starts concurrently is never forfeited; that case returns ErrInGame.
+func (s *LobbyService) LeaveBeforeStart(user *models.User, lobbyID uuid.UUID) error {
+    var lobby models.Lobby
+    if err := s.DB.Preload("Players").First(&lobby, "id = ?", lobbyID).Error; err != nil {
+        return err
+    }
+    var leaving *models.Player
+    for i := range lobby.Players {
+        p := &lobby.Players[i]
+        if p.UserID == user.ID || p.GuestID == user.ID {
+            leaving = p
+        }
+    }
+    if leaving == nil {
+        return errors.New("player not found in lobby")
+    }
+
+    isCreator := leaving.UserID == lobby.UserID || leaving.GuestID == lobby.GuestID
+    if isCreator {
+        res := s.DB.Model(&models.Lobby{}).
+            Where("id = ? AND game_started_at IS NULL AND game_over = ?", lobbyID, false).
+            Updates(map[string]interface{}{"game_over": true, "game_over_at": time.Now()})
+        if res.Error != nil {
+            return res.Error
+        }
+        if res.RowsAffected == 0 {
+            return ErrInGame
+        }
+        s.broadcastLobbyCancelled(lobbyID.String())
+        return nil
+    }
+
+    if s.Hub != nil {
+        s.Hub.SuppressNextDisconnect(leaving.ID.String(), lobbyID.String())
+    }
+    res := s.DB.
+        Where("id = ? AND NOT EXISTS (SELECT 1 FROM lobbies WHERE lobbies.id = ? AND lobbies.game_started_at IS NOT NULL)", leaving.ID, lobbyID).
+        Delete(&models.Player{})
+    if res.Error != nil {
+        return res.Error
+    }
+    if res.RowsAffected == 0 {
+        return ErrInGame
+    }
+    if s.Hub != nil {
+        s.Hub.InvalidateLobbyStatics(lobbyID.String())
+    }
+    s.broadcastLobbyUpdate(lobbyID.String())
+    return nil
+}
+
+// SwapIntoLobby moves a user into the lobby with the given code, first leaving
+// leaveLobbyID (uuid.Nil for none). The target's free seat is checked under the
+// join lock before anything is left, so a full lobby never costs the user theirs.
+func (s *LobbyService) SwapIntoLobby(user *models.User, leaveLobbyID uuid.UUID, code string) error {
+    unlock := s.lockJoin(code)
+    defer unlock()
+
+    var target models.Lobby
+    if err := s.DB.Select("id", "game_started_at", "game_over").First(&target, "code = ?", code).Error; err != nil {
+        return err
+    }
+    var seats int64
+    if err := s.DB.Model(&models.Player{}).Where("lobby_id = ?", target.ID).Count(&seats).Error; err != nil {
+        return err
+    }
+    if target.GameOver || target.GameStartedAt != nil || seats >= 2 {
+        return ErrLobbyFull
+    }
+
+    if leaveLobbyID != uuid.Nil {
+        if err := s.LeaveBeforeStart(user, leaveLobbyID); err != nil {
+            return err
+        }
+    }
+    _, err := s.joinLobbyLocked(user, code)
+    return err
 }
 
 // setPlayersInGame updates presence for the registered players of a lobby.

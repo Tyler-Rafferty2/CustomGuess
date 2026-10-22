@@ -57,9 +57,10 @@ type InviteLobbies interface {
 	InviteLobbyInfo(lobbyID uuid.UUID) (InviteLobby, error)
 	// CurrentLobby reports the user's unfinished lobby, if any, and whether its game has started.
 	CurrentLobby(user *models.User) (lobbyID uuid.UUID, started bool, found bool, err error)
-	// LeaveWaitingLobby leaves a lobby whose game has not started; it refuses a started game.
-	LeaveWaitingLobby(user *models.User, lobbyID uuid.UUID) error
-	Join(user *models.User, code string) error
+	// JoinFromInvite joins the lobby with code, first leaving leaveLobbyID (uuid.Nil
+	// for none). It returns ErrLobbyFull without leaving anything when there is no
+	// seat, and ErrInGame (leaving nothing) if the lobby to leave has started.
+	JoinFromInvite(user *models.User, leaveLobbyID uuid.UUID, code string) error
 }
 
 type inviteEvent struct {
@@ -185,7 +186,9 @@ func (s *InviteService) Accept(user *models.User, inviteID string, leaveCurrent 
 	// Check the target first so a dead invite never costs the user their own lobby.
 	info, err := s.lobbies.InviteLobbyInfo(inv.LobbyID)
 	if err != nil || !info.joinable() {
-		s.take(inviteID, user.ID)
+		if s.take(inviteID, user.ID) != nil {
+			s.resolve(inv, "expired")
+		}
 		return uuid.Nil, ErrInviteGone
 	}
 
@@ -206,17 +209,21 @@ func (s *InviteService) Accept(user *models.User, inviteID string, leaveCurrent 
 	if s.take(inviteID, user.ID) == nil {
 		return uuid.Nil, ErrInviteGone
 	}
-	if mustLeave {
-		if err := s.lobbies.LeaveWaitingLobby(user, current); err != nil {
-			return uuid.Nil, err
-		}
-	}
 	if !alreadyThere {
-		if err := s.lobbies.Join(user, info.Code); err != nil {
+		leave := uuid.Nil
+		if mustLeave {
+			leave = current
+		}
+		if err := s.lobbies.JoinFromInvite(user, leave, info.Code); err != nil {
+			// The invite is spent either way; let the sender re-invite.
+			s.resolve(inv, "expired")
+			if errors.Is(err, ErrInGame) {
+				return uuid.Nil, ErrInGame
+			}
 			return uuid.Nil, ErrInviteGone
 		}
 	}
-	s.presence.SendToUser(inv.From.ID, PresenceEvent{Type: "invite_resolved", Data: inviteEvent{InviteID: inviteID, Outcome: "accepted"}})
+	s.resolve(inv, "accepted")
 	return inv.LobbyID, nil
 }
 
@@ -226,8 +233,13 @@ func (s *InviteService) Decline(user *models.User, inviteID string) error {
 	if inv == nil {
 		return nil
 	}
-	s.presence.SendToUser(inv.From.ID, PresenceEvent{Type: "invite_resolved", Data: inviteEvent{InviteID: inviteID, Outcome: "declined"}})
+	s.resolve(inv.Invite, "declined")
 	return nil
+}
+
+// resolve tells the sender how an invite ended.
+func (s *InviteService) resolve(inv Invite, outcome string) {
+	s.presence.SendToUser(inv.From.ID, PresenceEvent{Type: "invite_resolved", Data: inviteEvent{InviteID: inv.ID, Outcome: outcome}})
 }
 
 // lobbyInvites adapts LobbyService to InviteLobbies.
@@ -268,19 +280,6 @@ func (l lobbyInvites) CurrentLobby(user *models.User) (uuid.UUID, bool, bool, er
 	return lobby.ID, lobby.GameStartedAt != nil, true, nil
 }
 
-func (l lobbyInvites) LeaveWaitingLobby(user *models.User, lobbyID uuid.UUID) error {
-	var lobby models.Lobby
-	if err := l.DB.Select("id", "game_started_at").First(&lobby, "id = ?", lobbyID).Error; err != nil {
-		return err
-	}
-	if lobby.GameStartedAt != nil {
-		return ErrInGame
-	}
-	_, err := l.ForfeitLobby(user, lobbyID)
-	return err
-}
-
-func (l lobbyInvites) Join(user *models.User, code string) error {
-	_, err := l.JoinLobby(user, code)
-	return err
+func (l lobbyInvites) JoinFromInvite(user *models.User, leaveLobbyID uuid.UUID, code string) error {
+	return l.SwapIntoLobby(user, leaveLobbyID, code)
 }

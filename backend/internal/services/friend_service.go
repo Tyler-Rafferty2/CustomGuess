@@ -1,9 +1,11 @@
 package services
 
 import (
+	"bytes"
 	"errors"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -157,6 +159,20 @@ type FriendService struct {
 	Now   func() time.Time
 	// Notify, when set, is called with both users after any change to their friendship.
 	Notify func(userIDs ...uuid.UUID)
+
+	// pairLocks serialises changes per pair of users (single backend instance), so
+	// two people requesting each other at once can't both see "no row" and insert.
+	pairLocks sync.Map
+}
+
+func (s *FriendService) lockPair(a, b uuid.UUID) (unlock func()) {
+	if bytes.Compare(a[:], b[:]) > 0 {
+		a, b = b, a
+	}
+	m, _ := s.pairLocks.LoadOrStore([2]uuid.UUID{a, b}, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
 }
 
 func (s *FriendService) notify(a, b uuid.UUID) {
@@ -213,6 +229,8 @@ func (s *FriendService) Request(user *models.User, targetID uuid.UUID) (string, 
 		return "", ErrUserNotFound
 	}
 
+	unlock := s.lockPair(user.ID, targetID)
+	defer unlock()
 	existing, err := s.Store.Get(user.ID, targetID)
 	if err != nil {
 		return "", err
@@ -285,6 +303,8 @@ func (s *FriendService) pendingFrom(user *models.User, requesterID uuid.UUID) (*
 }
 
 func (s *FriendService) Accept(user *models.User, requesterID uuid.UUID) error {
+	unlock := s.lockPair(user.ID, requesterID)
+	defer unlock()
 	f, err := s.pendingFrom(user, requesterID)
 	if err != nil {
 		return err
@@ -300,6 +320,8 @@ func (s *FriendService) Accept(user *models.User, requesterID uuid.UUID) error {
 
 // Decline keeps the row as "declined" so the cooldown can be enforced.
 func (s *FriendService) Decline(user *models.User, requesterID uuid.UUID) error {
+	unlock := s.lockPair(user.ID, requesterID)
+	defer unlock()
 	f, err := s.pendingFrom(user, requesterID)
 	if err != nil {
 		return err
@@ -318,6 +340,8 @@ func (s *FriendService) Cancel(user *models.User, addresseeID uuid.UUID) error {
 	if user.IsGuest {
 		return ErrGuestNotAllowed
 	}
+	unlock := s.lockPair(user.ID, addresseeID)
+	defer unlock()
 	f, err := s.Store.Get(user.ID, addresseeID)
 	if err != nil {
 		return err
@@ -336,6 +360,8 @@ func (s *FriendService) Remove(user *models.User, friendID uuid.UUID) error {
 	if user.IsGuest {
 		return ErrGuestNotAllowed
 	}
+	unlock := s.lockPair(user.ID, friendID)
+	defer unlock()
 	f, err := s.Store.Get(user.ID, friendID)
 	if err != nil {
 		return err

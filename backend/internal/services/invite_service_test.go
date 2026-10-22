@@ -9,15 +9,18 @@ import (
 	"github.com/tyler-rafferty2/GuessWho/internal/models"
 )
 
-// fakeInviteLobbies records calls and serves canned lobby state.
+// fakeInviteLobbies records calls and serves canned lobby state. fullAtJoin
+// and startedAtLeave simulate another request winning a race mid-accept.
 type fakeInviteLobbies struct {
 	lobbies map[uuid.UUID]InviteLobby
 	current map[uuid.UUID]struct {
 		lobby   uuid.UUID
 		started bool
 	}
-	left   []uuid.UUID
-	joined []string
+	fullAtJoin     bool
+	startedAtLeave bool
+	left           []uuid.UUID
+	joined         []string
 }
 
 func newFakeInviteLobbies() *fakeInviteLobbies {
@@ -43,13 +46,17 @@ func (f *fakeInviteLobbies) CurrentLobby(user *models.User) (uuid.UUID, bool, bo
 	return c.lobby, c.started, ok, nil
 }
 
-func (f *fakeInviteLobbies) LeaveWaitingLobby(user *models.User, lobbyID uuid.UUID) error {
-	f.left = append(f.left, lobbyID)
-	delete(f.current, user.ID)
-	return nil
-}
-
-func (f *fakeInviteLobbies) Join(user *models.User, code string) error {
+func (f *fakeInviteLobbies) JoinFromInvite(user *models.User, leaveLobbyID uuid.UUID, code string) error {
+	if f.fullAtJoin {
+		return ErrLobbyFull
+	}
+	if leaveLobbyID != uuid.Nil {
+		if f.startedAtLeave {
+			return ErrInGame
+		}
+		f.left = append(f.left, leaveLobbyID)
+		delete(f.current, user.ID)
+	}
 	f.joined = append(f.joined, code)
 	return nil
 }
@@ -290,5 +297,48 @@ func TestInvite_DeclineNotifiesSender(t *testing.T) {
 	}
 	if got := resolvedOutcome(drain(fx.fromCh)); got != "declined" {
 		t.Fatalf("sender: want declined, got %q", got)
+	}
+}
+
+func TestInvite_SeatTakenDuringAccept_KeepsOwnLobbyAndNotifiesSender(t *testing.T) {
+	fx := newInviteFixture(time.Minute)
+	own := uuid.New()
+	fx.lobbies.current[fx.to.ID] = struct {
+		lobby   uuid.UUID
+		started bool
+	}{own, false}
+	inv := fx.send(t)
+	drain(fx.fromCh)
+	fx.lobbies.fullAtJoin = true
+
+	if _, err := fx.svc.Accept(fx.to, inv.ID, true); !errors.Is(err, ErrInviteGone) {
+		t.Fatalf("expected ErrInviteGone, got %v", err)
+	}
+	if len(fx.lobbies.left) != 0 {
+		t.Fatalf("a full lobby must not cost the user their own: left=%v", fx.lobbies.left)
+	}
+	if got := resolvedOutcome(drain(fx.fromCh)); got != "expired" {
+		t.Fatalf("sender must be told so they can re-invite, got %q", got)
+	}
+}
+
+func TestInvite_GameStartsDuringLeave_Refused(t *testing.T) {
+	fx := newInviteFixture(time.Minute)
+	fx.lobbies.current[fx.to.ID] = struct {
+		lobby   uuid.UUID
+		started bool
+	}{uuid.New(), false}
+	inv := fx.send(t)
+	drain(fx.fromCh)
+	fx.lobbies.startedAtLeave = true
+
+	if _, err := fx.svc.Accept(fx.to, inv.ID, true); !errors.Is(err, ErrInGame) {
+		t.Fatalf("expected ErrInGame, got %v", err)
+	}
+	if len(fx.lobbies.left) != 0 || len(fx.lobbies.joined) != 0 {
+		t.Fatalf("must not leave or join: left=%v joined=%v", fx.lobbies.left, fx.lobbies.joined)
+	}
+	if got := resolvedOutcome(drain(fx.fromCh)); got != "expired" {
+		t.Fatalf("sender: want expired, got %q", got)
 	}
 }

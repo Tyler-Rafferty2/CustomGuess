@@ -121,3 +121,41 @@ func TestPresenceHub_SendToUserFullChannelDoesNotBlock(t *testing.T) {
 		t.Fatalf("want only the first event, got %+v", events)
 	}
 }
+
+// hookedFriendLister runs onLookup (once) in the middle of a FriendIDs call,
+// standing in for another connection change that lands during the DB query.
+type hookedFriendLister struct {
+	friends  fakeFriendLister
+	onLookup func()
+}
+
+func (h *hookedFriendLister) FriendIDs(userID uuid.UUID) ([]uuid.UUID, error) {
+	if hook := h.onLookup; hook != nil {
+		h.onLookup = nil
+		hook()
+	}
+	return h.friends.FriendIDs(userID)
+}
+
+func TestPresenceHub_ReloadRaceEndsOnCurrentStatus(t *testing.T) {
+	a, b := uuid.New(), uuid.New()
+	lister := &hookedFriendLister{friends: mutualFriends(a, b)}
+	hub := NewPresenceHub(lister)
+	bCh := make(chan PresenceEvent, 8)
+	hub.Register(b, bCh)
+	closeOldTab := hub.Register(a, make(chan PresenceEvent, 8))
+	drain(bCh)
+
+	// The old tab closes; while its "offline" lookup runs, the reloaded tab connects.
+	lister.onLookup = func() { hub.Register(a, make(chan PresenceEvent, 8)) }
+	closeOldTab()
+
+	events := drain(bCh)
+	if len(events) == 0 {
+		t.Fatal("want presence events for a")
+	}
+	last := events[len(events)-1].Data.(presenceUpdate)
+	if last.UserID != a || last.Status != StatusOnline {
+		t.Fatalf("friend's last event must be a=online, got %+v (all: %+v)", last, events)
+	}
+}
