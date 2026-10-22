@@ -165,13 +165,13 @@ func (h *SocialHandler) SendFriendRequestHandler(w http.ResponseWriter, r *http.
 }
 
 // friendAction adapts a FriendService method taking the other user's id to a 204 handler.
-func (h *SocialHandler) friendAction(action func(*SocialHandler) func(*models.User, uuid.UUID) error) http.HandlerFunc {
+func friendAction(action func(*models.User, uuid.UUID) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := uuidParam(w, r, "id")
 		if !ok {
 			return
 		}
-		if err := action(h)(middleware.GetUserFromContext(r), id); err != nil {
+		if err := action(middleware.GetUserFromContext(r), id); err != nil {
 			writeSocialError(w, err)
 			return
 		}
@@ -180,21 +180,15 @@ func (h *SocialHandler) friendAction(action func(*SocialHandler) func(*models.Us
 }
 
 // POST /friends/requests/{id}/accept
-func (h *SocialHandler) AcceptFriendHandler() http.HandlerFunc {
-	return h.friendAction(func(h *SocialHandler) func(*models.User, uuid.UUID) error { return h.Friends.Accept })
-}
+func (h *SocialHandler) AcceptFriendHandler() http.HandlerFunc { return friendAction(h.Friends.Accept) }
 
 // POST /friends/requests/{id}/decline
-func (h *SocialHandler) DeclineFriendHandler() http.HandlerFunc {
-	return h.friendAction(func(h *SocialHandler) func(*models.User, uuid.UUID) error { return h.Friends.Decline })
-}
+func (h *SocialHandler) DeclineFriendHandler() http.HandlerFunc { return friendAction(h.Friends.Decline) }
 
 // DELETE /friends/requests/{id}
 func (h *SocialHandler) CancelFriendRequestHandler() http.HandlerFunc {
-	return h.friendAction(func(h *SocialHandler) func(*models.User, uuid.UUID) error { return h.Friends.Cancel })
+	return friendAction(h.Friends.Cancel)
 }
 
 // DELETE /friends/{id}
-func (h *SocialHandler) RemoveFriendHandler() http.HandlerFunc {
-	return h.friendAction(func(h *SocialHandler) func(*models.User, uuid.UUID) error { return h.Friends.Remove })
-}
+func (h *SocialHandler) RemoveFriendHandler() http.HandlerFunc { return friendAction(h.Friends.Remove) }
