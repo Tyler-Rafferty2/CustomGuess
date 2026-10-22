@@ -39,3 +39,7 @@ scripts/
 
 sets/
 .superpowers/
+
+# Terraform plan output (can contain tfvars secrets)
+*.tfplan
+terraform/tfplan

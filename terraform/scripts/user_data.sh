@@ -33,6 +33,8 @@ R2_ACCESS_KEY_ID=${r2_access_key_id}
 R2_SECRET_ACCESS_KEY=${r2_secret_access_key}
 ALLOWED_ORIGINS=${allowed_origins}
 UMAMI_URL=http://guesswho-analytics:3000
+REDIS_HOST=guesswho-redis
+REDIS_PORT=6379
 ENVEOF
 
 chmod 600 /opt/backend/.env
@@ -77,6 +79,30 @@ NGINXEOF
 
 systemctl enable nginx
 systemctl start nginx
+
+# ── Redis (cache) systemd service ────────────────────────────────
+cat > /etc/systemd/system/guesswho-redis.service << 'SERVICEEOF'
+[Unit]
+Description=GuessWho Redis
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Restart=always
+RestartSec=10
+ExecStartPre=-/usr/bin/docker rm -f guesswho-redis
+ExecStart=/usr/bin/docker run --rm \
+    --name guesswho-redis \
+    --network guesswho-net \
+    redis:7-alpine
+ExecStop=/usr/bin/docker stop guesswho-redis
+
+[Install]
+WantedBy=multi-user.target
+SERVICEEOF
+
+systemctl daemon-reload
+systemctl enable --now guesswho-redis
 
 # ── Backend systemd service ────────────────────────────────────
 # The service is enabled but NOT started here.
