@@ -24,15 +24,16 @@ func CORSMiddleware(next http.Handler) http.Handler {
 	origins := AllowedOrigins()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Only the configured frontends get credentialed CORS. Never reflect "null":
+		// sandboxed iframes and file:// pages all send it, so allowing it would let any
+		// such page make requests with the user's session cookie. The admin dashboard is
+		// served same-origin at /admin-ui and needs no CORS.
 		origin := r.Header.Get("Origin")
-		if origin == "null" {
-			w.Header().Set("Access-Control-Allow-Origin", "null")
-		} else {
-			for _, o := range origins {
-				if origin == strings.TrimSpace(o) {
-					w.Header().Set("Access-Control-Allow-Origin", origin)
-					break
-				}
+		for _, o := range origins {
+			if origin == o {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Vary", "Origin")
+				break
 			}
 		}
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
