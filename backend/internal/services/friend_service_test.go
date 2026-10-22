@@ -337,3 +337,21 @@ func TestEscapeLike(t *testing.T) {
 		t.Fatalf("escapeLike: got %q", got)
 	}
 }
+
+func TestFriend_NotifiesBothUsersOnChange(t *testing.T) {
+	fx := newFriendFixture()
+	a, b := fx.user("a"), fx.user("b")
+	var calls [][]uuid.UUID
+	fx.svc.Notify = func(ids ...uuid.UUID) { calls = append(calls, ids) }
+	fx.svc.Request(a, b.ID)
+	fx.svc.Accept(b, a.ID)
+	fx.svc.Remove(a, b.ID)
+	if len(calls) != 3 {
+		t.Fatalf("want 3 notifications, got %d", len(calls))
+	}
+	for _, ids := range calls {
+		if len(ids) != 2 || !((ids[0] == a.ID && ids[1] == b.ID) || (ids[0] == b.ID && ids[1] == a.ID)) {
+			t.Fatalf("notification must name both users, got %v", ids)
+		}
+	}
+}

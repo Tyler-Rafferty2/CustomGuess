@@ -155,6 +155,14 @@ type FriendList struct {
 type FriendService struct {
 	Store FriendStore
 	Now   func() time.Time
+	// Notify, when set, is called with both users after any change to their friendship.
+	Notify func(userIDs ...uuid.UUID)
+}
+
+func (s *FriendService) notify(a, b uuid.UUID) {
+	if s.Notify != nil {
+		s.Notify(a, b)
+	}
 }
 
 func NewFriendService(db *gorm.DB) *FriendService {
@@ -223,6 +231,7 @@ func (s *FriendService) Request(user *models.User, targetID uuid.UUID) (string, 
 			if err := s.Store.Save(existing); err != nil {
 				return "", err
 			}
+			s.notify(user.ID, targetID)
 			return RelFriends, nil
 		case models.FriendshipDeclined:
 			// Only the person who was declined has to wait; the decliner can change their mind.
@@ -242,6 +251,7 @@ func (s *FriendService) Request(user *models.User, targetID uuid.UUID) (string, 
 	if err := s.Store.Save(f); err != nil {
 		return "", err
 	}
+	s.notify(user.ID, targetID)
 	return RelOutgoing, nil
 }
 
@@ -281,7 +291,11 @@ func (s *FriendService) Accept(user *models.User, requesterID uuid.UUID) error {
 	}
 	f.Status = models.FriendshipAccepted
 	f.UpdatedAt = s.Now()
-	return s.Store.Save(f)
+	if err := s.Store.Save(f); err != nil {
+		return err
+	}
+	s.notify(user.ID, requesterID)
+	return nil
 }
 
 // Decline keeps the row as "declined" so the cooldown can be enforced.
@@ -292,7 +306,11 @@ func (s *FriendService) Decline(user *models.User, requesterID uuid.UUID) error 
 	}
 	f.Status = models.FriendshipDeclined
 	f.UpdatedAt = s.Now()
-	return s.Store.Save(f)
+	if err := s.Store.Save(f); err != nil {
+		return err
+	}
+	s.notify(user.ID, requesterID)
+	return nil
 }
 
 // Cancel withdraws the user's own pending request.
@@ -307,7 +325,11 @@ func (s *FriendService) Cancel(user *models.User, addresseeID uuid.UUID) error {
 	if f == nil || f.Status != models.FriendshipPending || f.RequesterID != user.ID {
 		return ErrNoPendingRequest
 	}
-	return s.Store.Delete(f.RequesterID, f.AddresseeID)
+	if err := s.Store.Delete(f.RequesterID, f.AddresseeID); err != nil {
+		return err
+	}
+	s.notify(user.ID, addresseeID)
+	return nil
 }
 
 func (s *FriendService) Remove(user *models.User, friendID uuid.UUID) error {
@@ -321,7 +343,11 @@ func (s *FriendService) Remove(user *models.User, friendID uuid.UUID) error {
 	if f == nil || f.Status != models.FriendshipAccepted {
 		return nil
 	}
-	return s.Store.Delete(f.RequesterID, f.AddresseeID)
+	if err := s.Store.Delete(f.RequesterID, f.AddresseeID); err != nil {
+		return err
+	}
+	s.notify(user.ID, friendID)
+	return nil
 }
 
 func (s *FriendService) FriendIDs(userID uuid.UUID) ([]uuid.UUID, error) {

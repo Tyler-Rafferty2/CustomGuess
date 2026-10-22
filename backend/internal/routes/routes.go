@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/tyler-rafferty2/GuessWho/internal/config"
 	"github.com/tyler-rafferty2/GuessWho/internal/handlers"
 	"github.com/tyler-rafferty2/GuessWho/internal/middleware"
@@ -42,6 +43,13 @@ func MountRoutes(r chi.Router) {
 	friendService := services.NewFriendService(config.DB)
 	followService := services.NewFollowService(config.DB, playerService)
 	profileService := &services.ProfileService{DB: config.DB, Friends: friendService, Follows: followService, Players: playerService}
+	presenceHub := services.NewPresenceHub(friendService)
+	lobbyService.Presence = presenceHub
+	friendService.Notify = func(userIDs ...uuid.UUID) {
+		for _, id := range userIDs {
+			presenceHub.SendToUser(id, services.PresenceEvent{Type: "friends_changed", Data: struct{}{}})
+		}
+	}
 
 	// Create handler structs
 	userHandler := &handlers.UserHandler{Service: userService, SessionService: sessionService}
@@ -51,7 +59,8 @@ func MountRoutes(r chi.Router) {
 	playerHandler := &handlers.PlayerHandler{Service: playerService}
 	gameStateHandler := &handlers.GameStateHandler{Service: gameStateService}
 	pollHandler := &handlers.PollHandler{Service: pollService}
-	socialHandler := &handlers.SocialHandler{Follows: followService, Friends: friendService, Profiles: profileService}
+	socialHandler := &handlers.SocialHandler{Follows: followService, Friends: friendService, Profiles: profileService, Presence: presenceHub}
+	presenceWSHandler := handlers.NewPresenceWSHandler(presenceHub, sessionService)
 
 	userMiddleware := middleware.NewUserMiddleware(sessionService)
 
@@ -172,6 +181,7 @@ func MountRoutes(r chi.Router) {
 	r.Post("/contact", contactHandler.SendContactHandler)
 
 	r.Get("/ws", wsHandler.HandleWebSocket)
+	r.Get("/presence/ws", presenceWSHandler.ServeHTTP)
 
 	adminHandler := &handlers.AdminHandler{DB: config.DB, Cache: setCache, Redis: config.Redis}
 	r.With(middleware.AdminMiddleware).Get("/admin-ui", adminHandler.ServeUI)

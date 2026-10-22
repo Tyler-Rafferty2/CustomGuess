@@ -6,12 +6,22 @@ import (
 	"strings"
 )
 
-func CORSMiddleware(next http.Handler) http.Handler {
+// AllowedOrigins returns the frontend origins from ALLOWED_ORIGINS (comma-separated),
+// defaulting to the local dev frontend.
+func AllowedOrigins() []string {
 	allowed := os.Getenv("ALLOWED_ORIGINS")
 	if allowed == "" {
 		allowed = "http://localhost:3080"
 	}
 	origins := strings.Split(allowed, ",")
+	for i := range origins {
+		origins[i] = strings.TrimSpace(origins[i])
+	}
+	return origins
+}
+
+func CORSMiddleware(next http.Handler) http.Handler {
+	origins := AllowedOrigins()
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")

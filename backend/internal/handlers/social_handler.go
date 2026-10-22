@@ -18,6 +18,7 @@ type SocialHandler struct {
 	Follows  *services.FollowService
 	Friends  *services.FriendService
 	Profiles *services.ProfileService
+	Presence *services.PresenceHub
 }
 
 func writeSocialJSON(w http.ResponseWriter, v any) {
@@ -98,6 +99,9 @@ func (h *SocialHandler) GetProfileHandler(w http.ResponseWriter, r *http.Request
 		writeSocialError(w, err)
 		return
 	}
+	if h.Presence != nil && profile.Relationship == services.RelFriends {
+		profile.Status = h.Presence.Status(profile.ID)
+	}
 	writeSocialJSON(w, profile)
 }
 
@@ -107,6 +111,11 @@ func (h *SocialHandler) ListFriendsHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		writeSocialError(w, err)
 		return
+	}
+	if h.Presence != nil {
+		for i := range list.Friends {
+			list.Friends[i].Status = h.Presence.Status(list.Friends[i].ID)
+		}
 	}
 	writeSocialJSON(w, list)
 }

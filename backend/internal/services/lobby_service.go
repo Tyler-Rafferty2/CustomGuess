@@ -19,6 +19,8 @@ type LobbyService struct {
     DB        *gorm.DB
     Hub       *Hub
     Analytics *AnalyticsService
+    // Presence is optional; when set, players are marked "in game" while a game runs.
+    Presence  *PresenceHub
 }
 
 func NewLobbyService(db *gorm.DB, hub *Hub) *LobbyService {
@@ -498,6 +500,7 @@ func (s *LobbyService) SetPlayerReady(user *models.User, lobbyID uuid.UUID) (boo
                     Where("id = ?", lobby.CharacterSetID).
                     UpdateColumn("play_count", gorm.Expr("play_count + 1"))
                 s.Analytics.TrackEvent("game_started", nil)
+                s.setPlayersInGame(lobby.Players, true)
             }
             // Start turn timer for first player if enabled
             if s.Hub != nil && lobby.TurnTimerSeconds > 0 && lobby.TurnID != nil {
@@ -557,6 +560,7 @@ func (s *LobbyService) MakeGuessLobby(user *models.User, lobbyID uuid.UUID, char
         }
         s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, false)
     }
+    s.setPlayersInGame(lobby.Players, false)
 
     s.broadcastLobbyUpdate(lobbyID.String())
     return &lobby, nil
@@ -877,6 +881,7 @@ func (s *LobbyService) ForfeitByPlayerID(playerID, lobbyID string) {
         log.Printf("ForfeitByPlayerID: failed to save lobby: %v", err)
         return
     }
+    s.setPlayersInGame(lobby.Players, false)
 
     if otherPlayer != nil {
         s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, true)
@@ -896,6 +901,20 @@ func (s *LobbyService) IsGameStarted(lobbyID string) bool {
         return false
     }
     return lobby.GameStartedAt != nil && !lobby.GameOver
+}
+
+// setPlayersInGame updates presence for the registered players of a lobby.
+func (s *LobbyService) setPlayersInGame(players []models.Player, inGame bool) {
+    if s.Presence == nil {
+        return
+    }
+    ids := make([]uuid.UUID, 0, len(players))
+    for _, p := range players {
+        if p.UserID != uuid.Nil {
+            ids = append(ids, p.UserID)
+        }
+    }
+    s.Presence.SetInGame(ids, inGame)
 }
 
 // PreGameForfeitByPlayerID forfeits on behalf of a player who disconnected before the game started.
@@ -1148,6 +1167,7 @@ func (s *LobbyService) ForfeitLobby(user *models.User, lobbyID uuid.UUID) (*mode
         return nil, err
     }
 
+    s.setPlayersInGame(lobby.Players, false)
     if otherPlayer != nil {
         s.writeGameRecords(&lobby, lobby.Players, otherPlayer.ID, true)
     }
