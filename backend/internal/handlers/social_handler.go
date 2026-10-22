@@ -192,3 +192,13 @@ func (h *SocialHandler) CancelFriendRequestHandler() http.HandlerFunc {
 
 // DELETE /friends/{id}
 func (h *SocialHandler) RemoveFriendHandler() http.HandlerFunc { return friendAction(h.Friends.Remove) }
+
+// GET /users/search?q=prefix
+func (h *SocialHandler) SearchUsersHandler(w http.ResponseWriter, r *http.Request) {
+	results, err := h.Friends.SearchUsers(middleware.GetUserFromContext(r), r.URL.Query().Get("q"))
+	if err != nil {
+		writeSocialError(w, err)
+		return
+	}
+	writeSocialJSON(w, results)
+}

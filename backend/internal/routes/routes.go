@@ -83,6 +83,7 @@ func MountRoutes(r chi.Router) {
 		r.Group(func(r chi.Router) {
 			r.Use(userMiddleware)
 			r.Put("/username", userHandler.UpdateUsernameHandler)
+			r.With(middleware.StrictRateLimitMiddleware).Get("/search", socialHandler.SearchUsersHandler)
 		})
 	})
 

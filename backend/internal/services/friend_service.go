@@ -40,6 +40,9 @@ type FriendStore interface {
 	FindRegisteredByUsername(username string) (*models.User, error)
 	UserIsRegistered(id uuid.UUID) (bool, error)
 	CountFriends(userID uuid.UUID) (int64, error)
+	// SearchRegistered returns up to limit non-guest users whose username starts
+	// with prefix (case-insensitive), excluding excludeID, ordered by username.
+	SearchRegistered(prefix string, excludeID uuid.UUID, limit int) ([]UserSummary, error)
 }
 
 type gormFriendStore struct {
@@ -119,6 +122,23 @@ func (g *gormFriendStore) CountFriends(userID uuid.UUID) (int64, error) {
 		Where("(requester_id = ? OR addressee_id = ?) AND status = ?", userID, userID, models.FriendshipAccepted).
 		Count(&n).Error
 	return n, err
+}
+
+func (g *gormFriendStore) SearchRegistered(prefix string, excludeID uuid.UUID, limit int) ([]UserSummary, error) {
+	out := []UserSummary{}
+	pattern := escapeLike(strings.ToLower(prefix)) + "%"
+	err := g.db.Model(&models.User{}).
+		Select("id, username").
+		Where("LOWER(username) LIKE ? ESCAPE '\\' AND is_guest = ? AND id <> ?", pattern, false, excludeID).
+		Order("username").
+		Limit(limit).
+		Scan(&out).Error
+	return out, err
+}
+
+// escapeLike escapes LIKE wildcards so user input only ever matches literally.
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(s)
 }
 
 type FriendEntry struct {
@@ -361,6 +381,52 @@ func (s *FriendService) List(user *models.User) (FriendList, error) {
 	sortSummaries(list.Incoming)
 	sortSummaries(list.Outgoing)
 	return list, nil
+}
+
+const (
+	userSearchMinLen = 2
+	userSearchLimit  = 8
+)
+
+type UserSearchResult struct {
+	UserSummary
+	Relationship string `json:"relationship"`
+}
+
+// SearchUsers returns signed-up users whose username starts with q, each with
+// the caller's relationship to them. Queries shorter than 2 characters return nothing.
+func (s *FriendService) SearchUsers(user *models.User, q string) ([]UserSearchResult, error) {
+	if user.IsGuest {
+		return nil, ErrGuestNotAllowed
+	}
+	results := []UserSearchResult{}
+	q = strings.TrimSpace(q)
+	if len([]rune(q)) < userSearchMinLen {
+		return results, nil
+	}
+	matches, err := s.Store.SearchRegistered(q, user.ID, userSearchLimit)
+	if err != nil {
+		return nil, err
+	}
+	if len(matches) == 0 {
+		return results, nil
+	}
+	rows, err := s.Store.ListForUser(user.ID)
+	if err != nil {
+		return nil, err
+	}
+	rels := make(map[uuid.UUID]string, len(rows))
+	for i := range rows {
+		rels[otherID(rows[i], user.ID)] = relationshipFromRow(&rows[i], user.ID)
+	}
+	for _, m := range matches {
+		rel, ok := rels[m.ID]
+		if !ok {
+			rel = RelNone
+		}
+		results = append(results, UserSearchResult{UserSummary: m, Relationship: rel})
+	}
+	return results, nil
 }
 
 func sortSummaries(s []UserSummary) {

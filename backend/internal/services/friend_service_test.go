@@ -2,6 +2,8 @@ package services
 
 import (
 	"errors"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,6 +87,20 @@ func (f *fakeFriendStore) CountFriends(userID uuid.UUID) (int64, error) {
 		}
 	}
 	return n, nil
+}
+
+func (f *fakeFriendStore) SearchRegistered(prefix string, excludeID uuid.UUID, limit int) ([]UserSummary, error) {
+	out := []UserSummary{}
+	for _, u := range f.users {
+		if !u.IsGuest && u.ID != excludeID && strings.HasPrefix(strings.ToLower(u.Username), strings.ToLower(prefix)) {
+			out = append(out, UserSummary{ID: u.ID, Username: u.Username})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Username < out[j].Username })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out, nil
 }
 
 type friendFixture struct {
@@ -252,5 +268,72 @@ func TestFriend_ListSplitsByState(t *testing.T) {
 	}
 	if len(list.Outgoing) != 1 || list.Outgoing[0].Username != "d" {
 		t.Fatalf("outgoing: %+v", list.Outgoing)
+	}
+}
+
+func TestSearchUsers_PrefixMatchWithRelationships(t *testing.T) {
+	fx := newFriendFixture()
+	me := fx.user("tyler")
+	friend, pending, stranger := fx.user("Tyra"), fx.user("tyson"), fx.user("tycho")
+	fx.user("betty")
+	g := fx.user("tyguest")
+	g.IsGuest = true
+	fx.svc.Request(me, friend.ID)
+	fx.svc.Accept(friend, me.ID)
+	fx.svc.Request(pending, me.ID)
+
+	results, err := fx.svc.SearchUsers(me, "TY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, r := range results {
+		got[r.Username] = r.Relationship
+	}
+	want := map[string]string{"Tyra": RelFriends, "tyson": RelIncoming, "tycho": RelNone}
+	if len(got) != len(want) {
+		t.Fatalf("want %v, got %v (self, guests and non-prefix matches must be excluded)", want, got)
+	}
+	for name, rel := range want {
+		if got[name] != rel {
+			t.Errorf("%s: want %q, got %q", name, rel, got[name])
+		}
+	}
+	_ = stranger
+}
+
+func TestSearchUsers_ShortQueryReturnsNothing(t *testing.T) {
+	fx := newFriendFixture()
+	me := fx.user("tyler")
+	fx.user("tycho")
+	results, err := fx.svc.SearchUsers(me, " t ")
+	if err != nil || len(results) != 0 {
+		t.Fatalf("want no results for 1-char query, got %v %v", results, err)
+	}
+}
+
+func TestSearchUsers_LimitsResults(t *testing.T) {
+	fx := newFriendFixture()
+	me := fx.user("me")
+	for i := 0; i < 12; i++ {
+		fx.user("player" + string(rune('a'+i)))
+	}
+	results, _ := fx.svc.SearchUsers(me, "pl")
+	if len(results) != 8 {
+		t.Fatalf("want 8 results, got %d", len(results))
+	}
+}
+
+func TestSearchUsers_GuestRejected(t *testing.T) {
+	fx := newFriendFixture()
+	guest := &models.User{ID: uuid.New(), IsGuest: true}
+	if _, err := fx.svc.SearchUsers(guest, "ty"); !errors.Is(err, ErrGuestNotAllowed) {
+		t.Fatalf("expected ErrGuestNotAllowed, got %v", err)
+	}
+}
+
+func TestEscapeLike(t *testing.T) {
+	if got := escapeLike(`50%_off\`); got != `50\%\_off\\` {
+		t.Fatalf("escapeLike: got %q", got)
 	}
 }

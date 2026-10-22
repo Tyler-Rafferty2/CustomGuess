@@ -11,7 +11,7 @@ import { UserContext } from "@/context/UserContext";
 import FriendRow from "@/components/social/FriendRow";
 import SetGrid from "@/components/social/SetGrid";
 import useFriendsList, { friendAction } from "@/components/social/useFriendsList";
-import { SOCIAL_STYLES } from "@/components/social/socialStyles";
+import { SOCIAL_STYLES, initials } from "@/components/social/socialStyles";
 
 const PAGE_STYLES = `
   .fp-layout { display: grid; grid-template-columns: 1fr 280px; gap: var(--s4); align-items: start; }
@@ -32,6 +32,15 @@ const PAGE_STYLES = `
     font-family: 'DM Sans', sans-serif; font-size: var(--text-base);
   }
   .fp-input:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
+  .fp-suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10; margin: 0; padding: var(--s1);
+    list-style: none; background: var(--surface-0); border: 1px solid var(--border); border-radius: var(--r);
+  }
+  .fp-suggestion {
+    display: flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s2); border-radius: var(--r);
+    font-family: 'DM Sans', sans-serif; font-size: var(--text-base); color: var(--text-900); cursor: pointer;
+  }
+  .fp-suggestion[aria-selected="true"] { background: var(--surface-1); }
   .fp-empty { font-family: 'DM Sans', sans-serif; font-size: var(--text-base); color: var(--text-400); margin: var(--s3) 0; }
   .fp-list > * + * { border-top: 1px solid var(--surface-1); }
   @media (max-width: 768px) { .fp-layout { grid-template-columns: 1fr; } .fp-add { order: -1; } }
@@ -44,10 +53,48 @@ const TABS = [
     { key: "following", label: "Following" },
 ];
 
+const REL_HINT = { friends: "Friends", outgoing: "Request sent", incoming: "Sent you a request" };
+
 function AddFriendBox({ onAdded }) {
     const [username, setUsername] = useState("");
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState(null);
+    const [suggestions, setSuggestions] = useState([]);
+    const [open, setOpen] = useState(false);
+    const [active, setActive] = useState(-1);
+
+    // Debounced prefix search; ignores responses for queries the user has typed past.
+    useEffect(() => {
+        const q = username.trim();
+        if (q.length < 2) { setSuggestions([]); return; }
+        let cancelled = false;
+        const timer = setTimeout(async () => {
+            try {
+                const res = await apiFetch(`/users/search?q=${encodeURIComponent(q)}`);
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                if (!cancelled) { setSuggestions(data); setActive(-1); }
+            } catch {
+                // leave the previous suggestions
+            }
+        }, 250);
+        return () => { cancelled = true; clearTimeout(timer); };
+    }, [username]);
+
+    const pick = (s) => {
+        setUsername(s.username);
+        setOpen(false);
+        setSuggestions([]);
+        setMessage(s.relationship === "none" ? null : { error: false, text: `${s.username}: ${REL_HINT[s.relationship]}.` });
+    };
+
+    const onKeyDown = (e) => {
+        if (!open || suggestions.length === 0) return;
+        if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => (i + 1) % suggestions.length); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
+        else if (e.key === "Enter" && active >= 0) { e.preventDefault(); pick(suggestions[active]); }
+        else if (e.key === "Escape") { setOpen(false); }
+    };
 
     const submit = async (e) => {
         e.preventDefault();
@@ -55,6 +102,7 @@ function AddFriendBox({ onAdded }) {
         if (!name) return;
         setBusy(true);
         setMessage(null);
+        setOpen(false);
         const error = await friendAction("/friends/requests", "POST", { username: name });
         setBusy(false);
         if (error) {
@@ -66,12 +114,35 @@ function AddFriendBox({ onAdded }) {
         onAdded();
     };
 
+    const showList = open && suggestions.length > 0;
+
     return (
         <form className="fp-card fp-add" onSubmit={submit}>
             <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 20, color: "var(--text-900)", margin: "0 0 var(--s3)" }}>Add friend</h2>
             <label htmlFor="fp-username" className="sb-label" style={{ display: "block", marginBottom: "var(--s2)" }}>Username</label>
-            <input id="fp-username" className="fp-input" value={username} onChange={(e) => setUsername(e.target.value)}
-                autoComplete="off" spellCheck={false} maxLength={40} placeholder="Their username" />
+            <div style={{ position: "relative" }}>
+                <input id="fp-username" className="fp-input" value={username}
+                    onChange={(e) => { setUsername(e.target.value); setOpen(true); setMessage(null); }}
+                    onFocus={() => setOpen(true)}
+                    onBlur={() => setTimeout(() => setOpen(false), 120)}
+                    onKeyDown={onKeyDown}
+                    role="combobox" aria-autocomplete="list" aria-expanded={showList} aria-controls="fp-suggestions"
+                    aria-activedescendant={active >= 0 ? `fp-suggestion-${active}` : undefined}
+                    autoComplete="off" spellCheck={false} maxLength={40} placeholder="Start typing a username" />
+                {showList && (
+                    <ul id="fp-suggestions" role="listbox" className="fp-suggestions">
+                        {suggestions.map((s, i) => (
+                            <li key={s.id} id={`fp-suggestion-${i}`} role="option" aria-selected={i === active}
+                                className="fp-suggestion" onMouseDown={(e) => { e.preventDefault(); pick(s); }}
+                                onMouseEnter={() => setActive(i)}>
+                                <span className="sb-avatar" style={{ width: 24, height: 24, fontSize: 10 }}>{initials(s.username)}</span>
+                                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.username}</span>
+                                {REL_HINT[s.relationship] && <span className="sb-status">{REL_HINT[s.relationship]}</span>}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
             <button type="submit" className="sb-btn sb-btn--primary" disabled={busy || !username.trim()} style={{ width: "100%", marginTop: "var(--s3)" }}>
                 <UserPlus size={14} /> Send request
             </button>
