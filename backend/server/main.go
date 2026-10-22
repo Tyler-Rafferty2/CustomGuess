@@ -41,7 +41,7 @@ func main() {
     // Serve /uploads
     FileServer(r, "/uploads/", http.Dir("/backend/uploads"))
 
-    fmt.Println("Server running on :8080")
+    fmt.Println("Server running on :8080 (http://localhost:8080, frontend at http://localhost:3080)")
     http.ListenAndServe(":8080", r)
 }
 
