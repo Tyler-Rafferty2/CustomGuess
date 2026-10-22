@@ -1224,6 +1224,10 @@ func (s *LobbyService) writeGameRecords(lobby *models.Lobby, players []models.Pl
             DurationSeconds:  durationSeconds,
             FinishedAt:       now,
         }
+        if opponent.UserID != uuid.Nil {
+            opponentUserID := opponent.UserID
+            record.OpponentUserID = &opponentUserID
+        }
         if err := s.DB.Create(&record).Error; err != nil {
             log.Printf("warn: failed to write GameRecord for user %s: %v", p.UserID, err)
         }

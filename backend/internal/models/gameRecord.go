@@ -21,6 +21,7 @@ type GameRecord struct {
 	UserID           uuid.UUID      `gorm:"type:uuid;not null;index" json:"userId"`
 	LobbyID          uuid.UUID      `gorm:"type:uuid;not null" json:"lobbyId"`
 	OpponentName     string         `gorm:"not null" json:"opponentName"`
+	OpponentUserID   *uuid.UUID     `gorm:"type:uuid" json:"opponentUserId"`
 	Result           GameResultType `gorm:"type:varchar(20);not null" json:"result"`
 	CharacterSetID   uuid.UUID      `gorm:"type:uuid;not null" json:"characterSetId"`
 	CharacterSetName string         `gorm:"not null" json:"characterSetName"`

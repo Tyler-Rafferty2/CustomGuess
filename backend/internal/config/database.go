@@ -58,5 +58,5 @@ func ConnectDB() {
     }
 
 
-    fmt.Println("Database connected and migrated successfully")
+    fmt.Printf("Database connected and migrated successfully (host=%s port=%s db=%s)\n", host, port, dbname)
 }

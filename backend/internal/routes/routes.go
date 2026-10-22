@@ -153,6 +153,21 @@ func MountRoutes(r chi.Router) {
 		r.Delete("/{id}", socialHandler.UnfollowHandler)
 	})
 
+	r.Route("/friends", func(r chi.Router) {
+		r.Use(userMiddleware)
+		r.Get("/", socialHandler.ListFriendsHandler)
+		r.Get("/relationship/{id}", socialHandler.RelationshipHandler)
+		r.Delete("/{id}", socialHandler.RemoveFriendHandler())
+		r.Delete("/requests/{id}", socialHandler.CancelFriendRequestHandler())
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.StrictRateLimitMiddleware)
+			r.Post("/requests", socialHandler.SendFriendRequestHandler)
+			r.Post("/requests/{id}/accept", socialHandler.AcceptFriendHandler())
+			r.Post("/requests/{id}/decline", socialHandler.DeclineFriendHandler())
+		})
+	})
+
 	r.Post("/contact", contactHandler.SendContactHandler)
 
 	r.Get("/ws", wsHandler.HandleWebSocket)
