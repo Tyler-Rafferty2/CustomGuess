@@ -1,6 +1,7 @@
 import { Fraunces, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
+import { PresenceProvider } from "@/context/PresenceContext";
 import { API_URL } from "@/lib/api";
 
 const fraunces = Fraunces({
@@ -141,7 +142,7 @@ export default function RootLayout({ children }) {
           data-website-id="82b27817-dfc1-424d-af39-bea327b77cbb"
           src={`${API_URL}/analytics-collect/script.js`}
         />
-        <UserProvider>{children}</UserProvider>
+        <UserProvider><PresenceProvider>{children}</PresenceProvider></UserProvider>
       </body>
     </html>
   );

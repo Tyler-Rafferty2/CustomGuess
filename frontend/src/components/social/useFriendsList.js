@@ -1,32 +1,12 @@
 "use client";
-import { useCallback, useContext, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { UserContext } from "@/context/UserContext";
+import { usePresence } from "@/context/PresenceContext";
 
-const EMPTY = { friends: [], incoming: [], outgoing: [] };
-
-// Fetches GET /friends for signed-up users. Returns { list, loading, refresh }.
+// Friends list with live presence, shared through PresenceProvider.
+// Returns { list, loading, refresh }.
 export default function useFriendsList() {
-    const { user } = useContext(UserContext);
-    const [list, setList] = useState(EMPTY);
-    const [loading, setLoading] = useState(true);
-    const enabled = !!user && !user.isGuest;
-
-    const refresh = useCallback(async () => {
-        if (!enabled) { setList(EMPTY); setLoading(false); return; }
-        try {
-            const res = await apiFetch("/friends");
-            if (res.ok) setList(await res.json());
-        } catch {
-            // keep the last list
-        } finally {
-            setLoading(false);
-        }
-    }, [enabled]);
-
-    useEffect(() => { refresh(); }, [refresh]);
-
-    return { list, loading, refresh };
+    const { friends, loading, refreshFriends } = usePresence();
+    return { list: friends, loading, refresh: refreshFriends };
 }
 
 // Calls a friend endpoint and returns an error message, or null on success.

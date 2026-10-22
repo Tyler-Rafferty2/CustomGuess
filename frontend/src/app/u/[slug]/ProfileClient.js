@@ -3,6 +3,7 @@ import { useContext, useEffect, useState } from "react";
 import { Hash, Trophy, Play, Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { UserContext } from "@/context/UserContext";
+import { usePresence } from "@/context/PresenceContext";
 import SetGrid from "@/components/social/SetGrid";
 import RelationshipButtons from "@/components/social/RelationshipButtons";
 import { SOCIAL_STYLES, STATUS_LABEL, initials } from "@/components/social/socialStyles";
@@ -26,6 +27,7 @@ function formatJoined(iso) {
 export default function ProfileClient({ initialProfile }) {
     const { user, isLoading } = useContext(UserContext);
     const [profile, setProfile] = useState(initialProfile);
+    const { statusOf } = usePresence();
 
     // The server render has no session, so fetch again with credentials to get
     // the viewer-specific fields (relationship, following, status).
@@ -49,6 +51,9 @@ export default function ProfileClient({ initialProfile }) {
         });
     };
 
+    // Live status for friends, falling back to the status in the profile response.
+    const status = profile.relationship === "friends" ? (statusOf(profile.id) ?? profile.status) : undefined;
+
     const stats = [
         { label: "Games", value: profile.gamesPlayed.toLocaleString(), Icon: Hash },
         { label: "Win rate", value: `${Math.round(profile.winRate * 100)}%`, Icon: Trophy },
@@ -70,10 +75,10 @@ export default function ProfileClient({ initialProfile }) {
                         {profile.username}
                     </h1>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s3)", marginTop: "var(--s1)", alignItems: "center" }}>
-                        {profile.status && (
+                        {status && (
                             <span className="sb-status">
-                                <span className={`sb-dot sb-dot--${profile.status}`} aria-hidden="true" />
-                                {STATUS_LABEL[profile.status]}
+                                <span className={`sb-dot sb-dot--${status}`} aria-hidden="true" />
+                                {STATUS_LABEL[status]}
                             </span>
                         )}
                         <span className="sb-status">Joined {formatJoined(profile.joinedAt)}</span>
@@ -89,7 +94,7 @@ export default function ProfileClient({ initialProfile }) {
                         userId={profile.id}
                         relationship={user && !user.isGuest && user.id === profile.id ? "self" : profile.relationship}
                         following={profile.following}
-                        status={profile.status}
+                        status={status}
                         onChange={onRelationshipChange}
                     />
                 </div>
