@@ -19,6 +19,7 @@ type SocialHandler struct {
 	Friends  *services.FriendService
 	Profiles *services.ProfileService
 	Presence *services.PresenceHub
+	Invites  *services.InviteService
 }
 
 func writeSocialJSON(w http.ResponseWriter, v any) {
@@ -38,14 +39,18 @@ func uuidParam(w http.ResponseWriter, r *http.Request, name string) (uuid.UUID, 
 // writeSocialError maps service errors to HTTP statuses.
 func writeSocialError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, services.ErrGuestNotAllowed):
+	case errors.Is(err, services.ErrGuestNotAllowed), errors.Is(err, services.ErrNotFriends):
 		http.Error(w, err.Error(), http.StatusForbidden)
-	case errors.Is(err, services.ErrSelf):
+	case errors.Is(err, services.ErrSelf), errors.Is(err, services.ErrInviteLobbyInvalid):
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	case errors.Is(err, services.ErrUserNotFound), errors.Is(err, services.ErrNoPendingRequest):
 		http.Error(w, err.Error(), http.StatusNotFound)
 	case errors.Is(err, services.ErrRequestCooldown):
 		http.Error(w, err.Error(), http.StatusTooManyRequests)
+	case errors.Is(err, services.ErrFriendUnavailable):
+		http.Error(w, err.Error(), http.StatusConflict)
+	case errors.Is(err, services.ErrInviteGone):
+		http.Error(w, err.Error(), http.StatusGone)
 	default:
 		log.Printf("social handler error: %v", err)
 		http.Error(w, "something went wrong", http.StatusInternalServerError)
@@ -210,4 +215,57 @@ func (h *SocialHandler) SearchUsersHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeSocialJSON(w, results)
+}
+
+// POST /invites  body: {"toUserId": "...", "lobbyId": "..."}
+func (h *SocialHandler) SendInviteHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ToUserID uuid.UUID `json:"toUserId"`
+		LobbyID  uuid.UUID `json:"lobbyId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	inv, err := h.Invites.Send(middleware.GetUserFromContext(r), req.ToUserID, req.LobbyID)
+	if err != nil {
+		writeSocialError(w, err)
+		return
+	}
+	writeSocialJSON(w, inv)
+}
+
+// POST /invites/{id}/accept  body: {"leaveCurrent": bool}
+// 409 responses carry {"code": "IN_GAME"} or {"code": "IN_WAITING_LOBBY", "lobbyId": ...}.
+func (h *SocialHandler) AcceptInviteHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		LeaveCurrent bool `json:"leaveCurrent"`
+	}
+	json.NewDecoder(r.Body).Decode(&req) // an empty body means leaveCurrent=false
+
+	lobbyID, err := h.Invites.Accept(middleware.GetUserFromContext(r), chi.URLParam(r, "id"), req.LeaveCurrent)
+	var needsLeave *services.NeedsLeaveError
+	switch {
+	case err == nil:
+		writeSocialJSON(w, map[string]uuid.UUID{"lobbyId": lobbyID})
+	case errors.As(err, &needsLeave):
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]any{"code": "IN_WAITING_LOBBY", "lobbyId": needsLeave.LobbyID})
+	case errors.Is(err, services.ErrInGame):
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		json.NewEncoder(w).Encode(map[string]string{"code": "IN_GAME"})
+	default:
+		writeSocialError(w, err)
+	}
+}
+
+// POST /invites/{id}/decline
+func (h *SocialHandler) DeclineInviteHandler(w http.ResponseWriter, r *http.Request) {
+	if err := h.Invites.Decline(middleware.GetUserFromContext(r), chi.URLParam(r, "id")); err != nil {
+		writeSocialError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

@@ -59,7 +59,8 @@ func MountRoutes(r chi.Router) {
 	playerHandler := &handlers.PlayerHandler{Service: playerService}
 	gameStateHandler := &handlers.GameStateHandler{Service: gameStateService}
 	pollHandler := &handlers.PollHandler{Service: pollService}
-	socialHandler := &handlers.SocialHandler{Follows: followService, Friends: friendService, Profiles: profileService, Presence: presenceHub}
+	inviteService := services.NewInviteService(services.NewLobbyInvites(lobbyService), presenceHub, friendService, services.InviteTTL)
+	socialHandler := &handlers.SocialHandler{Follows: followService, Friends: friendService, Profiles: profileService, Presence: presenceHub, Invites: inviteService}
 	presenceWSHandler := handlers.NewPresenceWSHandler(presenceHub, sessionService)
 
 	userMiddleware := middleware.NewUserMiddleware(sessionService)
@@ -176,6 +177,14 @@ func MountRoutes(r chi.Router) {
 			r.Post("/requests/{id}/accept", socialHandler.AcceptFriendHandler())
 			r.Post("/requests/{id}/decline", socialHandler.DeclineFriendHandler())
 		})
+	})
+
+	r.Route("/invites", func(r chi.Router) {
+		r.Use(userMiddleware)
+		r.Use(middleware.StrictRateLimitMiddleware)
+		r.Post("/", socialHandler.SendInviteHandler)
+		r.Post("/{id}/accept", socialHandler.AcceptInviteHandler)
+		r.Post("/{id}/decline", socialHandler.DeclineInviteHandler)
 	})
 
 	r.Post("/contact", contactHandler.SendContactHandler)
