@@ -1398,7 +1398,6 @@ export default function LobbyPage() {
                                 </button>
                             </div>
                         </div>
-                        {!user?.isGuest && lobby?.userId === user?.id && <LobbyInvitePanel lobbyId={lobbyID} />}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s4)', margin: 'var(--s6) 0' }}>
                             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                             <span className="gw-label">or join with code</span>
@@ -1410,6 +1409,9 @@ export default function LobbyPage() {
                                 {lobby?.code}
                             </p>
                         </div>
+                        {!user?.isGuest && lobby?.userId === user?.id && (
+                            <div style={{ marginTop: 'var(--s3)' }}><LobbyInvitePanel lobbyId={lobbyID} /></div>
+                        )}
                         <button
                             className="gw-btn-danger"
                             style={{ width: '100%', marginTop: 'var(--s3)', justifyContent: 'center' }}

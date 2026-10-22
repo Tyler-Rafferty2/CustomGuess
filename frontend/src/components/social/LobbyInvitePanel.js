@@ -104,7 +104,8 @@ export default function LobbyInvitePanel({ lobbyId }) {
                     <Link href="/friends" style={{ color: "var(--accent)", fontWeight: 600 }}>Manage friends</Link>
                 </p>
             ) : (
-                <div>
+                // About five rows tall, then scrolls, so a long list never pushes the page around.
+                <div style={{ maxHeight: 240, overflowY: "auto", overscrollBehavior: "contain" }}>
                     {shown.map((f) => (
                         <FriendRow key={f.id} person={f} status={f.status} compact actions={rowState(f)} />
                     ))}
