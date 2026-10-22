@@ -4,6 +4,8 @@ import { apiFetch } from '@/lib/api';
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import SetCover from "@/components/SetCover";
+import Link from "next/link";
+import { userProfilePath } from "@/lib/slug";
 import { useContext, useState, useEffect } from "react";
 import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
@@ -287,6 +289,11 @@ export default function Profile() {
                                 <p style={{ color: T.text400, fontSize: 14, fontFamily: "'DM Sans', sans-serif", margin: "4px 0 0" }}>
                                     {user?.email && !user?.isGuest ? user.email : "Guest"}
                                 </p>
+                                {!user?.isGuest && user?.id && user?.username && (
+                                    <Link href={userProfilePath(user.id, user.username)} style={{ display: "inline-block", marginTop: 6, color: T.accent, fontSize: 13, fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+                                        View public profile
+                                    </Link>
+                                )}
                             </div>
                         </div>
                     </div>

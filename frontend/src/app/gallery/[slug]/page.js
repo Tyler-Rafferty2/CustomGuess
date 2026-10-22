@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SERVER_API_URL } from "@/lib/api";
-import { parseSetIdFromSlug, setGalleryPath } from "@/lib/slug";
+import { parseSetIdFromSlug, setGalleryPath, userProfilePath } from "@/lib/slug";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import SetCover from "@/components/SetCover";
@@ -95,7 +95,7 @@ export default async function SetGalleryPage({ params }) {
           <span>Free online</span>
           <span>·</span>
           <span>{set.playCount} plays</span>
-          {set.creator && (<><span>·</span><span>Created by {set.creator}</span></>)}
+          {set.creator && (<><span>·</span><span>Created by <Link href={userProfilePath(set.userId, set.creator)} style={{ color: "var(--text-600)", textDecoration: "underline" }}>{set.creator}</Link></span></>)}
         </div>
 
         {categoryLabels.length > 0 && (
