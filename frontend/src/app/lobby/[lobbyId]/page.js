@@ -14,6 +14,7 @@ import SetCover from '@/components/SetCover';
 import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 import ShareModal from "@/components/ShareModal";
+import EndGameAddFriend from "@/components/social/EndGameAddFriend";
 import { buildGameShareContent } from "@/lib/shareMessage";
 
 import Grid from '@mui/material/Grid';
@@ -1191,6 +1192,8 @@ export default function LobbyPage() {
                                 Share
                             </button>
                         </div>
+
+                        <EndGameAddFriend lobby={lobby} user={user} />
 
                         {shareModalOpen && (
                             <ShareModal

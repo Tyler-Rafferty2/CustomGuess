@@ -1,11 +1,9 @@
 "use client";
 import { useContext, useEffect, useState } from "react";
-import Link from "next/link";
 import { Hash, Trophy, Play, Heart } from "lucide-react";
 import { apiFetch } from "@/lib/api";
-import { setGalleryPath } from "@/lib/slug";
 import { UserContext } from "@/context/UserContext";
-import SetCover from "@/components/SetCover";
+import SetGrid from "@/components/social/SetGrid";
 import RelationshipButtons from "@/components/social/RelationshipButtons";
 import { SOCIAL_STYLES, STATUS_LABEL, initials } from "@/components/social/socialStyles";
 
@@ -14,18 +12,10 @@ const PROFILE_STYLES = `
   .pp-header { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
   .pp-actions { margin-left: auto; }
   .pp-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s3); }
-  .pp-sets { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3); }
-  .pp-set { display: block; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; background: var(--surface-0);
-    text-decoration: none; color: inherit; transition: border-color 150ms cubic-bezier(0,0,0.2,1); }
-  .pp-set:hover { border-color: var(--border-strong); }
-  .pp-set:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   @media (max-width: 768px) {
     .pp-stats { grid-template-columns: 1fr 1fr; }
-    .pp-sets { grid-template-columns: 1fr 1fr; }
     .pp-actions { margin-left: 0; width: 100%; }
   }
-  @media (max-width: 480px) { .pp-sets { grid-template-columns: 1fr; } }
-  @media (prefers-reduced-motion: reduce) { .pp-set { transition: none; } }
 `;
 
 function formatJoined(iso) {
@@ -127,21 +117,7 @@ export default function ProfileClient({ initialProfile }) {
                         No public sets yet.
                     </p>
                 ) : (
-                    <div className="pp-sets">
-                        {profile.sets.map((set) => (
-                            <Link key={set.id} href={setGalleryPath(set.id, set.name)} className="pp-set">
-                                <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 120 }} />
-                                <div style={{ padding: "var(--s3)" }}>
-                                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: "var(--text-md)", color: "var(--text-900)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                        {set.name}
-                                    </div>
-                                    <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "var(--text-sm)", color: "var(--text-400)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
-                                        {set.playCount.toLocaleString()} plays · {set.likeCount} likes
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
+                    <SetGrid sets={profile.sets} />
                 )}
             </section>
         </div>
