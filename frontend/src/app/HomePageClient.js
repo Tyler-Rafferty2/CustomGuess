@@ -10,6 +10,9 @@ import { UserContext } from "@/context/UserContext";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Plus, Search } from "lucide-react";
+import { setGalleryPath } from "@/lib/slug";
+import { CATEGORY_PAGES } from "@/lib/gallery";
+import CategoryLinks from "@/components/CategoryLinks";
 
 /* ─────────────────────────────────────────────
    Design tokens — v3.0 schema
@@ -127,7 +130,7 @@ function CharacterCard({ char, index }) {
 /* ─────────────────────────────────────────────
    Page
 ───────────────────────────────────────────── */
-export default function HomePageClient() {
+export default function HomePageClient({ popularSets = [] }) {
   const { user, isLoading } = useContext(UserContext);
   const router = useRouter();
   const [lobbyCode, setLobbyCode] = useState("");
@@ -222,6 +225,18 @@ export default function HomePageClient() {
           .home-row { flex-direction: column; align-items: center !important; gap: 32px !important; }
         }
 
+        .home-link-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .home-set-link {
+          display: flex; text-decoration: none; min-height: 44px;
+          background: var(--surface-0); border: 1px solid var(--border); border-radius: var(--r);
+          font-family: 'DM Sans', sans-serif; transition: border-color 150ms;
+        }
+        .home-set-link { flex-direction: column; justify-content: center; gap: 2px; padding: 8px 12px; }
+        .home-set-link__name { font-size: 14px; font-weight: 600; color: var(--text-900); }
+        .home-set-link__meta { font-size: 12px; color: var(--text-400); font-variant-numeric: tabular-nums; }
+        .home-set-link:hover { border-color: var(--border-strong); }
+        .home-set-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
         @media (max-width: 640px) {
           .hero-title { font-size: 32px !important; }
           .hero-sub { font-size: 13px !important; }
@@ -232,6 +247,7 @@ export default function HomePageClient() {
           .home-main { padding: 24px 20px !important; }
           .seo-section { padding: 32px 20px !important; }
           .seo-grid { grid-template-columns: 1fr !important; }
+          .home-link-grid { grid-template-columns: 1fr !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -408,6 +424,39 @@ export default function HomePageClient() {
                 No app, no account required. Play custom Guess Who directly in your browser with real-time multiplayer. One player creates the game, shares a code, and both players are live in seconds.
               </p>
             </div>
+          </div>
+
+          {popularSets.length > 0 && (
+            <div style={{ marginTop: 32 }}>
+              <h3 style={{
+                fontFamily: "'DM Sans', sans-serif",
+                fontSize: 13, fontWeight: 700, letterSpacing: "0.06em",
+                textTransform: "uppercase", color: T.accent, marginBottom: 12,
+              }}>
+                Popular Character Sets
+              </h3>
+              <ul className="home-link-grid" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {popularSets.map((set) => (
+                  <li key={set.id}>
+                    <Link href={setGalleryPath(set.id, set.name)} className="home-set-link">
+                      <span className="home-set-link__name">{set.name}</span>
+                      <span className="home-set-link__meta">{set.characterCount} characters · {set.playCount} plays</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div style={{ marginTop: 28 }}>
+            <h3 style={{
+              fontFamily: "'DM Sans', sans-serif",
+              fontSize: 13, fontWeight: 700, letterSpacing: "0.06em",
+              textTransform: "uppercase", color: T.accent, marginBottom: 12,
+            }}>
+              Browse by Category
+            </h3>
+            <CategoryLinks categories={CATEGORY_PAGES} label="Browse by category" />
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginTop: 28 }}>

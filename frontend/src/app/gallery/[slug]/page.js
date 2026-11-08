@@ -5,7 +5,8 @@ import { parseSetIdFromSlug, setGalleryPath, userProfilePath } from "@/lib/slug"
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import SetCover from "@/components/SetCover";
-import { CATEGORIES } from "@/lib/categories";
+import { categoryPageForValue, categoryPath, isIndexableSet } from "@/lib/gallery";
+import CategoryLinks from "@/components/CategoryLinks";
 import { imgUrl } from "@/lib/imgUrl";
 import PlaySetButton from "./PlaySetButton";
 import ShareSetButton from "./ShareSetButton";
@@ -37,12 +38,12 @@ export async function generateMetadata({ params }) {
   const set = await fetchSet(id);
   if (!set) return {};
 
-  const title = `Play ${set.name} — Custom Guess Who Online | CustomGuess`;
+  const title = { absolute: `Play ${set.name} — Custom Guess Who Online | CustomGuess` };
   const description = set.description
     ? `${set.description} Play this ${set.characterCount}-character Custom Guess Who board free online with a friend.`
     : `Play a free ${set.characterCount}-character Custom Guess Who board: ${set.name}. No download or account required.`;
 
-  const thin = !set.description || set.characterCount < 4;
+  const thin = !isIndexableSet(set);
 
   return {
     title,
@@ -56,8 +57,9 @@ export default async function SetGalleryPage({ params }) {
   const { slug } = await params;
   const set = await loadOrRedirect(slug);
 
-  const categoryLabels = (set.categories ?? [])
-    .map((v) => CATEGORIES.find((c) => c.value === v)?.label)
+  // Only categories with a landing page get a chip (skips "other").
+  const categoryPages = (set.categories ?? [])
+    .map(categoryPageForValue)
     .filter(Boolean);
 
   return (
@@ -98,17 +100,9 @@ export default async function SetGalleryPage({ params }) {
           {set.creator && (<><span>·</span><span>Created by <Link href={userProfilePath(set.userId, set.creator)} style={{ color: "var(--text-600)", textDecoration: "underline" }}>{set.creator}</Link></span></>)}
         </div>
 
-        {categoryLabels.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--s2)", marginBottom: "var(--s5)" }}>
-            {categoryLabels.map((label) => (
-              <span key={label} style={{
-                fontFamily: "'DM Sans', sans-serif", fontSize: "var(--text-xs)", fontWeight: 600,
-                padding: "4px 10px", borderRadius: "var(--r)", border: "1px solid var(--border)",
-                color: "var(--text-600)",
-              }}>
-                {label}
-              </span>
-            ))}
+        {categoryPages.length > 0 && (
+          <div style={{ marginBottom: "var(--s5)" }}>
+            <CategoryLinks categories={categoryPages} />
           </div>
         )}
 
@@ -179,7 +173,11 @@ export default async function SetGalleryPage({ params }) {
         </Section>
 
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "var(--text-base)", color: "var(--text-600)" }}>
-          <Link href="/gallery" style={{ color: "var(--accent)" }}>← Browse more character sets</Link>
+          {categoryPages[0] ? (
+            <Link href={categoryPath(categoryPages[0].slug)} style={{ color: "var(--accent)" }}>← More {categoryPages[0].label.toLowerCase()} boards</Link>
+          ) : (
+            <Link href="/gallery" style={{ color: "var(--accent)" }}>← Browse more character sets</Link>
+          )}
         </p>
       </main>
       <Footer />

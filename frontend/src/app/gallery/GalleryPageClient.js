@@ -1,28 +1,32 @@
 "use client";
 import { apiFetch } from "@/lib/api";
 import { CATEGORIES } from "@/lib/categories";
-import { setGalleryPath } from "@/lib/slug";
+import { CATEGORY_PAGES, GALLERY_PAGE_SIZE } from "@/lib/gallery";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
-import { Search, Heart } from "lucide-react";
+import { Search } from "lucide-react";
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
-import SetCover from "@/components/SetCover";
+import SetGrid from "@/components/SetGrid";
+import CategoryLinks from "@/components/CategoryLinks";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = GALLERY_PAGE_SIZE;
 
-export default function GalleryPageClient() {
+// initialSets/initialTotal come from the server render (default sort, no
+// filters), so the first paint — and what crawlers see — already has sets.
+export default function GalleryPageClient({ initialSets = [], initialTotal = 0 }) {
+  const hasInitial = initialSets.length > 0;
   const [searchDraft, setSearchDraft] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState("most-popular");
   const [selectedCategories, setSelectedCategories] = useState([]);
-  const [sets, setSets] = useState([]);
-  const [total, setTotal] = useState(0);
+  const [sets, setSets] = useState(initialSets);
+  const [total, setTotal] = useState(initialTotal);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!hasInitial);
   const [loadingMore, setLoadingMore] = useState(false);
   const categoriesInitialMount = useRef(true);
+  const filtersInitialMount = useRef(true);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearchQuery(searchDraft), 300);
@@ -38,7 +42,13 @@ export default function GalleryPageClient() {
       const res = await apiFetch(`/player/set/public?${params}`, { method: "GET" });
       const data = await res.json();
       if (!res.ok) return;
-      setSets((prev) => (append ? [...prev, ...(data.sets || [])] : (data.sets || [])));
+      // Page 1 may come from the cached server render while later pages are
+      // live, so ordering can shift between them — drop sets already shown.
+      setSets((prev) => {
+        if (!append) return data.sets || [];
+        const seen = new Set(prev.map((s) => s.id));
+        return [...prev, ...(data.sets || []).filter((s) => !seen.has(s.id))];
+      });
       setTotal(data.total || 0);
       setPage(pageToLoad);
     } catch {
@@ -49,6 +59,11 @@ export default function GalleryPageClient() {
   };
 
   useEffect(() => {
+    // Skip the mount fetch when the server already rendered the default view.
+    if (filtersInitialMount.current) {
+      filtersInitialMount.current = false;
+      if (hasInitial) return;
+    }
     load(1, sortOrder, searchQuery, selectedCategories);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortOrder, searchQuery]);
@@ -65,31 +80,6 @@ export default function GalleryPageClient() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
       <style>{`
-        .gallery-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-          gap: var(--s5);
-        }
-        .gallery-card {
-          background: var(--surface-0);
-          border: 1px solid var(--border);
-          border-radius: var(--r);
-          overflow: hidden;
-          text-decoration: none;
-          color: inherit;
-          display: flex;
-          flex-direction: column;
-          transition: border-color 150ms, transform 150ms;
-        }
-        .gallery-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
-        .gallery-card__body { padding: var(--s4); display: flex; flex-direction: column; gap: var(--s2); flex: 1; }
-        .gallery-card__name { font-family: 'Fraunces', serif; font-size: var(--text-lg); font-weight: 700; color: var(--text-900); margin: 0; }
-        .gallery-card__desc {
-          font-family: 'DM Sans', sans-serif; font-size: var(--text-sm); color: var(--text-600);
-          margin: 0; line-height: 1.5;
-          display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .gallery-card__meta { display: flex; align-items: center; gap: var(--s3); font-size: var(--text-xs); color: var(--text-400); font-family: 'DM Sans', sans-serif; margin-top: auto; }
         .gallery-chip {
           font-family: 'DM Sans', sans-serif; font-size: var(--text-xs); font-weight: 600;
           padding: 4px 10px; border-radius: var(--r); border: 1px solid var(--border);
@@ -164,26 +154,7 @@ export default function GalleryPageClient() {
         ) : sets.length === 0 ? (
           <p style={{ color: "var(--text-400)", fontFamily: "'DM Sans', sans-serif" }}>No sets found.</p>
         ) : (
-          <div className="gallery-grid">
-            {sets.map((set) => (
-              <Link key={set.id} href={setGalleryPath(set.id, set.name)} className="gallery-card">
-                <SetCover coverImageName={set.coverImageName} alt={set.name} style={{ height: 140 }} />
-                <div className="gallery-card__body">
-                  <h2 className="gallery-card__name">{set.name}</h2>
-                  {set.description && <p className="gallery-card__desc">{set.description}</p>}
-                  <div className="gallery-card__meta">
-                    <span>{set.characterCount} characters</span>
-                    <span>·</span>
-                    <span>{set.playCount} plays</span>
-                    <span>·</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                      <Heart size={11} /> {set.likeCount}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <SetGrid sets={sets} />
         )}
 
         {!loading && hasMore && (
@@ -203,6 +174,16 @@ export default function GalleryPageClient() {
             </button>
           </div>
         )}
+
+        <section style={{ marginTop: "var(--s7)", paddingTop: "var(--s5)", borderTop: "1px solid var(--border)" }}>
+          <h2 style={{
+            fontFamily: "'Fraunces', serif", fontSize: "var(--text-lg)", fontWeight: 700,
+            color: "var(--text-900)", marginBottom: "var(--s4)",
+          }}>
+            Browse by category
+          </h2>
+          <CategoryLinks categories={CATEGORY_PAGES} label="Browse by category" />
+        </section>
       </main>
 
       <Footer />
