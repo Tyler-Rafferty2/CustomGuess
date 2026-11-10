@@ -11,6 +11,7 @@ import ChatApp from '@/components/chatapp';
 import Navbar from "@/components/navbar";
 import GameSend from '@/components/gameSend';
 import SetCover from '@/components/SetCover';
+import ShimmerImage from '@/components/ShimmerImage';
 import { Link as LinkIcon, Copy, Check, Loader2, Lock, MessageSquare, Star, X, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 import ShareModal from "@/components/ShareModal";
@@ -199,6 +200,50 @@ function Confetti() {
             position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
             pointerEvents: 'none', zIndex: 10,
         }} />
+    );
+}
+
+// Max time to hold the opponent's card flip waiting for its image.
+const REVEAL_MAX_WAIT_MS = 1500;
+
+// End-of-game opponent card: shows a shimmer until the image is ready, then
+// flips in, so the flip never lands on a blank box. Gives up waiting after
+// REVEAL_MAX_WAIT_MS so a slow image can't stall the reveal.
+function OpponentReveal({ char, borderColor }) {
+    const [ready, setReady] = useState(false);
+
+    useEffect(() => {
+        const t = setTimeout(() => setReady(true), REVEAL_MAX_WAIT_MS);
+        return () => clearTimeout(t);
+    }, []);
+
+    return (
+        <div style={{ position: 'relative' }}>
+            {!ready && (
+                <div
+                    className="gw-shimmer"
+                    aria-hidden="true"
+                    style={{ width: '100%', height: 180, borderRadius: 'var(--r)', border: '2px solid var(--border)' }}
+                />
+            )}
+            <motion.div
+                initial={{ rotateY: 90, opacity: 0 }}
+                animate={ready ? { rotateY: 0, opacity: 1 } : { rotateY: 90, opacity: 0 }}
+                transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
+                style={{ transformStyle: 'preserve-3d', ...(ready ? {} : { position: 'absolute', inset: 0 }) }}
+            >
+                <ShimmerImage
+                    src={imgUrl(char.image)}
+                    alt={char.name}
+                    onLoad={() => setReady(true)}
+                    onError={() => setReady(true)}
+                    style={{ width: '100%', height: 180, borderRadius: 'var(--r)', border: `2px solid ${borderColor}` }}
+                />
+                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s1)', marginBottom: 0 }}>
+                    {char.name}
+                </p>
+            </motion.div>
+        </div>
     );
 }
 
@@ -1008,10 +1053,10 @@ export default function LobbyPage() {
                                     <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s2)', color: 'var(--accent)' }}>You</span>
                                     {myChar ? (
                                         <>
-                                            <img
+                                            <ShimmerImage
                                                 src={imgUrl(myChar.image)}
                                                 alt={myChar.name}
-                                                style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: '2px solid var(--border)' }}
+                                                style={{ width: '100%', height: 180, borderRadius: 'var(--r)', border: '2px solid var(--border)' }}
                                             />
                                             <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s1)', marginBottom: 0 }}>
                                                 {myChar.name}
@@ -1035,21 +1080,11 @@ export default function LobbyPage() {
                                 <div style={{ flex: 1, textAlign: 'center', maxWidth: 200 }}>
                                     <span className="gw-label" style={{ display: 'block', marginBottom: 'var(--s2)', color: 'var(--text-600)' }}>Opponent</span>
                                     {opponentChar ? (
-                                        <motion.div
-                                            initial={{ rotateY: 90, opacity: 0 }}
-                                            animate={{ rotateY: 0, opacity: 1 }}
-                                            transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1], delay: 0.3 }}
-                                            style={{ transformStyle: 'preserve-3d' }}
-                                        >
-                                            <img
-                                                src={imgUrl(opponentChar.image)}
-                                                alt={opponentChar.name}
-                                                style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 'var(--r)', border: `2px solid ${isWinner ? 'var(--state-live)' : 'var(--state-out)'}` }}
-                                            />
-                                            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 700, fontSize: 14, color: 'var(--text-900)', marginTop: 'var(--s1)', marginBottom: 0 }}>
-                                                {opponentChar.name}
-                                            </p>
-                                        </motion.div>
+                                        <OpponentReveal
+                                            key={opponentChar.image}
+                                            char={opponentChar}
+                                            borderColor={isWinner ? 'var(--state-live)' : 'var(--state-out)'}
+                                        />
                                     ) : (
                                         <div style={{ width: '100%', height: 180, background: 'var(--surface-1)', borderRadius: 'var(--r)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                             <Loader2 size={20} color="var(--text-400)" style={{ animation: 'gw-spin 1s linear infinite' }} />

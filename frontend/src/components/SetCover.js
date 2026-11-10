@@ -1,4 +1,5 @@
 import { API_URL } from '@/lib/api';
+import ShimmerImage from '@/components/ShimmerImage';
 const DEFAULT_STYLE = { width: "100%", height: 120, display: "block" };
 
 // Question mark positions: [x, y, fontSize, opacity]
@@ -78,11 +79,12 @@ export default function SetCover({ coverImageName, alt = "", style = {} }) {
             ? coverImageName
             : `${API_URL}${coverImageName}`;
         return (
-            <img
+            <ShimmerImage
                 src={src}
                 alt={alt}
                 loading="lazy"
-                style={{ ...merged, objectFit: "cover" }}
+                style={merged}
+                fallback={<DefaultCover style={merged} />}
             />
         );
     }

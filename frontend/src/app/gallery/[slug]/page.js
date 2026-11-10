@@ -5,6 +5,7 @@ import { parseSetIdFromSlug, setGalleryPath, userProfilePath } from "@/lib/slug"
 import Navbar from "@/components/navbar";
 import Footer from "@/components/footer";
 import SetCover from "@/components/SetCover";
+import ShimmerImage from "@/components/ShimmerImage";
 import { categoryPageForValue, categoryPath, isIndexableSet } from "@/lib/gallery";
 import CategoryLinks from "@/components/CategoryLinks";
 import { imgUrl } from "@/lib/imgUrl";
@@ -126,14 +127,13 @@ export default async function SetGalleryPage({ params }) {
             }}>
               {set.characters.map((char) => (
                 <div key={char.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "var(--s1)" }}>
-                  <img
+                  <ShimmerImage
                     src={imgUrl(char.image)}
                     alt={char.name}
                     loading="lazy"
                     style={{
-                      width: "100%", aspectRatio: "1 / 1", objectFit: "cover",
+                      width: "100%", aspectRatio: "1 / 1",
                       borderRadius: "var(--r)", border: "1px solid var(--border)",
-                      background: "var(--surface-1)",
                     }}
                   />
                   <span style={{

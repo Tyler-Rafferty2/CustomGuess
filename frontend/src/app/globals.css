@@ -66,6 +66,21 @@ body {
 
 @keyframes gw-spin { to { transform: rotate(360deg); } }
 
+/* Image loading placeholder (ShimmerImage). The gradient is a deliberate,
+   owner-approved exception to the design schema's no-gradients rule. */
+.gw-shimmer {
+  background: linear-gradient(100deg, var(--surface-1) 30%, #FBF8F4 50%, var(--surface-1) 70%);
+  background-size: 200% 100%;
+  animation: gw-shimmer 1.3s linear infinite;
+}
+@keyframes gw-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gw-shimmer { animation: none !important; background: var(--surface-1); }
+}
+
 /* Navbar responsive visibility — CSS-based to prevent hydration flash */
 .mobile-nav { display: none; }
 .desktop-nav { display: block; }
