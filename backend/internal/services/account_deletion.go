@@ -39,12 +39,14 @@ type DeletionPreview struct {
 type AccountDeletionService struct {
 	DB     *gorm.DB
 	Images *ImageCleaner
+	Cache  SetCache
 }
 
 // accountScope holds the IDs collected for a user before anything is deleted.
 type accountScope struct {
 	user           models.User
 	playerIDs      []uuid.UUID
+	playedLobbyIDs []uuid.UUID // lobbies the user has a player row in
 	hostedLobbyIDs []uuid.UUID
 	setIDs         []uuid.UUID
 }
@@ -63,8 +65,17 @@ func loadAccountScope(tx *gorm.DB, userID uuid.UUID) (*accountScope, error) {
 		}
 		return nil, err
 	}
-	if err := tx.Model(&models.Player{}).Where("user_id = ? OR guest_id = ?", userID, userID).Pluck("id", &sc.playerIDs).Error; err != nil {
+	var players []models.Player
+	if err := tx.Select("id", "lobby_id").Where("user_id = ? OR guest_id = ?", userID, userID).Find(&players).Error; err != nil {
 		return nil, err
+	}
+	seenLobby := map[uuid.UUID]bool{}
+	for _, p := range players {
+		sc.playerIDs = append(sc.playerIDs, p.ID)
+		if !seenLobby[p.LobbyID] {
+			seenLobby[p.LobbyID] = true
+			sc.playedLobbyIDs = append(sc.playedLobbyIDs, p.LobbyID)
+		}
 	}
 	if err := tx.Model(&models.Lobby{}).Where("user_id = ? OR guest_id = ?", userID, userID).Pluck("id", &sc.hostedLobbyIDs).Error; err != nil {
 		return nil, err
@@ -84,9 +95,11 @@ func uuidStrings(ids []uuid.UUID) []string {
 }
 
 // usernameMatchable reports whether stored_messages may be matched by this user's username.
-// Guests and users without a username are skipped so the fallback can't sweep up other people's messages.
+// Guests, users without a username, and users with no player rows are skipped: message usernames
+// are client-supplied display names ("Guest", "Anonymous"), so the fallback is only applied inside
+// lobbies the user actually played in.
 func (sc *accountScope) usernameMatchable() bool {
-	return !sc.user.IsGuest && sc.user.Username != ""
+	return !sc.user.IsGuest && sc.user.Username != "" && len(sc.playedLobbyIDs) > 0
 }
 
 // messageCondition builds the OR condition matching stored messages sent by the user's players
@@ -103,8 +116,8 @@ func (sc *accountScope) messageCondition(includeHosted bool) (query string, args
 		args = append(args, uuidStrings(sc.playerIDs))
 	}
 	if sc.usernameMatchable() {
-		conds = append(conds, "username = ?")
-		args = append(args, sc.user.Username)
+		conds = append(conds, "(username = ? AND lobby_id IN ?)")
+		args = append(args, sc.user.Username, uuidStrings(sc.playedLobbyIDs))
 	}
 	if len(conds) == 0 {
 		return "", nil, false
@@ -176,9 +189,11 @@ func (s *AccountDeletionService) Preview(userID uuid.UUID) (*DeletionPreview, er
 }
 
 // Delete permanently removes the user and every row linked to them in one transaction,
-// anonymizes other users' game records against them, then cleans up their sets' R2 images.
+// anonymizes other users' game records against them, then cleans up their sets' R2 images
+// and invalidates the deleted sets in the set cache.
 func (s *AccountDeletionService) Delete(userID uuid.UUID) error {
 	var urls []string
+	var deletedSetIDs []uuid.UUID
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		// 1–2. Load the user and collect IDs.
 		sc, err := loadAccountScope(tx, userID)
@@ -191,6 +206,7 @@ func (s *AccountDeletionService) Delete(userID uuid.UUID) error {
 		if err != nil {
 			return err
 		}
+		deletedSetIDs = sc.setIDs
 
 		// 4. Lobbies they hosted, with everything in them.
 		if len(sc.hostedLobbyIDs) > 0 {
@@ -261,5 +277,10 @@ func (s *AccountDeletionService) Delete(userID uuid.UUID) error {
 		return err
 	}
 	s.Images.Cleanup(urls)
+	if s.Cache != nil {
+		for _, id := range deletedSetIDs {
+			s.Cache.InvalidateSet(id)
+		}
+	}
 	return nil
 }

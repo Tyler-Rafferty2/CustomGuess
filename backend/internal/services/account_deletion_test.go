@@ -141,7 +141,7 @@ func TestDeleteAccount_RemovesEverything(t *testing.T) {
 	db := openTestDB(t)
 	uid := seedFullUser(t, db)
 	var playerIDs []string
-	if err := db.Table("players").Where("user_id = ?", uid).Pluck("id", &playerIDs).Error; err != nil {
+	if err := db.Table("players").Where("user_id = ? OR guest_id = ?", uid, uid).Pluck("id", &playerIDs).Error; err != nil {
 		t.Fatal(err)
 	}
 	var hosted []uuid.UUID
@@ -309,6 +309,8 @@ func TestDeleteAccount_Guest(t *testing.T) {
 	gLobby := models.Lobby{ID: uuid.New(), GuestID: g.ID, Code: "GUEST", CharacterSetID: set.ID}
 	mustCreate(t, db, &gLobby)
 	gp := seedPlayer(t, db, gLobby.ID, uuid.Nil, g.ID)
+	// A message in the guest-hosted lobby from someone else: matched only by lobby_id.
+	gLobbyMsg := seedMessage(t, db, gLobby.ID, uuid.New().String(), "visitor")
 	// Another guest's message with the same display name must survive.
 	other := seedMessage(t, db, lobby.ID, uuid.New().String(), "Guest")
 
@@ -317,7 +319,7 @@ func TestDeleteAccount_Guest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.Sessions != 2 || preview.HostedLobbies != 1 || preview.Messages != 1 {
+	if preview.Sessions != 2 || preview.HostedLobbies != 1 || preview.Messages != 2 {
 		t.Fatalf("preview = %+v", preview)
 	}
 	if err := svc.Delete(g.ID); err != nil {
@@ -340,6 +342,9 @@ func TestDeleteAccount_Guest(t *testing.T) {
 	}
 	if n := countRows(t, db, "stored_messages", "id", msg.ID); n != 0 {
 		t.Fatal("guest message survived")
+	}
+	if n := countRows(t, db, "stored_messages", "id", gLobbyMsg.ID); n != 0 {
+		t.Fatal("message in guest-hosted lobby survived")
 	}
 	if n := countRows(t, db, "stored_messages", "id", other.ID); n != 1 {
 		t.Fatal("other guest's message was deleted")
@@ -394,5 +399,102 @@ func TestPreview_Counts(t *testing.T) {
 	// Preview must not change anything.
 	if n := countRows(t, db, "users", "id", uid); n != 1 {
 		t.Fatal("preview deleted the user")
+	}
+}
+
+func TestDeleteAccount_UsernameFallbackScopedToPlayedLobbies(t *testing.T) {
+	db := openTestDB(t)
+	// A registered user who picked the same name guests display as.
+	u := models.User{ID: uuid.New(), Email: "g@example.com", Username: "Guest"}
+	host := models.User{ID: uuid.New(), Email: "h@example.com", Username: "host"}
+	mustCreate(t, db, &u)
+	mustCreate(t, db, &host)
+	set := seedSetImages(t, db, host.ID, "host", 6)
+
+	played := seedLobby(t, db, host.ID, set.ID, "PLAY1")
+	seedPlayer(t, db, played.ID, u.ID, uuid.Nil)
+	// Sender no longer matches any player row: only the username fallback catches it.
+	fallbackMsg := seedMessage(t, db, played.ID, uuid.New().String(), "Guest")
+
+	unrelated := seedLobby(t, db, host.ID, set.ID, "OTHER")
+	guestP := seedPlayer(t, db, unrelated.ID, uuid.Nil, uuid.New())
+	guestMsg := seedMessage(t, db, unrelated.ID, guestP.ID.String(), "Guest")
+
+	svc := &AccountDeletionService{DB: db}
+	preview, err := svc.Preview(u.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if preview.Messages != 1 {
+		t.Fatalf("preview messages = %d, want 1", preview.Messages)
+	}
+	if err := svc.Delete(u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, db, "stored_messages", "id", fallbackMsg.ID); n != 0 {
+		t.Fatal("username-matched message in played lobby survived")
+	}
+	if n := countRows(t, db, "stored_messages", "id", guestMsg.ID); n != 1 {
+		t.Fatal("another guest's message in an unrelated lobby was deleted")
+	}
+}
+
+func TestDeleteAccount_UsernameFallbackSkippedWithoutPlayers(t *testing.T) {
+	db := openTestDB(t)
+	u := models.User{ID: uuid.New(), Email: "a@example.com", Username: "Anonymous"}
+	host := models.User{ID: uuid.New(), Email: "h@example.com", Username: "host"}
+	mustCreate(t, db, &u)
+	mustCreate(t, db, &host)
+	set := seedSetImages(t, db, host.ID, "host", 6)
+	lobby := seedLobby(t, db, host.ID, set.ID, "ANON1")
+	anonMsg := seedMessage(t, db, lobby.ID, uuid.New().String(), "Anonymous")
+
+	svc := &AccountDeletionService{DB: db}
+	if err := svc.Delete(u.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, db, "stored_messages", "id", anonMsg.ID); n != 1 {
+		t.Fatal("anonymous message deleted for a user with no player rows")
+	}
+}
+
+func TestDeleteAccount_InvalidatesSetCache(t *testing.T) {
+	db := openTestDB(t)
+	uid := seedFullUser(t, db)
+	second := seedSetImages(t, db, uid, "doomed2", 6)
+	other := userByUsername(t, db, survivorUsername)
+	var oSet models.CharacterSet
+	if err := db.First(&oSet, "user_id = ?", other.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	var setIDs []uuid.UUID
+	if err := db.Table("character_sets").Where("user_id = ?", uid).Pluck("id", &setIDs).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(setIDs) != 2 {
+		t.Fatalf("seeded sets = %v", setIDs)
+	}
+
+	cache := &fakeSetCache{data: map[uuid.UUID]CharacterSetResponse{}}
+	for _, id := range append(setIDs, oSet.ID) {
+		cache.data[id] = CharacterSetResponse{}
+	}
+	svc := &AccountDeletionService{DB: db, Cache: cache}
+	if err := svc.Delete(uid); err != nil {
+		t.Fatal(err)
+	}
+	if cache.invalidateCalls != 2 {
+		t.Fatalf("invalidateCalls = %d, want 2", cache.invalidateCalls)
+	}
+	for _, id := range setIDs {
+		if _, ok := cache.data[id]; ok {
+			t.Errorf("set %s still cached", id)
+		}
+	}
+	if _, ok := cache.data[second.ID]; ok {
+		t.Errorf("second set still cached")
+	}
+	if _, ok := cache.data[oSet.ID]; !ok {
+		t.Errorf("survivor's set was invalidated")
 	}
 }
