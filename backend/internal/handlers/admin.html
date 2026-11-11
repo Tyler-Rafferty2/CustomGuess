@@ -626,7 +626,8 @@ body {
 
 <script>
 // ─── Config ──────────────────────────────────────────────────────────────────
-const API_BASE = 'http://localhost:8080';
+// Same origin: this page is served by the backend it calls (/admin-ui).
+const API_BASE = '';
 const ADMIN_TOKEN = ''; // set this if using Docker: e.g. 'my-secret-token'
 
 // ─── Fetch helper ─────────────────────────────────────────────────────────────
