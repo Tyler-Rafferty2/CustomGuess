@@ -37,7 +37,7 @@ func MountRoutes(r chi.Router) {
 	if config.Redis != nil {
 		setCache = services.NewRedisSetCache(config.Redis)
 	}
-	playerService := services.NewPlayerService(config.DB, setCache)
+	playerService := services.NewPlayerService(config.DB, setCache, &services.ImageCleaner{DB: config.DB, Store: config.R2Store{}, Async: true})
 	gameStateService := services.NewGameStateService(config.DB)
 	pollService := services.NewPollService(config.DB)
 	friendService := services.NewFriendService(config.DB)

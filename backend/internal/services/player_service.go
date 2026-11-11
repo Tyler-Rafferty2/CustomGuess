@@ -14,8 +14,9 @@ import (
 )
 
 type PlayerService struct {
-    DB    *gorm.DB
-    Cache SetCache
+    DB     *gorm.DB
+    Cache  SetCache
+    Images *ImageCleaner
 }
 
 type CharacterSetResponse struct {
@@ -149,8 +150,8 @@ func (s *PlayerService) attachLikes(sets []models.CharacterSet, callerID *uuid.U
     return result
 }
 
-func NewPlayerService(db *gorm.DB, cache SetCache) *PlayerService {
-    return &PlayerService{DB: db, Cache: cache}
+func NewPlayerService(db *gorm.DB, cache SetCache, images *ImageCleaner) *PlayerService {
+    return &PlayerService{DB: db, Cache: cache, Images: images}
 }
 
 // getCachedPublicSet returns a cached public set, stripped of any stored
@@ -350,9 +351,22 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     set.Description = description
     set.Public = public
     set.MinCharacters = minCharacters
+    var staleImages []string
     if coverImage != "" {
+        if set.CoverImage != "" && set.CoverImage != coverImage {
+            staleImages = append(staleImages, set.CoverImage)
+        }
         set.CoverImage = coverImage
     }
+    removedQuery := s.DB.Model(&models.Character{}).Where("set_id = ? AND image <> ''", setID)
+    if len(keepCharacterIDs) > 0 {
+        removedQuery = removedQuery.Where("id NOT IN ?", keepCharacterIDs)
+    }
+    var removedImages []string
+    if err := removedQuery.Pluck("image", &removedImages).Error; err != nil {
+        return nil, err
+    }
+    staleImages = append(staleImages, removedImages...)
     if err := s.DB.Save(&set).Error; err != nil {
         return nil, err
     }
@@ -397,6 +411,7 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
     if err := s.DB.Preload("Characters").First(&set, "id = ?", setID).Error; err != nil {
         return nil, err
     }
+    s.Images.Cleanup(staleImages)
     if s.Cache != nil {
         s.Cache.InvalidateSet(setID)
     }
@@ -404,13 +419,23 @@ func (s *PlayerService) UpdateSet(user *models.User, setID uuid.UUID, name, desc
 }
 
 func (s *PlayerService) DeleteSet(user *models.User, setID uuid.UUID) error {
-    result := s.DB.Where("id = ? AND user_id = ?", setID, user.ID).Delete(&models.CharacterSet{})
-    if result.Error != nil {
-        return result.Error
+    var urls []string
+    err := s.DB.Transaction(func(tx *gorm.DB) error {
+        var count int64
+        if err := tx.Model(&models.CharacterSet{}).Where("id = ? AND user_id = ?", setID, user.ID).Count(&count).Error; err != nil {
+            return err
+        }
+        if count == 0 {
+            return fmt.Errorf("set not found or not owned by user")
+        }
+        var err error
+        urls, err = deleteSetTx(tx, []uuid.UUID{setID})
+        return err
+    })
+    if err != nil {
+        return err
     }
-    if result.RowsAffected == 0 {
-        return fmt.Errorf("set not found or not owned by user")
-    }
+    s.Images.Cleanup(urls)
     if s.Cache != nil {
         s.Cache.InvalidateSet(setID)
     }
