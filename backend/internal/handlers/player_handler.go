@@ -4,6 +4,7 @@ import (
     "bytes"
     "context"
     "encoding/json"
+    "errors"
     "net/http"
     "fmt"
     "log"
@@ -23,6 +24,18 @@ import (
     "github.com/tyler-rafferty2/GuessWho/internal/middleware"
     "github.com/tyler-rafferty2/GuessWho/internal/models"
 )
+
+var errMissingImage = errors.New("each character needs an uploaded image")
+
+// requireCharacterImage returns the uploaded file for key, or errMissingImage
+// when the part is absent or is a plain text value rather than a file.
+func requireCharacterImage(r *http.Request, key string) (multipart.File, *multipart.FileHeader, error) {
+    file, header, err := r.FormFile(key)
+    if err != nil {
+        return nil, nil, errMissingImage
+    }
+    return file, header, nil
+}
 
 type PlayerHandler struct {
     Service *services.PlayerService
@@ -104,20 +117,16 @@ func (h *PlayerHandler) CreateSetHandler(w http.ResponseWriter, r *http.Request)
             break // no more characters
         }
 
-        file, header, err := r.FormFile(charImageKey)
-        var imageURL string
-        if err == nil {
-            defer file.Close()
-            charFiles = append(charFiles, indexedFile{index: i, file: file, filename: header.Filename})
-        } else {
-            // fallback: maybe Base64 string
-            log.Println("No file uploaded for", err, "checking for Base64 string")
-            imageURL = r.FormValue(charImageKey)
+        file, header, err := requireCharacterImage(r, charImageKey)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusBadRequest)
+            return
         }
+        defer file.Close()
+        charFiles = append(charFiles, indexedFile{index: i, file: file, filename: header.Filename})
 
         characters = append(characters, models.Character{
             Name: truncate(charName, 28),
-            Image: imageURL,
         })
     }
 
@@ -314,15 +323,14 @@ func (h *PlayerHandler) UpdateSetHandler(w http.ResponseWriter, r *http.Request)
             break
         }
         charImageKey := fmt.Sprintf("newCharacters[%d][image]", i)
-        file, header, err := r.FormFile(charImageKey)
-        var imageURL string
-        if err == nil {
-            defer file.Close()
-            charFiles = append(charFiles, indexedFile{index: i, file: file, filename: header.Filename})
-        } else {
-            imageURL = r.FormValue(charImageKey)
+        file, header, err := requireCharacterImage(r, charImageKey)
+        if err != nil {
+            http.Error(w, err.Error(), http.StatusBadRequest)
+            return
         }
-        newCharacters = append(newCharacters, models.Character{Name: truncate(charName, 28), Image: imageURL})
+        defer file.Close()
+        charFiles = append(charFiles, indexedFile{index: i, file: file, filename: header.Filename})
+        newCharacters = append(newCharacters, models.Character{Name: truncate(charName, 28)})
     }
 
     // Upload cover + new character images to R2 concurrently
