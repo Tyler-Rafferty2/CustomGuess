@@ -169,3 +169,61 @@ func TestUpdateSetImages_AllReplaced(t *testing.T) {
 		}
 	}
 }
+
+func TestMakePrivate_PrivatesAndClearsReports(t *testing.T) {
+	db := openTestDB(t)
+	set, _ := seedSetWithChars(t, db, uuid.New(), 6)
+	if err := db.Model(&models.CharacterSet{}).Where("id = ?", set.ID).
+		Updates(map[string]interface{}{"public": true, "report_count": 5}).Error; err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 5; i++ {
+		if err := db.Create(&models.SetReport{UserID: uuid.New(), SetID: set.ID, Reason: models.ReportReasonOffensive}).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	svc := &PlayerService{DB: db}
+	if err := svc.AdminMakePrivate(set.ID); err != nil {
+		t.Fatal(err)
+	}
+	var got models.CharacterSet
+	if err := db.First(&got, "id = ?", set.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got.Public || got.ReportCount != 0 {
+		t.Fatalf("public=%v reportCount=%d", got.Public, got.ReportCount)
+	}
+	if n := countRows(t, db, "set_reports", "set_id", set.ID); n != 0 {
+		t.Fatalf("reports = %d", n)
+	}
+	if n := countRows(t, db, "characters", "set_id", set.ID); n != 6 {
+		t.Fatalf("characters = %d", n)
+	}
+}
+
+func TestMakePrivate_NoReports(t *testing.T) {
+	db := openTestDB(t)
+	set, _ := seedSetWithChars(t, db, uuid.New(), 6)
+	if err := db.Model(&models.CharacterSet{}).Where("id = ?", set.ID).Update("public", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	svc := &PlayerService{DB: db}
+	if err := svc.AdminMakePrivate(set.ID); err != nil {
+		t.Fatal(err)
+	}
+	var got models.CharacterSet
+	if err := db.First(&got, "id = ?", set.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got.Public {
+		t.Fatal("expected private")
+	}
+}
+
+func TestMakePrivate_UnknownSet(t *testing.T) {
+	db := openTestDB(t)
+	svc := &PlayerService{DB: db}
+	if err := svc.AdminMakePrivate(uuid.New()); !errors.Is(err, ErrSetNotFound) {
+		t.Fatalf("err = %v", err)
+	}
+}

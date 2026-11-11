@@ -72,3 +72,37 @@ func (s *PlayerService) AdminDeleteSet(setID uuid.UUID) error {
 	}
 	return nil
 }
+
+// AdminMakePrivate sets a set private and clears its report count and reports.
+func (s *PlayerService) AdminMakePrivate(setID uuid.UUID) error {
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&models.CharacterSet{}).Where("id = ?", setID).
+			Updates(map[string]interface{}{"public": false, "report_count": 0})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrSetNotFound
+		}
+		return tx.Where("set_id = ?", setID).Delete(&models.SetReport{}).Error
+	})
+	if err != nil {
+		return err
+	}
+	if s.Cache != nil {
+		s.Cache.InvalidateSet(setID)
+	}
+	return nil
+}
+
+// AdminGetSet returns a set with its characters regardless of visibility.
+func (s *PlayerService) AdminGetSet(setID uuid.UUID) (*models.CharacterSet, error) {
+	var set models.CharacterSet
+	if err := s.DB.Preload("Characters").First(&set, "id = ?", setID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrSetNotFound
+		}
+		return nil, err
+	}
+	return &set, nil
+}
