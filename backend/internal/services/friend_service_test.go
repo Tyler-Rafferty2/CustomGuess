@@ -354,8 +354,8 @@ func TestSearchUsers_GuestRejected(t *testing.T) {
 }
 
 func TestEscapeLike(t *testing.T) {
-	if got := escapeLike(`50%_off\`); got != `50\%\_off\\` {
-		t.Fatalf("escapeLike: got %q", got)
+	if got := EscapeLike(`50%_off\`); got != `50\%\_off\\` {
+		t.Fatalf("EscapeLike: got %q", got)
 	}
 }
 

@@ -37,7 +37,8 @@ func MountRoutes(r chi.Router) {
 	if config.Redis != nil {
 		setCache = services.NewRedisSetCache(config.Redis)
 	}
-	playerService := services.NewPlayerService(config.DB, setCache, &services.ImageCleaner{DB: config.DB, Store: config.R2Store{}, Async: true})
+	imageCleaner := &services.ImageCleaner{DB: config.DB, Store: config.R2Store{}, Async: true}
+	playerService := services.NewPlayerService(config.DB, setCache, imageCleaner)
 	gameStateService := services.NewGameStateService(config.DB)
 	pollService := services.NewPollService(config.DB)
 	friendService := services.NewFriendService(config.DB)
@@ -192,18 +193,22 @@ func MountRoutes(r chi.Router) {
 	r.Get("/ws", wsHandler.HandleWebSocket)
 	r.Get("/presence/ws", presenceWSHandler.ServeHTTP)
 
-	adminHandler := &handlers.AdminHandler{DB: config.DB, Cache: setCache, Redis: config.Redis}
+	accountDeletionService := &services.AccountDeletionService{DB: config.DB, Images: imageCleaner, Cache: setCache}
+	adminHandler := &handlers.AdminHandler{DB: config.DB, Cache: setCache, Redis: config.Redis, Players: playerService, Accounts: accountDeletionService}
 	r.With(middleware.AdminMiddleware).Get("/admin-ui", adminHandler.ServeUI)
 	r.Route("/admin", func(r chi.Router) {
 		r.Use(middleware.AdminMiddleware)
 		r.Get("/stats", adminHandler.GetStats)
 		r.Get("/users", adminHandler.ListUsers)
 		r.Get("/users/{id}/sets", adminHandler.GetUserSets)
+		r.Get("/users/{id}/deletion-preview", adminHandler.DeletionPreview)
 		r.Delete("/users/{id}", adminHandler.DeleteUser)
 		r.Get("/lobbies", adminHandler.ListLobbies)
 		r.Delete("/lobbies/{id}", adminHandler.DeleteLobby)
 		r.Get("/reports", adminHandler.ListReports)
+		r.Get("/sets/{id}", adminHandler.GetSet)
 		r.Delete("/sets/{id}", adminHandler.DeleteSet)
+		r.Post("/sets/{id}/make-private", adminHandler.MakeSetPrivate)
 		r.Post("/sets/{id}/clear-reports", adminHandler.ClearReports)
 		r.Get("/poll", adminHandler.GetPollResults)
 	})

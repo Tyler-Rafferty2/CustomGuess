@@ -128,7 +128,7 @@ func (g *gormFriendStore) CountFriends(userID uuid.UUID) (int64, error) {
 
 func (g *gormFriendStore) SearchRegistered(prefix string, excludeID uuid.UUID, limit int) ([]UserSummary, error) {
 	out := []UserSummary{}
-	pattern := escapeLike(strings.ToLower(prefix)) + "%"
+	pattern := EscapeLike(strings.ToLower(prefix)) + "%"
 	err := g.db.Model(&models.User{}).
 		Select("id, username").
 		Where("LOWER(username) LIKE ? ESCAPE '\\' AND is_guest = ? AND id <> ?", pattern, false, excludeID).
@@ -138,8 +138,8 @@ func (g *gormFriendStore) SearchRegistered(prefix string, excludeID uuid.UUID, l
 	return out, err
 }
 
-// escapeLike escapes LIKE wildcards so user input only ever matches literally.
-func escapeLike(s string) string {
+// EscapeLike escapes LIKE wildcards so user input only ever matches literally.
+func EscapeLike(s string) string {
 	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(s)
 }
 

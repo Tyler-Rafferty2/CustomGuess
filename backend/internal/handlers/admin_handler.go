@@ -3,7 +3,9 @@ package handlers
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -25,6 +27,9 @@ type AdminHandler struct {
 	DB    *gorm.DB
 	Cache services.SetCache
 	Redis *redis.Client
+
+	Players  *services.PlayerService
+	Accounts *services.AccountDeletionService
 }
 
 func (h *AdminHandler) writeJSON(w http.ResponseWriter, status int, v any) {
@@ -132,6 +137,12 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		countQuery = countQuery.Where("is_guest = true")
 	}
 
+	if q := strings.TrimSpace(r.URL.Query().Get("q")); len(q) >= 2 {
+		pattern := "%" + services.EscapeLike(q) + "%"
+		query = query.Where("users.username ILIKE ? OR users.email ILIKE ?", pattern, pattern)
+		countQuery = countQuery.Where("users.username ILIKE ? OR users.email ILIKE ?", pattern, pattern)
+	}
+
 	var results []adminUserRow
 	query.Limit(limit).Offset(offset).Scan(&results)
 
@@ -154,21 +165,37 @@ func (h *AdminHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.DB.Transaction(func(tx *gorm.DB) error {
-		tx.Where("user_id = ?", uid).Delete(&models.Player{})
-		tx.Where("user_id = ?", uid).Delete(&models.Session{})
-		tx.Where("user_id = ?", uid).Delete(&models.GameRecord{})
-		tx.Where("user_id = ?", uid).Delete(&models.SetReport{})
-		tx.Where("user_id = ?", uid).Delete(&models.SetLike{})
-		tx.Where("user_id = ?", uid).Delete(&models.CharacterSet{})
-		tx.Where("user_id = ?", uid).Delete(&models.Lobby{})
-		return tx.Delete(&models.User{}, uid).Error
-	}); err != nil {
+	if err := h.Accounts.Delete(uid); err != nil {
+		if errors.Is(err, services.ErrUserNotFound) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("admin delete user %s: %v", uid, err)
 		http.Error(w, "delete failed", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GET /admin/users/{id}/deletion-preview
+func (h *AdminHandler) DeletionPreview(w http.ResponseWriter, r *http.Request) {
+	uid, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	preview, err := h.Accounts.Preview(uid)
+	if err != nil {
+		if errors.Is(err, services.ErrUserNotFound) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("admin deletion preview %s: %v", uid, err)
+		http.Error(w, "preview failed", http.StatusInternalServerError)
+		return
+	}
+	h.writeJSON(w, http.StatusOK, preview)
 }
 
 // GET /admin/lobbies?active=true
@@ -242,6 +269,8 @@ func (h *AdminHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 		Name            string        `json:"name"`
 		CreatorUsername string        `json:"creator_username"`
 		ReportCount     int           `json:"report_count"`
+		Public          bool          `json:"public"`
+		Hidden          bool          `json:"hidden"`
 		Reports         []reportEntry `json:"reports"`
 	}
 
@@ -288,6 +317,8 @@ func (h *AdminHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 			Name:            s.Name,
 			CreatorUsername: creatorMap[s.UserID],
 			ReportCount:     s.ReportCount,
+			Public:          s.Public,
+			Hidden:          s.ReportCount >= 5,
 			Reports:         entries,
 		})
 	}
@@ -302,9 +333,62 @@ func (h *AdminHandler) DeleteSet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	h.DB.Delete(&models.CharacterSet{}, uid)
-	if h.Cache != nil {
-		h.Cache.InvalidateSet(uid)
+	if err := h.Players.AdminDeleteSet(uid); err != nil {
+		h.setError(w, "delete set", uid, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *AdminHandler) setError(w http.ResponseWriter, op string, id uuid.UUID, err error) {
+	if errors.Is(err, services.ErrSetNotFound) {
+		http.Error(w, "set not found", http.StatusNotFound)
+		return
+	}
+	log.Printf("admin %s %s: %v", op, id, err)
+	http.Error(w, "operation failed", http.StatusInternalServerError)
+}
+
+// GET /admin/sets/{id}
+func (h *AdminHandler) GetSet(w http.ResponseWriter, r *http.Request) {
+	uid, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	set, err := h.Players.AdminGetSet(uid)
+	if err != nil {
+		h.setError(w, "get set", uid, err)
+		return
+	}
+	type characterRow struct {
+		Name  string `json:"name"`
+		Image string `json:"image"`
+	}
+	chars := make([]characterRow, 0, len(set.Characters))
+	for _, c := range set.Characters {
+		chars = append(chars, characterRow{Name: c.Name, Image: c.Image})
+	}
+	h.writeJSON(w, http.StatusOK, map[string]any{
+		"id":           set.ID.String(),
+		"name":         set.Name,
+		"public":       set.Public,
+		"report_count": set.ReportCount,
+		"cover_image":  set.CoverImage,
+		"characters":   chars,
+	})
+}
+
+// POST /admin/sets/{id}/make-private
+func (h *AdminHandler) MakeSetPrivate(w http.ResponseWriter, r *http.Request) {
+	uid, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := h.Players.AdminMakePrivate(uid); err != nil {
+		h.setError(w, "make private", uid, err)
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
