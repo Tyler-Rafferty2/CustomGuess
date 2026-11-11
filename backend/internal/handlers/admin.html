@@ -287,6 +287,81 @@ body {
   color: var(--text-600);
 }
 
+/* Search input */
+.search-input {
+  width: 100%; max-width: 360px;
+  height: 36px; padding: 0 var(--s3);
+  margin-bottom: var(--s4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface-0);
+  color: var(--text-900);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+}
+.search-input:focus-visible, .confirm-input:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+/* Solid danger button */
+.btn-danger {
+  background: var(--state-out); color: #fff;
+}
+.btn-danger:hover:not(:disabled) { background: #A02F23; }
+.btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+/* Delete preview modal */
+.modal--narrow { max-width: 480px; margin: 0 auto; }
+.preview-list {
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  margin: var(--s3) 0 var(--s4);
+}
+.preview-list li {
+  display: flex; justify-content: space-between;
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-600);
+}
+.preview-list li:last-child { border-bottom: none; }
+.preview-list__n { font-weight: 600; color: var(--text-900); font-variant-numeric: tabular-nums; }
+.confirm-input {
+  width: 100%; height: 36px; padding: 0 var(--s3);
+  margin-top: var(--s2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  font-family: 'DM Sans', sans-serif; font-size: 14px;
+}
+.modal__footer {
+  display: flex; justify-content: flex-end; gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+/* Expandable report cards */
+.report-card--collapsible { padding: 0; }
+.report-card--collapsible .report-card__header {
+  margin-bottom: 0; padding: var(--s4) var(--s5);
+  cursor: pointer; align-items: center;
+}
+.report-card--collapsible .report-card__header:hover { background: var(--surface-1); }
+.report-card__header:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.report-card__badges { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; }
+.badge--reports { background: #FBEAE7; color: var(--state-out); }
+.badge--hidden { background: var(--surface-2); color: var(--text-600); }
+.report-card__detail {
+  border-top: 1px solid var(--border);
+  padding: var(--s4) var(--s5) var(--s5);
+}
+.report-card__detail[hidden] { display: none; }
+.report-card__cover {
+  width: 96px; height: 96px; object-fit: cover;
+  border-radius: var(--r); border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.report-card__detail-top { display: flex; gap: var(--s4); align-items: flex-start; margin-bottom: var(--s4); }
+.report-card__grid { display: flex; flex-wrap: wrap; gap: var(--s3); margin-bottom: var(--s4); }
+.report-card__footer { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
 /* Empty state */
 .empty-state {
   text-align: center;
@@ -464,6 +539,7 @@ body {
         </div>
       </div>
     </div>
+    <input type="search" class="search-input" id="users-search" placeholder="Search username or email" aria-label="Search username or email" autocomplete="off">
     <div class="table-wrap">
       <table class="data-table">
         <thead>
@@ -633,6 +709,8 @@ sectionLoaders.stats = loadStats;
 let usersPage = 1;
 let usersTotal = 0;
 let usersFilter = 'all';
+let usersQuery = '';
+let usersSearchTimer = null;
 const USERS_LIMIT = 50;
 
 function setUsersFilter(f) {
@@ -643,8 +721,18 @@ function setUsersFilter(f) {
   loadUsers();
 }
 
+document.getElementById('users-search').addEventListener('input', e => {
+  clearTimeout(usersSearchTimer);
+  usersSearchTimer = setTimeout(() => {
+    usersQuery = e.target.value.trim();
+    usersPage = 1;
+    loadUsers();
+  }, 300);
+});
+
 async function loadUsers() {
-  const params = `page=${usersPage}&limit=${USERS_LIMIT}` + (usersFilter !== 'all' ? `&filter=${usersFilter}` : '');
+  const params = `page=${usersPage}&limit=${USERS_LIMIT}` + (usersFilter !== 'all' ? `&filter=${usersFilter}` : '') +
+    (usersQuery.length >= 2 ? `&q=${encodeURIComponent(usersQuery)}` : '');
   try {
     const d = await apiFetch(`/admin/users?${params}`);
     usersTotal = d.total;
@@ -675,16 +763,60 @@ async function loadUsers() {
   }
 }
 
+const PREVIEW_LABELS = [
+  ['sets', 'Character sets'], ['characters', 'Characters'], ['images', 'Images'],
+  ['game_records', 'Game records'], ['friendships', 'Friendships'], ['follows', 'Follows'],
+  ['likes', 'Likes'], ['reports', 'Reports'], ['poll_votes', 'Poll votes'],
+  ['feedback', 'Feedback'], ['messages', 'Messages'], ['sessions', 'Sessions'],
+  ['hosted_lobbies', 'Hosted lobbies'],
+];
+
 async function deleteUser(id, username) {
-  if (!confirm(`Delete user "${username}"?\n\nThis removes all their data and cannot be undone.`)) return;
+  const modal = document.getElementById('sets-modal');
+  document.getElementById('modal-title').textContent = 'Delete ' + username + '?';
+  document.getElementById('modal-body').innerHTML = '<div class="empty-state">Loading…</div>';
+  modal.querySelector('.modal').classList.add('modal--narrow');
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+
+  let p;
   try {
-    await apiFetch(`/admin/users/${id}`, { method: 'DELETE' });
-    showToast(`Deleted user ${username}`, 'success');
-    loadUsers();
-    loadStats();
+    p = await apiFetch(`/admin/users/${encodeURIComponent(id)}/deletion-preview`);
   } catch (e) {
-    showToast('Delete failed: ' + e.message, 'error');
+    closeModal();
+    showToast('Failed to load preview: ' + e.message, 'error');
+    return;
   }
+  const rows = PREVIEW_LABELS.filter(([k]) => p[k] > 0)
+    .map(([k, label]) => `<li><span>${escHtml(label)}</span><span class="preview-list__n">${Number(p[k])}</span></li>`).join('');
+  document.getElementById('modal-body').innerHTML = `
+    <p style="color:var(--text-600)">This permanently deletes <strong>${escHtml(p.username)}</strong>${p.email ? ' (' + escHtml(p.email) + ')' : ''} and cannot be undone. The following will be removed:</p>
+    ${rows ? `<ul class="preview-list">${rows}</ul>` : '<p style="margin:var(--s3) 0;color:var(--text-400)">No linked data.</p>'}
+    <label for="delete-confirm-input" style="color:var(--text-600)">Type <strong>${escHtml(p.username)}</strong> to confirm</label>
+    <input type="text" class="confirm-input" id="delete-confirm-input" autocomplete="off">
+    <div class="modal__footer">
+      <button class="btn btn-ghost" id="delete-cancel-btn">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm-btn" disabled>Delete account permanently</button>
+    </div>`;
+  const input = document.getElementById('delete-confirm-input');
+  const btn = document.getElementById('delete-confirm-btn');
+  input.addEventListener('input', () => { btn.disabled = input.value !== p.username; });
+  document.getElementById('delete-cancel-btn').addEventListener('click', closeModal);
+  btn.addEventListener('click', async () => {
+    if (input.value !== p.username) return;
+    btn.disabled = true;
+    try {
+      await apiFetch(`/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      showToast(`Deleted user ${p.username}`, 'success');
+      closeModal();
+      loadUsers();
+      loadStats();
+    } catch (e) {
+      btn.disabled = input.value !== p.username;
+      showToast('Delete failed: ' + e.message, 'error');
+    }
+  });
+  input.focus();
 }
 sectionLoaders.users = loadUsers;
 
@@ -760,23 +892,85 @@ async function loadReports() {
       ).join('');
     }
 
-    container.innerHTML = d.reported_sets.map(s => `
-      <div class="report-card">
-        <div class="report-card__header">
+    container.innerHTML = '<div class="reports-list">' + d.reported_sets.map(s => `
+      <div class="report-card report-card--collapsible" data-set-id="${escHtml(s.id)}">
+        <div class="report-card__header" role="button" tabindex="0" aria-expanded="false">
           <div>
             <div class="report-card__name">${escHtml(s.name)}</div>
-            <div class="report-card__meta">by ${escHtml(s.creator_username)} · ${s.report_count} report${s.report_count !== 1 ? 's' : ''}</div>
+            <div class="report-card__meta">by ${escHtml(s.creator_username)}</div>
           </div>
-          <div class="report-card__actions">
-            <button class="btn-danger-sm" onclick="deleteSet('${escHtml(s.id)}','${escHtml(s.name)}')">Delete Set</button>
-            <button class="btn-ghost-sm" onclick="clearReports('${escHtml(s.id)}','${escHtml(s.name)}')">Clear Reports</button>
+          <div class="report-card__badges">
+            ${s.hidden ? '<span class="badge badge--hidden">hidden</span>' : ''}
+            <span class="badge badge--reports">${s.report_count} report${s.report_count !== 1 ? 's' : ''}</span>
           </div>
         </div>
-        <div class="report-card__reasons">${reasonPills(s.reports)}</div>
+        <div class="report-card__detail" hidden>
+          <div class="report-card__reasons" style="margin-bottom:var(--s4)">${reasonPills(s.reports)}</div>
+          <div class="report-card__body"><div class="empty-state">Loading…</div></div>
+          <div class="report-card__footer">
+            <button class="btn btn-primary" data-act="private">Make private</button>
+            <button class="btn btn-ghost" data-act="dismiss">Dismiss reports</button>
+            <button class="btn-danger-sm" style="height:36px" data-act="delete">Delete set</button>
+          </div>
+        </div>
       </div>
-    `).join('');
+    `).join('') + '</div>';
+
+    container.querySelectorAll('.report-card').forEach((card, i) => {
+      const s = d.reported_sets[i];
+      const header = card.querySelector('.report-card__header');
+      const detail = card.querySelector('.report-card__detail');
+      let loaded = false;
+      async function toggle() {
+        const open = detail.hidden;
+        detail.hidden = !open;
+        header.setAttribute('aria-expanded', String(open));
+        if (open && !loaded) {
+          loaded = true;
+          const body = card.querySelector('.report-card__body');
+          try {
+            const det = await apiFetch(`/admin/sets/${encodeURIComponent(s.id)}`);
+            const safeUrl = u => /^https?:\/\//i.test(u || '') ? escHtml(u) : '';
+            body.innerHTML = `
+              <div class="report-card__detail-top">
+                ${safeUrl(det.cover_image) ? `<img class="report-card__cover" src="${safeUrl(det.cover_image)}" alt="Cover" loading="lazy">` : '<div class="set-card__cover-placeholder" style="width:96px;height:96px"></div>'}
+                <div class="report-card__meta">${(det.characters || []).length} characters · ${det.public ? 'Public' : 'Private'}</div>
+              </div>
+              <div class="report-card__grid">${(det.characters || []).map(c => `
+                <div class="char-thumb">
+                  ${safeUrl(c.image) ? `<img src="${safeUrl(c.image)}" alt="${escHtml(c.name)}" loading="lazy">` : '<div class="set-card__cover-placeholder" style="width:72px;height:72px"></div>'}
+                  <div class="char-thumb__name">${escHtml(c.name)}</div>
+                </div>`).join('')}</div>`;
+          } catch (e) {
+            loaded = false;
+            body.innerHTML = '<div class="empty-state">Failed to load set.</div>';
+            showToast('Error: ' + e.message, 'error');
+          }
+        }
+      }
+      header.addEventListener('click', toggle);
+      header.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      });
+      card.querySelector('[data-act="private"]').addEventListener('click', () => makePrivate(s.id, s.name, card));
+      card.querySelector('[data-act="dismiss"]').addEventListener('click', () => clearReports(s.id, s.name));
+      card.querySelector('[data-act="delete"]').addEventListener('click', () => deleteSet(s.id, s.name));
+    });
   } catch (e) {
     showToast('Failed to load reports: ' + e.message, 'error');
+  }
+}
+
+async function makePrivate(id, name, card) {
+  try {
+    await apiFetch(`/admin/sets/${encodeURIComponent(id)}/make-private`, { method: 'POST' });
+    showToast('Made private', 'success');
+    card.remove();
+    loadStats();
+    const list = document.getElementById('reports-list');
+    if (!list.querySelector('.report-card')) list.innerHTML = '<div class="empty-state">No reported sets.</div>';
+  } catch (e) {
+    showToast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -784,7 +978,7 @@ async function deleteSet(id, name) {
   if (!confirm(`Delete character set "${name}"? This cannot be undone.`)) return;
   try {
     await apiFetch(`/admin/sets/${id}`, { method: 'DELETE' });
-    showToast(`Deleted set "${name}"`, 'success');
+    showToast(`Deleted set "${name}" and its images`, 'success');
     loadReports();
     loadStats();
   } catch (e) {
@@ -808,6 +1002,7 @@ sectionLoaders.content = loadReports;
 async function openUserSets(userId, username) {
   document.getElementById('modal-title').textContent = username + "'s Sets";
   document.getElementById('modal-body').innerHTML = '<div class="empty-state">Loading…</div>';
+  document.querySelector('#sets-modal .modal').classList.remove('modal--narrow');
   document.getElementById('sets-modal').hidden = false;
   document.body.style.overflow = 'hidden';
 
@@ -854,7 +1049,9 @@ async function openUserSets(userId, username) {
 }
 
 function closeModal() {
-  document.getElementById('sets-modal').hidden = true;
+  const m = document.getElementById('sets-modal');
+  m.hidden = true;
+  m.querySelector('.modal').classList.remove('modal--narrow');
   document.body.style.overflow = '';
 }
 
