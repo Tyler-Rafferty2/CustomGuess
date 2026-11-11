@@ -730,6 +730,13 @@ document.getElementById('users-search').addEventListener('input', e => {
   }, 300);
 });
 
+document.getElementById('users-tbody').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  if (b.dataset.act === 'sets') openUserSets(b.dataset.id, b.dataset.username);
+  else if (b.dataset.act === 'delete') deleteUser(b.dataset.id, b.dataset.username);
+});
+
 async function loadUsers() {
   const params = `page=${usersPage}&limit=${USERS_LIMIT}` + (usersFilter !== 'all' ? `&filter=${usersFilter}` : '') +
     (usersQuery.length >= 2 ? `&q=${encodeURIComponent(usersQuery)}` : '');
@@ -749,8 +756,8 @@ async function loadUsers() {
           <td>${fmtDate(u.created_at)}</td>
           <td>${u.last_login ? fmtDate(u.last_login) : '—'}</td>
           <td>${u.last_played ? fmtDate(u.last_played) : '—'}</td>
-          <td><button class="btn-ghost-sm" onclick="openUserSets('${escHtml(u.id)}','${escHtml(u.username)}')">Sets</button></td>
-          <td><button class="btn-danger-sm" onclick="deleteUser('${escHtml(u.id)}','${escHtml(u.username)}')">Delete</button></td>
+          <td><button class="btn-ghost-sm" data-act="sets" data-id="${escHtml(u.id)}" data-username="${escHtml(u.username)}">Sets</button></td>
+          <td><button class="btn-danger-sm" data-act="delete" data-id="${escHtml(u.id)}" data-username="${escHtml(u.username)}">Delete</button></td>
         </tr>
       `).join('');
     }
@@ -771,6 +778,8 @@ const PREVIEW_LABELS = [
   ['hosted_lobbies', 'Hosted lobbies'],
 ];
 
+let deleteModalToken = 0;
+
 async function deleteUser(id, username) {
   const modal = document.getElementById('sets-modal');
   document.getElementById('modal-title').textContent = 'Delete ' + username + '?';
@@ -779,14 +788,17 @@ async function deleteUser(id, username) {
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
 
+  const token = ++deleteModalToken;
   let p;
   try {
     p = await apiFetch(`/admin/users/${encodeURIComponent(id)}/deletion-preview`);
   } catch (e) {
+    if (token !== deleteModalToken) return;
     closeModal();
     showToast('Failed to load preview: ' + e.message, 'error');
     return;
   }
+  if (token !== deleteModalToken) return;
   const rows = PREVIEW_LABELS.filter(([k]) => p[k] > 0)
     .map(([k, label]) => `<li><span>${escHtml(label)}</span><span class="preview-list__n">${Number(p[k])}</span></li>`).join('');
   document.getElementById('modal-body').innerHTML = `
@@ -836,6 +848,11 @@ function lobbyStatusBadge(lobby) {
   return '<span class="badge badge--waiting">Waiting</span>';
 }
 
+document.getElementById('lobbies-tbody').addEventListener('click', e => {
+  const b = e.target.closest('button[data-act="delete"]');
+  if (b) deleteLobby(b.dataset.id, b.dataset.code);
+});
+
 async function loadLobbies() {
   try {
     const d = await apiFetch(`/admin/lobbies?active=${lobbiesActiveOnly}`);
@@ -852,7 +869,7 @@ async function loadLobbies() {
         <td>${lobbyStatusBadge(l)}</td>
         <td>${escHtml(l.character_set_name)}</td>
         <td>${fmtDateTime(l.last_active)}</td>
-        <td><button class="btn-danger-sm" onclick="deleteLobby('${escHtml(l.id)}','${escHtml(l.code)}')">Delete</button></td>
+        <td><button class="btn-danger-sm" data-act="delete" data-id="${escHtml(l.id)}" data-code="${escHtml(l.code)}">Delete</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -952,7 +969,7 @@ async function loadReports() {
       header.addEventListener('keydown', e => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
       });
-      card.querySelector('[data-act="private"]').addEventListener('click', () => makePrivate(s.id, s.name, card));
+      card.querySelector('[data-act="private"]').addEventListener('click', () => makePrivate(s.id, card));
       card.querySelector('[data-act="dismiss"]').addEventListener('click', () => clearReports(s.id, s.name));
       card.querySelector('[data-act="delete"]').addEventListener('click', () => deleteSet(s.id, s.name));
     });
@@ -961,7 +978,7 @@ async function loadReports() {
   }
 }
 
-async function makePrivate(id, name, card) {
+async function makePrivate(id, card) {
   try {
     await apiFetch(`/admin/sets/${encodeURIComponent(id)}/make-private`, { method: 'POST' });
     showToast('Made private', 'success');
@@ -1049,6 +1066,7 @@ async function openUserSets(userId, username) {
 }
 
 function closeModal() {
+  deleteModalToken++;
   const m = document.getElementById('sets-modal');
   m.hidden = true;
   m.querySelector('.modal').classList.remove('modal--narrow');
