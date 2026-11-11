@@ -469,7 +469,7 @@ func (s *PlayerService) GetPublicSets(callerID *uuid.UUID, params SetListParams)
 
     base := s.DB.Model(&models.CharacterSet{}).
         Where("character_sets.public = ?", true).
-        Where("character_sets.report_count < ?", reportThreshold)
+        Where("character_sets.report_count < ?", ReportThreshold)
 
     if params.Search != "" {
         like := "%" + strings.ToLower(params.Search) + "%"
@@ -701,7 +701,7 @@ func (s *PlayerService) GetStats(user *models.User) (*StatsResponse, error) {
     return resp, nil
 }
 
-const reportThreshold = 5
+const ReportThreshold = 5
 
 func validateCategories(categories []models.Category) error {
     for _, c := range categories {

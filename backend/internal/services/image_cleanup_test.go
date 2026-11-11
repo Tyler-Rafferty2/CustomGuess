@@ -107,3 +107,11 @@ func TestCleanup_NilSafe(t *testing.T) {
 	(*ImageCleaner)(nil).Cleanup([]string{r2URL("a.png")})
 	(&ImageCleaner{}).Cleanup([]string{r2URL("a.png")})
 }
+
+func TestCleanup_NilDBDeletesNothing(t *testing.T) {
+	fs := &fakeStore{}
+	(&ImageCleaner{Store: fs}).Cleanup([]string{r2URL("a.png")})
+	if len(fs.deleted) != 0 {
+		t.Fatalf("expected no deletes without DB, got %v", fs.deleted)
+	}
+}

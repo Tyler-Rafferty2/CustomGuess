@@ -56,8 +56,13 @@ func (c *ImageCleaner) cleanup(urls []string) {
 		return
 	}
 
+	if c.DB == nil {
+		log.Printf("image cleanup: no DB configured, skipping %d candidate(s) rather than risk deleting in-use images", len(candidates))
+		return
+	}
+
 	inUse := map[string]bool{}
-	if c.DB != nil {
+	{
 		var covers []string
 		if err := c.DB.Table("character_sets").Where("cover_image IN ?", candidates).Pluck("cover_image", &covers).Error; err != nil {
 			log.Printf("image cleanup: cover lookup failed, skipping cleanup: %v", err)
@@ -79,14 +84,15 @@ func (c *ImageCleaner) cleanup(urls []string) {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
 	for _, u := range candidates {
 		if inUse[u] {
 			continue
 		}
 		key := strings.TrimPrefix(u, prefix)
-		if err := c.Store.DeleteObject(ctx, key); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		err := c.Store.DeleteObject(ctx, key)
+		cancel()
+		if err != nil {
 			log.Printf("image cleanup: failed to delete %s: %v", key, err)
 		}
 	}

@@ -799,12 +799,14 @@ async function deleteUser(id, username) {
     return;
   }
   if (token !== deleteModalToken) return;
+  const label = p.username || p.email || id;
+  document.getElementById('modal-title').textContent = 'Delete ' + label + '?';
   const rows = PREVIEW_LABELS.filter(([k]) => p[k] > 0)
     .map(([k, label]) => `<li><span>${escHtml(label)}</span><span class="preview-list__n">${Number(p[k])}</span></li>`).join('');
   document.getElementById('modal-body').innerHTML = `
-    <p style="color:var(--text-600)">This permanently deletes <strong>${escHtml(p.username)}</strong>${p.email ? ' (' + escHtml(p.email) + ')' : ''} and cannot be undone. The following will be removed:</p>
+    <p style="color:var(--text-600)">This permanently deletes <strong>${escHtml(label)}</strong>${p.email ? ' (' + escHtml(p.email) + ')' : ''} and cannot be undone. The following will be removed:</p>
     ${rows ? `<ul class="preview-list">${rows}</ul>` : '<p style="margin:var(--s3) 0;color:var(--text-400)">No linked data.</p>'}
-    <label for="delete-confirm-input" style="color:var(--text-600)">Type <strong>${escHtml(p.username)}</strong> to confirm</label>
+    <label for="delete-confirm-input" style="color:var(--text-600)">Type <strong>${escHtml(label)}</strong> to confirm</label>
     <input type="text" class="confirm-input" id="delete-confirm-input" autocomplete="off">
     <div class="modal__footer">
       <button class="btn btn-ghost" id="delete-cancel-btn">Cancel</button>
@@ -812,19 +814,19 @@ async function deleteUser(id, username) {
     </div>`;
   const input = document.getElementById('delete-confirm-input');
   const btn = document.getElementById('delete-confirm-btn');
-  input.addEventListener('input', () => { btn.disabled = input.value !== p.username; });
+  input.addEventListener('input', () => { btn.disabled = input.value !== label; });
   document.getElementById('delete-cancel-btn').addEventListener('click', closeModal);
   btn.addEventListener('click', async () => {
-    if (input.value !== p.username) return;
+    if (input.value !== label) return;
     btn.disabled = true;
     try {
       await apiFetch(`/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE' });
-      showToast(`Deleted user ${p.username}`, 'success');
+      showToast(`Deleted user ${label}`, 'success');
       closeModal();
       loadUsers();
       loadStats();
     } catch (e) {
-      btn.disabled = input.value !== p.username;
+      btn.disabled = input.value !== label;
       showToast('Delete failed: ' + e.message, 'error');
     }
   });

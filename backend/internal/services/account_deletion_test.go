@@ -84,6 +84,9 @@ func seedFullUser(t *testing.T, db *gorm.DB) uuid.UUID {
 	mustCreate(t, db, &models.SetReport{UserID: o.ID, SetID: uSet.ID, Reason: models.ReportReasonSpam})
 	mustCreate(t, db, &models.SetLike{UserID: u.ID, SetID: oSet.ID})
 	mustCreate(t, db, &models.SetReport{UserID: u.ID, SetID: oSet.ID, Reason: models.ReportReasonOffensive})
+	if err := db.Model(&models.CharacterSet{}).Where("id = ?", oSet.ID).Update("report_count", 3).Error; err != nil {
+		t.Fatal(err)
+	}
 
 	// L1: hosted by the doomed user, survivor plays in it.
 	l1 := seedLobby(t, db, u.ID, uSet.ID, "DOOM1")
@@ -229,6 +232,9 @@ func TestDeleteAccount_LeavesOtherUsersIntact(t *testing.T) {
 	}
 	if n := countRows(t, db, "characters", "set_id", oSet.ID); n != 6 {
 		t.Fatalf("survivor characters = %d", n)
+	}
+	if oSet.ReportCount != 2 {
+		t.Fatalf("survivor set report_count = %d, want 2", oSet.ReportCount)
 	}
 	if n := countRows(t, db, "sessions", "user_id", other.ID); n != 1 {
 		t.Fatalf("survivor sessions = %d", n)

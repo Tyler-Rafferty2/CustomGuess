@@ -10,9 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrUserNotFound is returned when the user to preview or delete does not exist.
-var ErrUserNotFound = errors.New("user not found")
-
 // deletedUserName replaces the opponent name on other users' game records.
 const deletedUserName = "Deleted user"
 
@@ -242,6 +239,9 @@ func (s *AccountDeletionService) Delete(userID uuid.UUID) error {
 			if err := tx.Where("id IN ?", sc.playerIDs).Delete(&models.Player{}).Error; err != nil {
 				return err
 			}
+		}
+		if err := tx.Exec("UPDATE character_sets SET report_count = GREATEST(report_count - 1, 0) WHERE id IN (SELECT set_id FROM set_reports WHERE user_id = ?)", userID).Error; err != nil {
+			return err
 		}
 		for _, m := range []interface{}{
 			&models.Session{},

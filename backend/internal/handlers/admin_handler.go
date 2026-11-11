@@ -318,7 +318,7 @@ func (h *AdminHandler) ListReports(w http.ResponseWriter, r *http.Request) {
 			CreatorUsername: creatorMap[s.UserID],
 			ReportCount:     s.ReportCount,
 			Public:          s.Public,
-			Hidden:          s.ReportCount >= 5,
+			Hidden:          s.ReportCount >= services.ReportThreshold,
 			Reports:         entries,
 		})
 	}
