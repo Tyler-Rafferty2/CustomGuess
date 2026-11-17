@@ -1,8 +1,11 @@
 import { Fraunces, DM_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { UserProvider } from "@/context/UserContext";
 import { PresenceProvider } from "@/context/PresenceContext";
 import { API_URL } from "@/lib/api";
+
+const GA_MEASUREMENT_ID = "G-Q90RJ7CMSH";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -142,6 +145,18 @@ export default function RootLayout({ children }) {
           data-website-id="82b27817-dfc1-424d-af39-bea327b77cbb"
           src={`${API_URL}/analytics-collect/script.js`}
         />
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         <UserProvider><PresenceProvider>{children}</PresenceProvider></UserProvider>
       </body>
     </html>
