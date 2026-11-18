@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { loadFraunces } from "@/lib/ogFont";
 import { SERVER_API_URL } from "@/lib/api";
 import { parseSetIdFromSlug } from "@/lib/slug";
 import { imgUrl } from "@/lib/imgUrl";
@@ -68,9 +69,7 @@ function genericImage(fraunces) {
 export default async function Image({ params }) {
     const { slug } = await params;
 
-    const fraunces = await fetch(
-        "https://fonts.gstatic.com/s/fraunces/v31/6NUu8FyLNQOQZAnv9ZwNjucMHVn85Ni7emAe9lKqZTnDSg.woff2"
-    ).then((r) => r.arrayBuffer());
+    const fraunces = await loadFraunces();
 
     const id = parseSetIdFromSlug(slug);
     const set = id ? await fetchSet(id) : null;

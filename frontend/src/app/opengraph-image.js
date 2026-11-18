@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { loadFraunces } from "@/lib/ogFont";
 
 export const runtime = "edge";
 export const alt = "CustomGuess – Multiplayer Deduction Game";
@@ -6,9 +7,7 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 export default async function Image() {
-  const fraunces = await fetch(
-    "https://fonts.gstatic.com/s/fraunces/v31/6NUu8FyLNQOQZAnv9ZwNjucMHVn85Ni7emAe9lKqZTnDSg.woff2"
-  ).then((r) => r.arrayBuffer());
+  const fraunces = await loadFraunces();
 
   const cards = Array.from({ length: 6 });
 

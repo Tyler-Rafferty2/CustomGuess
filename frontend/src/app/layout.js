@@ -52,13 +52,11 @@ export const metadata = {
     siteName: "CustomGuess",
     type: "website",
     locale: "en_US",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "CustomGuess – Play Custom Guess Who Online" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "CustomGuess – Play Custom Guess Who Online",
     description: "Custom Guess Who online. Create your own characters, invite a friend, and play for free.",
-    images: ["/opengraph-image"],
   },
   verification: {
     google: "krRAsrBrHBYFsLTQKmjxQPYpR0vHAP6_LfGL4SC2njo",
