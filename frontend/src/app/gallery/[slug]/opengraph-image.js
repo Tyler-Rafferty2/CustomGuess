@@ -75,19 +75,24 @@ export default async function Image({ params }) {
     const set = id ? await fetchSet(id) : null;
     if (!set) return genericImage(fraunces);
 
-    const thumbUrls = (set.characters || []).slice(0, 4).map((c) => imgUrl(c.image)).filter(Boolean);
-    let thumbs;
-    try {
-        thumbs = await Promise.all(
-            thumbUrls.map(async (url) => {
-                const buf = await fetch(url).then((r) => r.arrayBuffer());
-                const base64 = Buffer.from(buf).toString("base64");
-                return `data:image/jpeg;base64,${base64}`;
-            })
-        );
-    } catch {
-        thumbs = [];
-    }
+    // Satori only decodes PNG/JPEG/GIF; a mislabeled or WebP thumb throws and
+    // blanks the whole image, so label by real type and drop anything else.
+    const SUPPORTED = ["image/png", "image/jpeg", "image/gif"];
+    const thumbUrls = (set.characters || []).slice(0, 8).map((c) => imgUrl(c.image)).filter(Boolean);
+    const fetched = await Promise.all(
+        thumbUrls.map(async (url) => {
+            try {
+                const r = await fetch(url);
+                const type = (r.headers.get("content-type") || "").split(";")[0].trim();
+                if (!r.ok || !SUPPORTED.includes(type)) return null;
+                const base64 = Buffer.from(await r.arrayBuffer()).toString("base64");
+                return `data:${type};base64,${base64}`;
+            } catch {
+                return null;
+            }
+        })
+    );
+    const thumbs = fetched.filter(Boolean).slice(0, 4);
 
     return new ImageResponse(
         (
@@ -106,7 +111,7 @@ export default async function Image({ params }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 20, flex: 1 }}>
                     <div
                         style={{
-                            display: "inline-flex",
+                            display: "flex",
                             background: "#D9572B",
                             color: "#F7F3EE",
                             borderRadius: 8,
@@ -114,7 +119,7 @@ export default async function Image({ params }) {
                             fontSize: 20,
                             fontWeight: 600,
                             fontFamily: "sans-serif",
-                            width: "fit-content",
+                            alignSelf: "flex-start",
                         }}
                     >
                         {set.characterCount} characters · Free online

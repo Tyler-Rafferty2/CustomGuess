@@ -76,7 +76,7 @@ export default async function Image() {
           <div
             style={{
               marginTop: 12,
-              display: "inline-flex",
+              display: "flex",
               background: "#D9572B",
               color: "#F7F3EE",
               borderRadius: 8,
@@ -84,7 +84,7 @@ export default async function Image() {
               fontSize: 22,
               fontWeight: 600,
               fontFamily: "sans-serif",
-              width: "fit-content",
+              alignSelf: "flex-start",
             }}
           >
             Play free — no account needed
@@ -146,7 +146,7 @@ export default async function Image() {
                   <div
                     style={{
                       position: "absolute",
-                      inset: 0,
+                      top: 0, left: 0, right: 0, bottom: 0,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
