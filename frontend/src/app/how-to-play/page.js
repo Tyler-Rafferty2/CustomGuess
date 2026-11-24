@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "How to Play Custom Guess Who Online | CustomGuess",
+  title: "How to Play Custom Guess Who Online",
   description:
     "Learn the rules of Custom Guess Who: how to build a character set, ask yes/no questions, eliminate suspects, and win. Play free online with friends.",
   alternates: {

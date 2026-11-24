@@ -130,7 +130,7 @@ function CharacterCard({ char, index }) {
 /* ─────────────────────────────────────────────
    Page
 ───────────────────────────────────────────── */
-export default function HomePageClient({ popularSets = [] }) {
+export default function HomePageClient({ popularSets = [], faq = [] }) {
   const { user, isLoading } = useContext(UserContext);
   const router = useRouter();
   const [lobbyCode, setLobbyCode] = useState("");
@@ -295,7 +295,7 @@ export default function HomePageClient({ popularSets = [] }) {
                 fontSize: 15, fontWeight: 400, lineHeight: 1.6,
                 color: T.text600, marginTop: 12,
               }}>
-                Ask questions. Eliminate suspects. Identify your opponent&apos;s hidden character before they find yours.
+                Make your own Guess Who and play online free with a friend. Ask questions, eliminate suspects, and find their hidden character before they find yours.
               </p>
             </div>
 
@@ -425,6 +425,40 @@ export default function HomePageClient({ popularSets = [] }) {
               </p>
             </div>
           </div>
+
+          {faq.length > 0 && (
+            <div style={{ marginTop: 40 }}>
+              <h2 style={{
+                fontFamily: "'Fraunces', serif",
+                fontSize: 20, fontWeight: 700, color: T.text900,
+                letterSpacing: "-0.02em", marginBottom: 16,
+              }}>
+                Frequently Asked Questions
+              </h2>
+              <dl style={{ margin: 0, display: "grid", gap: 20 }}>
+                {faq.map(({ q, a }) => (
+                  <div key={q}>
+                    <dt>
+                      <h3 style={{
+                        fontFamily: "'DM Sans', sans-serif",
+                        fontSize: 16, fontWeight: 600, lineHeight: 1.4,
+                        color: T.text900, marginBottom: 4,
+                      }}>
+                        {q}
+                      </h3>
+                    </dt>
+                    <dd style={{
+                      margin: 0,
+                      fontFamily: "'DM Sans', sans-serif",
+                      fontSize: 14, lineHeight: 1.65, color: T.text600,
+                    }}>
+                      {a}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
 
           {popularSets.length > 0 && (
             <div style={{ marginTop: 32 }}>
